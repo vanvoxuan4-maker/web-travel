@@ -1,0 +1,58 @@
+/* ==========================================================================
+   HEADER & NAVBAR - WebTravel Emerald Green Design System
+   Phu trach: Thanh dieu huong co dinh, Logo, Menu lien ket, Nut hanh dong
+   ========================================================================== */
+
+/* GLOBAL HEADING TEXT COLOR FIX - Exclude hero white text */
+h1:not(.hero-title-white), h2:not(.hero-title-white), h3, h4, h5, h6, .brand-logo, .section-title-wrap h2 {
+  background: none;
+  background-clip: unset;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: #111827;
+  color: #111827;
+  opacity: 1;
+}
+
+/* Ensure Hero Text Remains Crisp White */
+.hero-title-white {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.hero-subtitle-white {
+  color: rgba(255, 255, 255, 0.9) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* --- NAVBAR --- */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 1.1rem 0;
+  transition: var(--transition-normal);
+}
+.navbar-container { display: flex; align-items: center; justify-content: space-between; }
+.brand-logo { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-heading); font-size: 1.65rem; font-weight: 700; color: #111827 !important; -webkit-text-fill-color: #111827 !important; letter-spacing: -0.01em; }
+.brand-icon { color: var(--accent-emerald) !important; font-size: 1.7rem; }
+.brand-logo .highlight { font-family: var(--font-body); font-style: italic; font-weight: 500; color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; font-size: 1.1rem; margin-left: 0.3rem; }
+.nav-links { display: flex; gap: 2.5rem; }
+.nav-link { font-weight: 500; font-size: 0.95rem; color: #4b5563 !important; -webkit-text-fill-color: #4b5563 !important; transition: var(--transition-fast); position: relative; }
+.nav-link:hover, .nav-link.active { color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; }
+.nav-link.active::after { content: ''; position: absolute; bottom: -6px; left: 0; width: 100%; height: 2px; background: var(--accent-emerald); }
+.header-actions { display: flex; align-items: center; gap: 1rem; }
+
+/* --- BUTTONS & BADGES --- */
+.btn-primary { background: var(--accent-emerald) !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; font-weight: 600; font-size: 0.9rem; padding: 0.75rem 1.5rem; border-radius: var(--radius-sm); transition: var(--transition-fast); display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25); }
+.btn-primary:hover { background: var(--accent-forest) !important; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35); }
+.btn-secondary { background: #ffffff !important; color: #111827 !important; -webkit-text-fill-color: #111827 !important; border: 1px solid var(--glass-border); font-weight: 600; font-size: 0.9rem; padding: 0.75rem 1.25rem; border-radius: var(--radius-sm); transition: var(--transition-fast); display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-secondary:hover { border-color: var(--accent-emerald); color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; background: #f0fdf4 !important; }
+.badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.badge-terracotta, .badge-emerald { background: #d1fae5 !important; color: #047857 !important; -webkit-text-fill-color: #047857 !important; border: 1px solid rgba(5, 150, 105, 0.25); }
+.badge-forest { background: rgba(5, 150, 105, 0.12) !important; color: #047857 !important; -webkit-text-fill-color: #047857 !important; border: 1px solid rgba(5, 150, 105, 0.25); }
+.badge-gold { background: #fef3c7 !important; color: #b45309 !important; -webkit-text-fill-color: #b45309 !important; border: 1px solid rgba(217, 119, 6, 0.25); }

@@ -1,0 +1,23 @@
+/* ==========================================================================
+   WEB TRAVEL - EMERALD GREEN & PURE WHITE DESIGN SYSTEM
+   Master Orchestrator: imports all modular CSS components
+   Architecture: Modular (Split from monolithic 3200-line file for maintainability)
+   ========================================================================== */
+
+/* 1. Header, Navbar, Buttons, Badges */
+@import url('./modules/header-nav.css');
+
+/* 2. Hero Slider, Search Box & Bento Filter Bar */
+@import url('./modules/hero-slider.css');
+
+/* 3. Bento Grid Tour Cards */
+@import url('./modules/tour-cards.css');
+
+/* 4. Travel Tools Section (Budget, Builder, Currency, Packing Checklist) */
+@import url('./modules/tools-section.css');
+
+/* 5. Booking Modal & VietQR Payment Engine */
+@import url('./modules/modals.css');
+
+/* 6. Standalone Tour Detail Page (Hero, Gallery, Schedule, Itinerary, Sidebar) */
+@import url('./modules/tour-detail.css');

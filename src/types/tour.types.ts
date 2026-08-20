@@ -1,0 +1,133 @@
+export type TourCategory = 'domestic' | 'international' | 'all';
+export type TourTier = 'budget' | 'standard' | 'luxury';
+
+export interface TransportLeg {
+  date: string;
+  time: string;
+  arriveTime: string;
+  flightNo: string;
+  airline: string;
+  from: string;
+  to: string;
+}
+
+export interface TransportInfo {
+  outbound: TransportLeg;
+  inbound: TransportLeg;
+}
+
+export interface DepartureDate {
+  date: string;
+  dayOfWeek?: string;
+  monthLabel?: string;
+  sku?: string;
+  seats: number;
+  priceAdult: number;
+  priceChild?: number;
+  priceToddler?: number;
+  priceInfant?: number;
+  singleRoomSurcharge?: number;
+  label: string | null;
+  transport?: TransportInfo;
+}
+
+export interface HotelSpecs {
+  hotelName: string;
+  roomType: string;
+  inclusions: string[];
+}
+
+export interface GalleryItem {
+  url: string;
+  title: string;
+}
+
+export interface RefundPolicyItem {
+  condition: string;
+  fee: string;
+}
+
+export interface FAQItem {
+  q: string;
+  a: string;
+}
+
+export interface ItineraryDay {
+  day: number;
+  title: string;
+  morning: string;
+  afternoon: string;
+  evening: string;
+  activities: string;
+}
+
+export interface Tour {
+  id: string;
+  code: string;
+  sku: string;
+  title: string;
+  shortTitle: string;
+  destination: string;
+  category: 'domestic' | 'international';
+  type: string;
+  departureFrom: string;
+  seatsLeft: number;
+  departureSchedule: string;
+  availableDates: string[];
+  departureDates: DepartureDate[];
+  durationDays: number;
+  durationNights: number;
+  priceAdult: number;
+  priceChild: number;
+  priceToddler: number;
+  priceInfant: number;
+  tier: TourTier;
+  tierName: string;
+  hotelTier: string;
+  starRating: number;
+  starCategory: TourTier;
+  leiScore: string;
+  esgScore: string;
+  hotelSpecs: HotelSpecs;
+  gallery: GalleryItem[];
+  inclusionsList: string[];
+  exclusionsList: string[];
+  refundPolicy: RefundPolicyItem[];
+  faqs: FAQItem[];
+  rating: number;
+  reviewsCount: number;
+  badge: string;
+  image: string;
+  highlights: string[];
+  itinerary: ItineraryDay[];
+  overview?: string;
+  esgDesc?: string;
+  leiDesc?: string;
+}
+
+export interface PassengerCounts {
+  adults: number;
+  children: number;
+  toddlers: number;
+  infants: number;
+}
+
+export interface BookingFormState {
+  tourId: string;
+  selectedDate: string;
+  adults: number;
+  children: number;
+  toddlers: number;
+  infants: number;
+  singleRoom: boolean;
+  addonInsurance: boolean;
+  addonPickup: boolean;
+  couponCode: string;
+  couponDiscount: number;
+  payOption: 'full' | 'deposit';
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  customerIdCard: string;
+  customerNotes: string;
+}

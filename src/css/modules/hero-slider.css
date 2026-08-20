@@ -1,0 +1,275 @@
+/* ================================================================================
+   HERO SECTION, SEARCH BOX & HERO SLIDER CAROUSEL - WebTravel Design System
+   ================================================================================ */
+
+/* --- HERO SECTION --- */
+.hero-section {
+  padding: 9.5rem 0 4.5rem;
+  text-align: center;
+  position: relative;
+  border-bottom: 1px solid var(--glass-border);
+  background-color: #ffffff !important;
+  background-image: radial-gradient(circle at 50% 10%, rgba(5, 150, 105, 0.06) 0%, transparent 60%);
+}
+
+.hero-editorial-tag {
+  font-family: var(--font-heading);
+  font-style: italic;
+  font-size: 1.15rem;
+  color: var(--accent-emerald) !important;
+  -webkit-text-fill-color: var(--accent-emerald) !important;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.hero-title {
+  font-family: var(--font-heading);
+  font-size: 3.6rem;
+  font-weight: 700;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  margin-bottom: 1.25rem;
+  line-height: 1.15;
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  color: #4b5563 !important;
+  -webkit-text-fill-color: #4b5563 !important;
+  max-width: 680px;
+  margin: 0 auto 2.5rem;
+  font-weight: 400;
+}
+
+/* --- HERO SEARCH BOX --- */
+.hero-search-box {
+  background: #ffffff !important;
+  border: 1px solid var(--glass-border);
+  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0.75rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+}
+
+.search-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  background: #f9fafb !important;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(17, 24, 39, 0.05);
+}
+
+.search-input-wrap i { color: #059669; }
+.search-input-wrap input, .search-input-wrap select {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+
+/* ==========================================================================
+   DYNAMIC BACKGROUND HERO BANNER CAROUSEL STYLES
+   ========================================================================== */
+.hero-section {
+  position: relative !important;
+  overflow: hidden !important;
+  min-height: 560px !important;
+  text-align: center !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  background-color: #0f172a !important;
+  padding: 0 !important;
+}
+
+.hero-bg-slides-wrapper {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+.hero-bg-slide {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-size: cover !important;
+  background-position: center !important;
+  opacity: 0 !important;
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 1;
+}
+
+.hero-bg-slide.active {
+  opacity: 1 !important;
+  z-index: 2 !important;
+}
+
+.hero-content-overlay {
+  position: relative !important;
+  z-index: 10 !important;
+  padding: 9.5rem 0 4rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+.hero-editorial-tag, .hero-promo-badge {
+  font-family: var(--font-heading);
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 1.25rem !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.hero-title-white {
+  font-family: var(--font-heading) !important;
+  font-size: 3.5rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.85) !important;
+  margin-bottom: 1.25rem !important;
+  line-height: 1.15 !important;
+}
+
+.hero-subtitle-white {
+  font-size: 1.15rem !important;
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85) !important;
+  max-width: 720px !important;
+  margin: 0 auto 1.5rem !important;
+  font-weight: 500 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+/* Background Carousel Arrow Buttons */
+.hero-slider-arrow {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 25 !important;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+  font-size: 1.2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.25s ease !important;
+}
+
+.hero-slider-arrow:hover {
+  background: rgba(5, 150, 105, 0.9) !important;
+  border-color: var(--accent-emerald) !important;
+  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.4) !important;
+}
+
+.hero-slider-arrow.prev { left: 2rem !important; }
+.hero-slider-arrow.next { right: 2rem !important; }
+
+/* Dot Indicators */
+.hero-slider-dots {
+  display: flex !important;
+  gap: 0.6rem !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin-top: 2rem !important;
+  z-index: 25 !important;
+}
+
+.hero-dot {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  padding: 0 !important;
+}
+
+.hero-dot.active {
+  width: 32px !important;
+  border-radius: 12px !important;
+  background: var(--accent-emerald) !important;
+  border-color: var(--accent-emerald) !important;
+}
+
+/* ==========================================================================
+   BENTO GRID EXPLORER SPACING & FILTER BAR HIERARCHY
+   ========================================================================== */
+.tours-grid-section {
+  padding: 9.5rem 0 4rem 0 !important;
+}
+
+.section-header {
+  margin-bottom: 2.5rem !important;
+}
+
+.section-title-wrap h2 {
+  font-size: 2.2rem !important;
+  margin-top: 0.4rem !important;
+}
+
+.filter-star-bar {
+  display: flex !important;
+  gap: 0.8rem !important;
+  align-items: center !important;
+  background: #ffffff !important;
+  padding: 0.85rem 1.5rem !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02) !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+  width: 100% !important;
+}
+
+.filter-star-btn {
+  padding: 0.45rem 1.15rem !important;
+  border-radius: 30px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  border: 1px solid var(--glass-border) !important;
+  background: #ffffff !important;
+  color: var(--text-main) !important;
+  cursor: pointer !important;
+  transition: all 0.25s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.4rem !important;
+}
+
+.filter-star-btn:hover {
+  border-color: var(--accent-emerald) !important;
+  color: var(--accent-emerald) !important;
+  background: #f0fdf4 !important;
+}
+
+.filter-star-btn.active {
+  background: var(--accent-emerald) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-emerald) !important;
+}

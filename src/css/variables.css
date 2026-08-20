@@ -1,0 +1,44 @@
+/* ==========================================================================
+   WEB TRAVEL - EMERALD GREEN & WHITE DESIGN SYSTEM VARIABLES
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Fresh Emerald Green & Crisp White */
+  --bg-primary: #ffffff;       /* Pure Crisp White */
+  --bg-secondary: #f9fafb;     /* Soft Light Slate/White */
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0fdf4;    /* Light Emerald Tint on Hover */
+  
+  /* Text Colors */
+  --text-main: #111827;        /* Deep Charcoal Black */
+  --text-muted: #4b5563;       /* Muted Dark Slate */
+  --text-highlight: #059669;   /* Emerald Green Highlight */
+  
+  /* Accent Colors - Fresh Nature Emerald */
+  --accent-emerald: #059669;   /* Primary Emerald Green */
+  --accent-forest: #047857;    /* Deep Forest Green */
+  --accent-mint: #d1fae5;      /* Light Mint Green */
+  --accent-gold: #d97706;      /* Warm Amber Gold */
+  --accent-rose: #e11d48;      /* Soft Coral Rose */
+  
+  /* Glass & Borders */
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(17, 24, 39, 0.08);
+  --glass-border-hover: rgba(5, 150, 105, 0.35);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  --glass-shadow-hover: 0 20px 40px rgba(5, 150, 105, 0.12);
+  
+  /* Typography - Playfair Display Serif + Plus Jakarta Sans */
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* Layout Spacing */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 9999px;
+  
+  /* Transitions */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}

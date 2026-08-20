@@ -1,0 +1,1481 @@
+/* ================================================================================
+   STANDALONE TOUR DETAIL PAGE STYLES - WebTravel Design System
+   ================================================================================ */
+
+/* ==========================================================================
+   STANDALONE TOUR DETAIL LANDING PAGE STYLES (READ-ONLY EDITORIAL UI)
+   ========================================================================== */
+.tour-detail-body {
+  background-color: #f9fafb !important;
+}
+
+.detail-hero-section {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  padding: 8.5rem 0 3.5rem;
+  color: #ffffff;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.detail-hero-content {
+  position: relative;
+  z-index: 5;
+}
+
+.detail-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.detail-breadcrumb a {
+  color: #d1d5db;
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.detail-breadcrumb a:hover {
+  color: var(--accent-emerald);
+}
+
+.detail-rating-pill {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.detail-tour-title {
+  font-family: var(--font-heading) !important;
+  font-size: 3rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.85) !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.detail-tour-subtitle {
+  font-size: 1.05rem;
+  color: #f3f4f6;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  margin-bottom: 2rem;
+}
+
+/* Quick Specs Badges Bar */
+.detail-quick-specs-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+.spec-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spec-card .icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(5, 150, 105, 0.25);
+  color: #34d399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.spec-card .label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.spec-card .val {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Main Layout Grid */
+.detail-main-layout {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 2.5rem;
+  margin-top: 3.5rem;
+  align-items: start;
+}
+
+.detail-article-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.detail-content-card {
+  background: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.detail-section-heading {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 0.75rem;
+}
+
+.detail-section-heading i {
+  color: var(--accent-emerald);
+}
+
+.detail-intro-paragraph {
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: #374151;
+  margin-bottom: 1.5rem;
+}
+
+/* Highlights Grid */
+.detail-highlights-wrap {
+  background: #f0fdf4;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+}
+
+.highlights-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.highlight-item i {
+  color: var(--accent-emerald);
+}
+
+/* Sustainability Score Box */
+.detail-sustainability-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.score-card {
+  background: #f9fafb;
+  border: 1px solid var(--glass-border);
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
+}
+
+.score-num {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-forest);
+  margin-bottom: 0.3rem;
+}
+
+.score-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Itinerary Timeline */
+.itinerary-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.timeline-day-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.day-badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.day-circle {
+  background: var(--accent-emerald);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.day-content-col {
+  background: #f9fafb;
+  border: 1px solid var(--glass-border);
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-md);
+  flex: 1;
+}
+
+.day-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  color: #111827;
+  margin-bottom: 0.4rem;
+}
+
+.day-desc {
+  font-size: 0.92rem;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Inclusions & Exclusions 2-Column Side-by-Side */
+.inclusions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.inc-col {
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+}
+
+.inc-yes {
+  background: #f0fdf4;
+  border: 1px solid rgba(5, 150, 105, 0.25);
+}
+
+.inc-no {
+  background: #fef2f2;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.inc-title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+}
+
+.inc-yes .inc-title { color: #047857; }
+.inc-no .inc-title { color: #b91c1c; }
+
+.inc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.inc-list li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.inc-yes .inc-list i { color: #059669; margin-top: 0.2rem; }
+.inc-no .inc-list i { color: #dc2626; margin-top: 0.2rem; }
+
+/* Right Sidebar: Fixed Price Table Card */
+.detail-sidebar-col {
+  position: sticky;
+  top: 6rem;
+}
+
+.detail-price-card {
+  background: #ffffff;
+  border: 1.5px solid rgba(5, 150, 105, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+}
+
+.price-big {
+  font-family: var(--font-body, 'Montserrat', sans-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--accent-forest);
+  margin: 0.2rem 0;
+  vertical-align: baseline;
+}
+
+.static-price-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.s-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.92rem;
+  color: #4b5563;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #f3f4f6;
+}
+
+.s-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.s-val {
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Responsive adjustment for Mobile */
+@media (max-width: 992px) {
+  .detail-main-layout {
+    grid-template-columns: 1fr;
+  }
+  .detail-tour-title {
+    font-size: 2.2rem !important;
+  }
+  .inclusions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   VIETRAVEL-STYLE ENHANCED TOUR DETAIL MODULES (EMERALD WHITE THEME)
+   ========================================================================== */
+
+/* 1. Multi-Image Gallery Showcase */
+.detail-gallery-container {
+  margin-top: 1.5rem;
+  border-radius: var(--radius-lg, 18px);
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+}
+
+.gallery-main-img-wrap {
+  width: 100%;
+  height: 480px;
+  max-height: 60vh;
+  position: relative;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.gallery-main-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease, transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.gallery-main-img-wrap:hover img {
+  transform: scale(1.02);
+}
+
+.gallery-main-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 1.5rem 1.75rem 1.15rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.88) 100%);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 5;
+}
+
+.gallery-thumbs-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border-top: 1px solid var(--glass-border);
+}
+
+.gallery-thumb-item {
+  height: 75px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2.5px solid transparent;
+  opacity: 0.65;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #0f172a;
+}
+
+.gallery-thumb-item:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.gallery-thumb-item.active {
+  opacity: 1;
+  border-color: var(--accent-emerald, #059669);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  transform: scale(1.03);
+}
+
+.gallery-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .gallery-main-img-wrap {
+    height: 280px;
+  }
+  .gallery-thumbs-row {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 0.5rem;
+    padding: 0.6rem;
+  }
+  .gallery-thumb-item {
+    height: 55px;
+  }
+  .gallery-main-caption {
+    font-size: 0.95rem;
+    padding: 1rem 1rem 0.75rem;
+  }
+}
+
+/* 2. Detail Sticky Section Navigation Bar */
+.detail-sticky-tabs-bar {
+  position: sticky;
+  top: 72px;
+  z-index: 900;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  margin-bottom: 2rem;
+}
+
+.detail-tabs-list {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding: 0.75rem 0;
+}
+
+.detail-tab-link {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-muted) !important;
+  -webkit-text-fill-color: var(--text-muted) !important;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.detail-tab-link:hover, .detail-tab-link.active {
+  color: var(--accent-emerald) !important;
+  -webkit-text-fill-color: var(--accent-emerald) !important;
+  background: #f0fdf4;
+}
+
+/* 3. Enhanced Day Timeline with Sáng/Trưa/Tối */
+.day-timeline-card-enhanced {
+  background: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.02);
+  transition: var(--transition-fast);
+}
+
+.day-timeline-card-enhanced:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 10px 25px rgba(5, 150, 105, 0.08);
+}
+
+.day-header-flex {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px dashed var(--glass-border);
+}
+
+.day-num-badge {
+  background: var(--accent-emerald);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.5px;
+}
+
+.day-title-text {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.day-slots-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.time-slot-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.slot-tag {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  min-width: 68px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.slot-tag-morning {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.slot-tag-afternoon {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.slot-tag-evening {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.slot-content-desc {
+  flex: 1;
+  color: #374151;
+}
+
+/* 4. Policy & Refund Matrix Table */
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.policy-table th {
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 2px solid var(--glass-border);
+}
+
+.policy-table td {
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+  color: #374151;
+}
+
+.policy-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* 5. FAQs Accordion Box */
+.faq-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.faq-card {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.faq-header-btn {
+  width: 100%;
+  padding: 1.1rem 1.25rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: #111827;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.faq-header-btn:hover {
+  background: #f0fdf4;
+  color: var(--accent-emerald);
+}
+
+.faq-body-content {
+  padding: 1.1rem 1.25rem;
+  font-size: 0.92rem;
+  color: #4b5563;
+  line-height: 1.6;
+  border-top: 1px solid var(--glass-border);
+  background: #ffffff;
+}
+
+/* 6. Service Standards Accordion (Tour Đã Bao Gồm & Chưa Bao Gồm) */
+.services-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  margin-top: 1.25rem;
+}
+
+.service-accordion-card {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  transition: var(--transition-fast);
+}
+
+.service-accordion-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 8px 25px rgba(5, 150, 105, 0.06);
+}
+
+.service-accordion-header {
+  width: 100%;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.service-accordion-card.open .service-accordion-header.header-yes {
+  background: #f0fdf4;
+}
+
+.service-accordion-card.open .service-accordion-header.header-no {
+  background: #fef2f2;
+}
+
+.service-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.service-header-icon {
+  font-size: 1.35rem;
+}
+
+.service-header-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.service-accordion-chevron {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  transition: transform 0.3s ease;
+}
+
+.service-accordion-card.open .service-accordion-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-emerald);
+}
+
+.service-accordion-card.open .service-accordion-header.header-no .service-accordion-chevron {
+  color: #dc2626;
+}
+
+.service-accordion-body {
+  padding: 1.4rem 1.6rem;
+  border-top: 1px solid var(--glass-border);
+  background: #ffffff;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   7. ITINERARY OVERVIEW LIST (SCREENSHOT 1) & TIMELINE POPUP MODAL (SCREENSHOT 2)
+   ========================================================================== */
+
+/* 7.1 Itinerary Overview Card on Page */
+.itinerary-preview-card {
+  background: #ffffff;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  margin-top: 1rem;
+}
+
+.itinerary-preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  background: #ffffff;
+}
+
+.itinerary-preview-row:last-child {
+  border-bottom: none;
+}
+
+.itinerary-preview-row:hover {
+  background: #f8fafc;
+  padding-left: 2rem;
+}
+
+.itinerary-preview-row:hover .itinerary-preview-chevron {
+  color: var(--accent-emerald);
+  transform: translateX(4px);
+}
+
+.itinerary-row-title {
+  font-family: var(--font-heading);
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.35rem;
+}
+
+.itinerary-row-meals {
+  font-size: 0.88rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.itinerary-preview-chevron {
+  font-size: 1.1rem;
+  color: #9ca3af;
+  transition: var(--transition-fast);
+}
+
+/* 7.2 Itinerary Detail Timeline Modal */
+.itinerary-modal-container {
+  background: #ffffff;
+  border-radius: 20px;
+  max-width: 760px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.itinerary-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.itinerary-modal-header h2 {
+  font-family: var(--font-heading);
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+/* Vertical Timeline Track */
+.itinerary-timeline-track {
+  position: relative;
+  padding-left: 2.25rem;
+}
+
+.itinerary-timeline-line {
+  position: absolute;
+  left: 11px;
+  top: 15px;
+  bottom: 30px;
+  width: 2px;
+  background: #cbd5e1;
+}
+
+.itinerary-day-section-block {
+  position: relative;
+  margin-bottom: 2.5rem;
+}
+
+.itinerary-day-section-block:last-child {
+  margin-bottom: 0;
+}
+
+.itinerary-pin-icon {
+  position: absolute;
+  left: -2.25rem;
+  top: 12px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  color: #111827;
+  background: #ffffff;
+  z-index: 2;
+}
+
+/* Top Day Box (Blue / Emerald gradient tinted) */
+.itinerary-day-top-box {
+  background: #e0f2fe;
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  align-items: stretch;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.itinerary-day-top-content {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.itinerary-day-highlight-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0284c7;
+  margin-bottom: 0.3rem;
+}
+
+.itinerary-day-route-text {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.4rem;
+}
+
+.itinerary-day-top-img {
+  width: 100%;
+  height: 100%;
+  min-height: 110px;
+  object-fit: cover;
+}
+
+/* Bottom Activity Box (White with Bullets) */
+.itinerary-day-bottom-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.35rem 1.6rem;
+  margin-top: 0.85rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+.itinerary-main-activity-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.75rem;
+}
+
+.itinerary-bullet-points-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.itinerary-bullet-points-list li {
+  position: relative;
+  padding-left: 1.25rem;
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.itinerary-bullet-points-list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 1.2rem;
+  color: #475569;
+  font-weight: bold;
+}
+
+@media (max-width: 640px) {
+  .itinerary-day-top-box {
+    grid-template-columns: 1fr;
+  }
+  .itinerary-day-top-img {
+    height: 140px;
+  }
+  .itinerary-timeline-track {
+    padding-left: 1.75rem;
+  }
+  .itinerary-pin-icon {
+    left: -1.75rem;
+  }
+  .itinerary-day-photos-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Multi-Photo Grid in Each Day of Itinerary Modal */
+.itinerary-day-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.15rem;
+}
+
+.itinerary-day-photo-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 115px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: #f1f5f9;
+}
+
+.itinerary-day-photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.itinerary-day-photo-item:hover img {
+  transform: scale(1.08);
+}
+
+.itinerary-day-photo-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.9) 100%);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+}
+
+/* ==========================================================================
+   VIETRAVEL-STYLE EXPANDABLE DEPARTURE SCHEDULE ("LỊCH TRÌNH KHỞI HÀNH")
+   ALIGNED WITH WEBTRAVEL EMERALD & PURE WHITE DESIGN SYSTEM
+   ========================================================================== */
+
+.schedule-section {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  padding: 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.5rem;
+  scroll-margin-top: 140px;
+}
+
+.schedule-heading {
+  font-family: var(--font-heading);
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Month Filter Tabs */
+.schedule-month-tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.month-tab-btn {
+  padding: 0.65rem 1.35rem;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #4b5563;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  min-width: 105px;
+}
+
+.month-tab-btn:hover {
+  border-color: var(--accent-emerald);
+  color: var(--accent-forest);
+  background: #f0fdf4;
+}
+
+.month-tab-btn.active {
+  background: var(--accent-forest) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-forest) !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+}
+
+/* Departure Rows Container */
+.schedule-rows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+/* COMPACT ROW (Ảnh 1: Khách chưa chọn ngày) */
+.schedule-row-compact {
+  background: #ffffff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 9999px;
+  padding: 0.65rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.schedule-row-compact:hover {
+  border-color: var(--accent-emerald);
+  background: #f0fdf4;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.08);
+  transform: translateY(-1px);
+}
+
+.schedule-row-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.schedule-date-badge {
+  background: #ecfdf5;
+  color: var(--accent-forest);
+  font-weight: 800;
+  font-size: 0.92rem;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.schedule-sku-badge {
+  color: #4b5563;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.schedule-row-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.schedule-compact-price {
+  font-family: var(--font-body, 'Montserrat', sans-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-forest);
+  vertical-align: baseline;
+}
+
+.schedule-btn-choose {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #4b5563;
+  padding: 0.45rem 1.35rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.schedule-btn-choose:hover {
+  background: var(--accent-forest);
+  border-color: var(--accent-forest);
+  color: #ffffff;
+}
+
+.schedule-btn-cancel {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  color: #dc2626;
+  padding: 0.45rem 1.35rem;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.schedule-btn-cancel:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+/* EXPANDED CARD (Ảnh 2: Khách chọn ngày - Bung ra chi tiết) */
+.schedule-row-expanded {
+  background: #ffffff;
+  border: 2px solid var(--accent-forest);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.1);
+  transition: all 0.3s ease;
+  animation: scheduleExpandAnim 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scheduleExpandAnim {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.schedule-expanded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.schedule-btn-selected {
+  background: var(--accent-forest);
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1.4rem;
+  border-radius: 9999px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+/* Section 1: Phương Tiện Di Chuyển */
+.schedule-sub-block {
+  margin-bottom: 1.35rem;
+}
+
+.schedule-sub-title {
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.98rem;
+  color: var(--accent-forest);
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.schedule-sub-title::before,
+.schedule-sub-title::after {
+  content: "";
+  display: inline-block;
+  width: 40px;
+  height: 1px;
+  background: #cbd5e1;
+  vertical-align: middle;
+  margin: 0 0.6rem;
+}
+
+.schedule-flights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.15rem 1.5rem;
+}
+
+.flight-leg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.flight-leg-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.84rem;
+  color: #475569;
+}
+
+.flight-code-pill {
+  color: #b45309;
+  font-weight: 800;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.flight-timeline-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.35rem 0;
+}
+
+.flight-time-box {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.flight-path-visual {
+  flex: 1;
+  margin: 0 0.85rem;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.flight-path-line {
+  width: 100%;
+  height: 1.5px;
+  background: #cbd5e1;
+  position: relative;
+}
+
+.flight-path-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--accent-emerald);
+  font-size: 0.8rem;
+  background: #f8fafc;
+  padding: 0 0.3rem;
+}
+
+.flight-airport-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.airline-brand-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--accent-forest);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Section 2: Bảng Giá Chuyến Đi */
+.schedule-pricing-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 2rem;
+  background: #ffffff;
+  padding: 0.75rem 0.25rem;
+}
+
+.price-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed #f1f5f9;
+  padding-bottom: 0.5rem;
+}
+
+.price-item-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-tier-name {
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: #111827;
+}
+
+.price-tier-age {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.price-tier-val {
+  font-family: var(--font-body, 'Montserrat', sans-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--accent-forest);
+  vertical-align: baseline;
+}
+
+/* Section 3: Hộp Lưu Ý Tổng Đài & Vé */
+.schedule-notice-box {
+  background: #f0fdf4;
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  border-radius: 10px;
+  padding: 0.85rem 1.15rem;
+  font-size: 0.83rem;
+  color: var(--accent-forest);
+  line-height: 1.5;
+  margin-top: 1.15rem;
+}
+
+.schedule-notice-box strong {
+  color: var(--accent-forest);
+  font-weight: 800;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .schedule-flights-grid {
+    grid-template-columns: 1fr;
+  }
+  .schedule-pricing-table {
+    grid-template-columns: 1fr;
+  }
+  .schedule-row-compact {
+    border-radius: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .schedule-row-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
