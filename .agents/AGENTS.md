@@ -54,3 +54,28 @@
 - Sau khi viết hoặc sửa đổi bất kỳ đoạn code nào, bắt buộc phải **kiểm tra độ tương thích** (Integration & Compatibility Test) với các thành phần khác trong dự án.
 - Kiểm tra luồng dữ liệu đầu vào/đầu ra, đảm bảo tính năng mới hoạt động chính xác và **không gây ra lỗi chéo (side-effects)** ở các chức năng đã có.
 - Không được báo hoàn tất công việc nếu chưa chạy thử nghiệm thành công.
+
+## 11. Quy Trình Quản Lý Mã Nguồn Git Chuyên Nghiệp (Professional Git Workflow)
+- **Chiến lược phân nhánh (Branching Strategy)**:
+  - Nhánh `main`: Chỉ chứa mã nguồn ổn định 100%, sẵn sàng triển khai thực tế.
+  - Nhánh tính năng: `feature/<tên-tính-năng>` (VD: `feature/vietqr-payment`, `feature/user-auth`).
+  - Nhánh sửa lỗi: `bugfix/<tên-lỗi>` hoặc `hotfix/<tên-lỗi>`.
+- **Chuẩn đặt tên commit (Conventional Commits)**:
+  - `feat:` Thêm tính năng mới
+  - `fix:` Sửa lỗi (bug fix)
+  - `docs:` Cập nhật tài liệu, README
+  - `style:` Chỉnh sửa CSS, định dạng giao diện
+  - `refactor:` Tái cấu trúc mã nguồn (không đổi tính năng)
+  - `perf:` Tối ưu hiệu năng render hoặc bundle size
+  - `test:` Bổ sung hoặc sửa bài kiểm thử
+  - `chore:` Cập nhật cấu hình build, package.json
+- **Quy trình làm việc 6 bước chuẩn**:
+  1. Kéo mã nguồn mới nhất: `git checkout main && git pull origin main`
+  2. Tạo nhánh riêng: `git checkout -b feature/<tên-tính-năng>`
+  3. Viết code & kiểm thử đạt chuẩn: `npx tsc --noEmit` & `npm run build`
+  4. Lưu commit chuẩn: `git add . && git commit -m "<prefix>: <mô tả ngắn gọn>"`
+  5. Đẩy nhánh lên GitHub: `git push -u origin feature/<tên-tính-năng>`
+  6. Tạo Pull Request (PR) ➔ Review code ➔ Merge vào `main`
+- **Trách nhiệm của AI Agent**:
+  - Chủ động nhắc nhở người dùng tạo nhánh mới khi chuẩn bị phát triển tính năng lớn.
+  - Gợi ý câu lệnh commit đúng chuẩn `Conventional Commits` và lệnh push phù hợp sau mỗi phiên làm việc.
