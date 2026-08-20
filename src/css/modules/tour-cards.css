@@ -2,9 +2,60 @@
    BENTO GRID TOUR CARDS - WebTravel Design System
    ================================================================================ */
 
+/* --- DESTINATION CARDS HOVER EFFECT --- */
+.destination-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 240px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.destination-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(5, 150, 105, 0.22) !important;
+}
+
+.destination-card:hover .dest-bg-img {
+  transform: scale(1.08);
+}
+
+.dest-card-title {
+  font-family: var(--font-heading) !important;
+  font-size: 1.45rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  margin: 0 0 0.25rem 0 !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8) !important;
+  letter-spacing: -0.01em;
+}
+
+.dest-card-region {
+  font-size: 0.82rem !important;
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.dest-card-desc {
+  font-size: 0.82rem !important;
+  color: #cbd5e1 !important;
+  -webkit-text-fill-color: #cbd5e1 !important;
+  margin: 0 !important;
+  opacity: 0.95;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
 /* --- BENTO GRID TOUR EXPLORER --- */
 .tours-grid-section {
-  padding: 5rem 0;
+  padding: 1.25rem 0 3.5rem !important;
   background-color: #ffffff !important;
 }
 
@@ -12,9 +63,9 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 3rem;
+  margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
 }
 
 .section-title-wrap h2 {
@@ -53,11 +104,122 @@
 }
 
 /* Bento Grid Layout - Compact Responsive Grid */
-.bento-grid {
+.bento-grid,
+.bento-tours-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 1.5rem;
   justify-content: center;
+}
+
+.horizontal-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .horizontal-4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .horizontal-4col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- HORIZONTAL CAROUSEL / BĂNG CHUYỀN TRƯỢT NGANG --- */
+.tour-carousel-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.tour-carousel-track {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 0.5rem 0.25rem 1.25rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tour-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.tour-carousel-item {
+  flex: 0 0 calc(25% - 1.15rem);
+  min-width: 275px;
+  scroll-snap-align: start;
+  display: flex;
+}
+
+.tour-carousel-item .tour-card-bento {
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .tour-carousel-item {
+    flex: 0 0 calc(33.333% - 1rem);
+  }
+}
+
+@media (max-width: 900px) {
+  .tour-carousel-item {
+    flex: 0 0 calc(50% - 0.75rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .tour-carousel-item {
+    flex: 0 0 85%;
+  }
+}
+
+.carousel-nav-btn {
+  position: absolute;
+  top: 45%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #1e293b;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.carousel-nav-btn:hover {
+  background: var(--accent-forest);
+  color: #ffffff !important;
+  border-color: var(--accent-forest);
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: 0 8px 25px rgba(4,120,87,0.25);
+}
+
+.carousel-nav-btn.prev {
+  left: -20px;
+}
+
+.carousel-nav-btn.next {
+  right: -20px;
+}
+
+@media (max-width: 768px) {
+  .carousel-nav-btn {
+    display: none;
+  }
 }
 
 .tour-card-bento {
@@ -199,28 +361,67 @@
   color: #0284c7;
 }
 
-.btn-quick-view-pill {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fde68a;
+/* Badge Giảm Giá Thay Cho Xem Nhanh */
+.card-discount-badge-pill {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 9999px;
-  padding: 0.25rem 0.7rem;
+  padding: 0.25rem 0.65rem;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.35);
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
-.btn-quick-view-pill:hover {
-  background: rgba(15, 23, 42, 0.98);
-  color: #ffffff;
-  transform: translateY(-1px);
+/* Badge Trọn Gói 5★ Cho Khu Vực Tour Trọn Gói */
+.card-inclusive-badge-pill {
+  background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+  color: #fef08a !important;
+  -webkit-text-fill-color: #fef08a !important;
+  border: 1px solid rgba(254, 240, 138, 0.35);
+  border-radius: 9999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  box-shadow: 0 2px 10px rgba(4, 120, 87, 0.35);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* Badge Nổi Bật 🌟 (Vàng Hổ Phách Ánh Kim Rực Rỡ) */
+.card-standard-badge-pill {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 9999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.4);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.card-original-price {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  display: block;
+  line-height: 1.1;
+  margin-bottom: 0.1rem;
 }
 
 /* 3. Card Body Content (Compact & Clean) */

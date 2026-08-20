@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HeroSlider } from '../components/home/HeroSlider';
+import { TrendingDestinations } from '../components/home/TrendingDestinations';
+import { FlashDealsSection } from '../components/home/FlashDealsSection';
+import { AllInclusiveSection } from '../components/home/AllInclusiveSection';
 import { TourCard } from '../components/tour/TourCard';
 import { BudgetCalculator } from '../components/tools/BudgetCalculator';
 import { CurrencyConverter } from '../components/tools/CurrencyConverter';
@@ -14,6 +17,8 @@ const WISHLIST_STORAGE_KEY = 'webtravel_saved_tours';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const explorerTrackRef = useRef<HTMLDivElement>(null);
+
   const {
     keyword,
     setKeyword,
@@ -25,6 +30,15 @@ export const HomePage: React.FC = () => {
     setStarTier,
     filteredTours
   } = useTourFilter();
+
+  const handleExplorerScroll = (direction: 'left' | 'right') => {
+    if (!explorerTrackRef.current) return;
+    const scrollAmount = explorerTrackRef.current.clientWidth * 0.75;
+    explorerTrackRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    });
+  };
 
   const [activeTool, setActiveTool] = useState<'budget' | 'currency' | 'packing' | 'builder'>('budget');
 
@@ -84,95 +98,82 @@ export const HomePage: React.FC = () => {
         onBookDeal={(tourId) => navigate(`/checkout/${tourId}`)}
       />
 
-      {/* 2. Bento Grid Tour Explorer Section */}
-      <section className="tours-grid-section container" id="tours-explorer">
-        <div className="section-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
-            <div className="section-title-wrap">
-              <span className="badge badge-terracotta">Featured Collections</span>
-              <h2>Các Hành Trình Nổi Bật</h2>
-            </div>
+      {/* 2. Trending / Favorite Destinations Grid (Vietravel Style with Emerald Branding) */}
+      <TrendingDestinations
+        onSelectDestination={(kw, cat) => {
+          setKeyword(kw);
+          if (cat) setCategory(cat);
+        }}
+      />
 
-            {/* Geographical Filter Tabs */}
-            <div className="filter-tabs" id="filter-tabs">
-              <button
-                type="button"
-                className={`filter-btn ${category === 'all' ? 'active' : ''}`}
-                onClick={() => setCategory('all')}
-              >
-                Tất Cả Tour
-              </button>
-              <button
-                type="button"
-                className={`filter-btn ${category === 'domestic' ? 'active' : ''}`}
-                onClick={() => setCategory('domestic')}
-              >
-                Trong Nước
-              </button>
-              <button
-                type="button"
-                className={`filter-btn ${category === 'international' ? 'active' : ''}`}
-                onClick={() => setCategory('international')}
-              >
-                Quốc Tế
-              </button>
-            </div>
-          </div>
+      {/* 3. Flash Sale & Deals Section (Giảm 30% & Đồng hồ đếm ngược) */}
+      <FlashDealsSection 
+        wishlistedTourIds={wishlistedTourIds}
+        onToggleWishlist={handleToggleWishlist}
+        onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}
+      />
 
-          {/* Product Tier Secondary Filter Pills */}
-          <div className="filter-star-bar">
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', marginRight: '0.5rem' }}>
-              <i className="fa-solid fa-crown" style={{ color: 'var(--accent-emerald)' }}></i> Lọc Dòng Tour:
-            </span>
-            <button
-              type="button"
-              className={`filter-star-btn ${starTier === 'all' ? 'active' : ''}`}
-              onClick={() => setStarTier('all')}
-            >
-              Tất Cả Dòng Tour
-            </button>
-            <button
-              type="button"
-              className={`filter-star-btn ${starTier === 'luxury' ? 'active' : ''}`}
-              onClick={() => setStarTier('luxury')}
-            >
-              👑 Dòng Cao Cấp (Premium)
-            </button>
-            <button
-              type="button"
-              className={`filter-star-btn ${starTier === 'standard' ? 'active' : ''}`}
-              onClick={() => setStarTier('standard')}
-            >
-              🌟 Dòng Tiêu Chuẩn (Classic)
-            </button>
-            <button
-              type="button"
-              className={`filter-star-btn ${starTier === 'budget' ? 'active' : ''}`}
-              onClick={() => setStarTier('budget')}
-            >
-              🏷️ Dòng Tiết Kiệm (Smart Deal)
-            </button>
+      {/* 4. All-Inclusive 5-Star Guided Tours Showcase */}
+      <AllInclusiveSection 
+        wishlistedTourIds={wishlistedTourIds}
+        onToggleWishlist={handleToggleWishlist}
+        onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}
+      />
+
+      {/* 5. Bento Grid Tour Explorer Section */}
+      <section className="tours-grid-section container" id="tours-explorer" style={{ paddingTop: '1.25rem', paddingBottom: '3.5rem' }}>
+        {/* Centered Section Header (Identical to Tour Trọn Gói) */}
+        <div style={{ textAlign: 'center', maxWidth: '760px', margin: '0 auto 2rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#ecfdf5', color: '#047857', padding: '0.3rem 0.85rem', borderRadius: '20px', fontSize: '0.82rem', fontWeight: 800, marginBottom: '0.5rem', border: '1px solid #a7f3d0' }}>
+            <i className="fa-solid fa-compass"></i> FEATURED COLLECTIONS
           </div>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.15rem', color: '#111827', margin: '0 0 0.4rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+            Các Hành Trình Nổi Bật
+          </h2>
+          <p style={{ color: '#64748b', fontSize: '0.94rem', lineHeight: 1.55, margin: 0 }}>
+            Toàn bộ các gói tour du lịch trong nước và quốc tế chất lượng cao đang mở bán
+          </p>
         </div>
 
-        {/* Bento Grid Container */}
+        {/* Horizontal Tour Carousel (Băng Chuyền Trượt Ngang) */}
         {filteredTours.length > 0 ? (
-          <div className="bento-grid" id="tours-container">
-            {filteredTours.map((tour, index) => (
-              <TourCard
-                key={tour.id}
-                tour={tour}
-                isHero={index === 0}
-                isCompared={comparedTourIds.includes(tour.id)}
-                onToggleCompare={handleToggleCompare}
-                isWishlisted={wishlistedTourIds.includes(tour.id)}
-                onToggleWishlist={handleToggleWishlist}
-                onQuickBook={(id) => navigate(`/checkout/${id}`)}
-              />
-            ))}
+          <div className="tour-carousel-wrapper" id="tours-container">
+            <button 
+              type="button" 
+              className="carousel-nav-btn prev"
+              onClick={() => handleExplorerScroll('left')}
+              aria-label="Previous tours"
+            >
+              <i className="fa-solid fa-chevron-left"></i>
+            </button>
+
+            <div className="tour-carousel-track" ref={explorerTrackRef}>
+              {filteredTours.map((tour, index) => (
+                <div className="tour-carousel-item" key={tour.id}>
+                  <TourCard
+                    tour={tour}
+                    isHero={index === 0}
+                    isCompared={comparedTourIds.includes(tour.id)}
+                    onToggleCompare={handleToggleCompare}
+                    isWishlisted={wishlistedTourIds.includes(tour.id)}
+                    onToggleWishlist={handleToggleWishlist}
+                    onQuickBook={(id) => navigate(`/checkout/${id}`)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button 
+              type="button" 
+              className="carousel-nav-btn next"
+              onClick={() => handleExplorerScroll('right')}
+              aria-label="Next tours"
+            >
+              <i className="fa-solid fa-chevron-right"></i>
+            </button>
           </div>
         ) : (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
             <i className="fa-solid fa-compass" style={{ fontSize: '3rem', marginBottom: '1rem', color: 'var(--glass-border-hover)' }}></i>
             <h3 style={{ fontFamily: 'var(--font-heading)' }}>Không tìm thấy tour phù hợp</h3>
             <p>Rất tiếc, không có kết quả phù hợp với bộ lọc của bạn. Hãy thử chọn lại tiêu chí tìm kiếm khác!</p>
@@ -223,18 +224,20 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* 3. Interactive Travel Tools Section (Journal Widget Style) */}
-      <section className="tools-section" id="tools-section">
+      <section className="tools-section" id="tools-section" style={{ padding: '3.5rem 0' }}>
         <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <span className="badge badge-gold">Interactive Utilities</span>
-            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.4rem', marginTop: '0.5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#fef3c7', color: '#d97706', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 800, marginBottom: '0.35rem', border: '1px solid #fde68a' }}>
+              <i className="fa-solid fa-wand-magic-sparkles"></i> INTERACTIVE UTILITIES
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.15rem', color: '#111827', margin: '0.2rem 0 0', fontWeight: 800 }}>
               Sổ Tay Tiện Ích Hành Trình
             </h2>
           </div>
 
-          <div className="journal-panel">
+          <div className="journal-panel" style={{ padding: '1.75rem 2rem' }}>
             {/* Tools Navigation Tabs */}
-            <div className="filter-tabs" style={{ marginBottom: '2.5rem', justifyContent: 'center' }} id="tool-tabs">
+            <div className="filter-tabs" style={{ marginBottom: '1.75rem', justifyContent: 'center' }} id="tool-tabs">
               <button
                 type="button"
                 className={`filter-btn ${activeTool === 'budget' ? 'active' : ''}`}
