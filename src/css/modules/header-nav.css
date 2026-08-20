@@ -1,6 +1,6 @@
 /* ==========================================================================
    HEADER & NAVBAR - WebTravel Emerald Green Design System
-   Phu trach: Thanh dieu huong co dinh, Logo, Menu lien ket, Nut hanh dong
+   Phu trach: Thanh tien ich tren cung (Top Bar), Navbar 2 tang, Mega Dropdown, Mobile Drawer
    ========================================================================== */
 
 /* GLOBAL HEADING TEXT COLOR FIX - Exclude hero white text */
@@ -24,34 +24,412 @@ h1:not(.hero-title-white), h2:not(.hero-title-white), h3, h4, h5, h6, .brand-log
   -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
 }
 
-/* --- NAVBAR --- */
-.navbar {
+/* --- 1. HEADER WRAPPER & TOP UTILITY BAR --- */
+.header-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--glass-border);
-  padding: 1.1rem 0;
-  transition: var(--transition-normal);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
-.navbar-container { display: flex; align-items: center; justify-content: space-between; }
-.brand-logo { display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-heading); font-size: 1.65rem; font-weight: 700; color: #111827 !important; -webkit-text-fill-color: #111827 !important; letter-spacing: -0.01em; }
-.brand-icon { color: var(--accent-emerald) !important; font-size: 1.7rem; }
-.brand-logo .highlight { font-family: var(--font-body); font-style: italic; font-weight: 500; color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; font-size: 1.1rem; margin-left: 0.3rem; }
-.nav-links { display: flex; gap: 2.5rem; }
-.nav-link { font-weight: 500; font-size: 0.95rem; color: #4b5563 !important; -webkit-text-fill-color: #4b5563 !important; transition: var(--transition-fast); position: relative; }
-.nav-link:hover, .nav-link.active { color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; }
-.nav-link.active::after { content: ''; position: absolute; bottom: -6px; left: 0; width: 100%; height: 2px; background: var(--accent-emerald); }
-.header-actions { display: flex; align-items: center; gap: 1rem; }
+
+.top-utility-bar {
+  background: linear-gradient(90deg, #064e3b 0%, #047857 100%);
+  color: #ffffff;
+  font-size: 0.8rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  width: 100%;
+}
+
+.top-utility-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-utility-left, .top-utility-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.top-utility-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.top-utility-item:hover {
+  color: #a7f3d0;
+}
+
+.top-utility-item strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* --- 2. MAIN NAVBAR (Tier 2) --- */
+.navbar {
+  position: relative;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 0.85rem 0;
+  transition: all 0.25s ease;
+}
+
+.navbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-heading);
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand-icon {
+  color: var(--accent-emerald) !important;
+  font-size: 1.7rem;
+}
+
+.brand-logo .highlight {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--accent-emerald) !important;
+  -webkit-text-fill-color: var(--accent-emerald) !important;
+  font-size: 1.05rem;
+  margin-left: 0.3rem;
+}
+
+/* --- 3. NAV LINKS & DROPDOWNS --- */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.nav-item-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-link {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #374151 !important;
+  -webkit-text-fill-color: #374151 !important;
+  transition: var(--transition-fast);
+  position: relative;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--accent-forest) !important;
+  -webkit-text-fill-color: var(--accent-forest) !important;
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2.5px;
+  background: var(--accent-emerald);
+  border-radius: 2px;
+}
+
+.nav-link .dropdown-caret {
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+  color: #9ca3af;
+}
+
+.nav-item-dropdown:hover .nav-link .dropdown-caret {
+  transform: rotate(180deg);
+  color: var(--accent-emerald);
+}
+
+/* --- 4. DROPDOWN MENUS (Glassmorphism & Luxury Hover) --- */
+/* nav items with mega panels: position static so mega panel
+   bubbles up to .navbar-container as positioning context */
+.nav-item-mega {
+  position: static;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 0.85rem;
+  min-width: 240px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12), 0 5px 15px rgba(5, 150, 105, 0.06);
+  border: 1.5px solid #e2e8f0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  z-index: 1050;
+}
+
+/* Invisible Bridge to Prevent Hover Drop-off */
+.dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  display: block;
+}
+
+.nav-item-dropdown:hover .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Mega Dropdown Multi-Column Panel
+   Positioned relative to .navbar-container (position: relative)
+   NOT relative to the nav-item (position: static via .nav-item-mega) */
+.mega-dropdown-panel {
+  position: absolute;
+  top: 100%;        /* = bottom of .navbar-container = bottom of navbar */
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  width: 760px;
+  max-width: min(760px, calc(100vw - 2rem));
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.14), 0 6px 20px rgba(5, 150, 105, 0.08);
+  border: 1.5px solid #e2e8f0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  z-index: 1050;
+}
+
+/* Invisible Bridge to Prevent Hover Drop-off */
+.mega-dropdown-panel::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  display: block;
+}
+
+.nav-item-mega:hover .mega-dropdown-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.mega-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.mega-col-title {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--accent-forest);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1.5px solid #ecfdf5;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background: #f0fdf4;
+  color: var(--accent-forest);
+  transform: translateX(4px);
+}
+
+.dropdown-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: var(--accent-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.dropdown-item:hover .dropdown-item-icon {
+  background: var(--accent-emerald);
+  color: #ffffff;
+}
+
+/* --- 5. HEADER ACTIONS --- */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.btn-wishlist {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #334155;
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  font-size: 0.86rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-wishlist:hover {
+  border-color: #f43f5e;
+  color: #e11d48;
+  background: #fff1f2;
+}
+
+.wishlist-count-badge {
+  background: #f43f5e;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+}
+
+/* Mobile Toggle */
+.mobile-nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.35rem;
+  color: #111827;
+  cursor: pointer;
+  padding: 0.4rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .nav-links { display: none; }
+  .mobile-nav-toggle { display: block; }
+  .top-utility-bar { display: none; }
+  .has-topbar .navbar { top: 0; }
+}
 
 /* --- BUTTONS & BADGES --- */
-.btn-primary { background: var(--accent-emerald) !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; font-weight: 600; font-size: 0.9rem; padding: 0.75rem 1.5rem; border-radius: var(--radius-sm); transition: var(--transition-fast); display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25); }
-.btn-primary:hover { background: var(--accent-forest) !important; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35); }
-.btn-secondary { background: #ffffff !important; color: #111827 !important; -webkit-text-fill-color: #111827 !important; border: 1px solid var(--glass-border); font-weight: 600; font-size: 0.9rem; padding: 0.75rem 1.25rem; border-radius: var(--radius-sm); transition: var(--transition-fast); display: inline-flex; align-items: center; gap: 0.5rem; }
-.btn-secondary:hover { border-color: var(--accent-emerald); color: var(--accent-emerald) !important; -webkit-text-fill-color: var(--accent-emerald) !important; background: #f0fdf4 !important; }
+.btn-primary {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.65rem 1.35rem;
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25);
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(5, 150, 105, 0.35);
+}
+
+.btn-secondary {
+  background: #ffffff !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  border: 1px solid var(--glass-border);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-emerald);
+  color: var(--accent-emerald) !important;
+  -webkit-text-fill-color: var(--accent-emerald) !important;
+  background: #f0fdf4 !important;
+}
+
 .badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .badge-terracotta, .badge-emerald { background: #d1fae5 !important; color: #047857 !important; -webkit-text-fill-color: #047857 !important; border: 1px solid rgba(5, 150, 105, 0.25); }
 .badge-forest { background: rgba(5, 150, 105, 0.12) !important; color: #047857 !important; -webkit-text-fill-color: #047857 !important; border: 1px solid rgba(5, 150, 105, 0.25); }

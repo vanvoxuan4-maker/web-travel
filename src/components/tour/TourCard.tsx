@@ -11,13 +11,18 @@ interface TourCardProps {
   isWishlisted?: boolean;
   onToggleWishlist?: (tourId: string) => void;
   onQuickBook?: (tourId: string) => void;
+  badgeType?: 'discount' | 'all-inclusive' | 'standard';
+  discountPercent?: number;
+  originalPrice?: number;
 }
 
 export const TourCard: React.FC<TourCardProps> = ({
   tour,
   isWishlisted,
   onToggleWishlist,
-  onQuickBook
+  badgeType = 'standard',
+  discountPercent,
+  originalPrice
 }) => {
   // Tier label & class
   const tierClass = tour.tier === 'luxury' 
@@ -40,7 +45,7 @@ export const TourCard: React.FC<TourCardProps> = ({
   // Departure summary (extract first city if multiple)
   const departureCity = tour.departureFrom.split('/')[0].trim();
 
-  // Format ESG & LEI to clean numeric scores only (strip any lengthy text explanations)
+  // Format ESG & LEI to clean numeric scores only
   const esgVal = tour.esgScore ? tour.esgScore.split('(')[0].replace('/100', '').trim() : '84';
   const leiVal = tour.leiScore ? tour.leiScore.split('(')[0].replace('/100', '').trim() : '76';
 
@@ -69,7 +74,7 @@ export const TourCard: React.FC<TourCardProps> = ({
           </button>
         )}
 
-        {/* Symmetrical Bottom of Image Overlay Bar (ESG / LEI on Left, Xem Nhanh on Right) */}
+        {/* Symmetrical Bottom of Image Overlay Bar (ESG/LEI on Left, Dynamic Badge on Right) */}
         <div className="card-bottom-overlay">
           <div className="card-esg-lei-pill">
             <span className="esg-part">ESG: {esgVal}</span>
@@ -77,14 +82,20 @@ export const TourCard: React.FC<TourCardProps> = ({
             <span className="lei-part">LEI: {leiVal}</span>
           </div>
 
-          <button
-            type="button"
-            className="btn-quick-view-pill"
-            onClick={() => onQuickBook && onQuickBook(tour.id)}
-            title="Xem nhanh thông tin tour"
-          >
-            <i className="fa-solid fa-eye" style={{ color: '#fbbf24' }}></i> Xem nhanh
-          </button>
+          {/* Badge Giảm Giá hoặc Badge Trọn Gói thay cho Xem Nhanh */}
+          {badgeType === 'discount' ? (
+            <div className="card-discount-badge-pill">
+              <i className="fa-solid fa-bolt"></i> GIẢM {discountPercent || 30}%
+            </div>
+          ) : badgeType === 'all-inclusive' ? (
+            <div className="card-inclusive-badge-pill">
+              <i className="fa-solid fa-crown"></i> TRỌN GÓI 5★
+            </div>
+          ) : (
+            <div className="card-standard-badge-pill">
+              <i className="fa-solid fa-star" style={{ color: '#fbbf24' }}></i> Nổi Bật
+            </div>
+          )}
         </div>
       </div>
 
@@ -124,8 +135,16 @@ export const TourCard: React.FC<TourCardProps> = ({
         {/* 3. Card Footer (Price & Capsule Detail Button) */}
         <div className="card-footer-redesigned">
           <div className="card-price-group">
-            <span className="card-price-label">Giá từ:</span>
-            <span className="card-price-value">{formatCurrencyVND(tour.priceAdult)}</span>
+            {originalPrice ? (
+              <span className="card-original-price">
+                {formatCurrencyVND(originalPrice)}
+              </span>
+            ) : (
+              <span className="card-price-label">Giá từ:</span>
+            )}
+            <span className="card-price-value" style={{ color: badgeType === 'discount' ? '#dc2626' : undefined }}>
+              {formatCurrencyVND(tour.priceAdult)}
+            </span>
           </div>
 
           <Link to={`/tour/${tour.id}`} className="btn-capsule-detail">

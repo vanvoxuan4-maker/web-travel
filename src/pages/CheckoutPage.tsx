@@ -154,7 +154,7 @@ export const CheckoutPage: React.FC = () => {
   const vietQrUrl = `https://img.vietqr.io/image/MB-0348888999-compact2.png?amount=${dueAmount}&addInfo=${encodeURIComponent(bookingRef + ' ' + customerPhone)}&accountName=CONG%20TY%20DU%20LICH%20WEBTRAVEL`;
 
   return (
-    <div className="checkout-page" style={{ background: '#f8fafc', minHeight: '100vh', padding: '2rem 0 5rem' }}>
+    <div className="checkout-page" style={{ background: '#f8fafc', minHeight: '100vh', padding: '6.5rem 0 5rem' }}>
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
         
         {/* Breadcrumb Navigation */}

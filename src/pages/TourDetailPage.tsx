@@ -54,7 +54,7 @@ export const TourDetailPage: React.FC = () => {
     <div className="tour-detail-page tour-detail-body" style={{ background: '#f9fafb', minHeight: '100vh', paddingBottom: '5rem' }}>
       
       {/* 1. TOP BREADCRUMB & HEADER INFO (Original Legacy Structure) */}
-      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '0.5rem' }}>
+      <div className="container" style={{ paddingTop: '6.5rem', paddingBottom: '0.5rem' }}>
         <div className="detail-breadcrumb" style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b' }}>
           <Link to="/" style={{ color: '#64748b', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <i className="fa-solid fa-house"></i> Trang Chủ
