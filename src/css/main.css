@@ -79,3 +79,15 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-emerald);
 }
+
+/* Split-Screen Login Page Mobile Responsive */
+@media (max-width: 900px) {
+  .login-hero-col {
+    display: none !important;
+  }
+  .login-form-col {
+    flex: 1 1 100% !important;
+    padding: 2rem 1.25rem !important;
+  }
+}
+

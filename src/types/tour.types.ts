@@ -55,10 +55,15 @@ export interface FAQItem {
 export interface ItineraryDay {
   day: number;
   title: string;
-  morning: string;
-  afternoon: string;
-  evening: string;
-  activities: string;
+  meals?: string;
+  hotel?: string;
+  hotelStar?: number;
+  activities?: string;
+  image?: string;
+  details?: string[];
+  morning?: string;
+  afternoon?: string;
+  evening?: string;
 }
 
 export interface Tour {
@@ -103,6 +108,7 @@ export interface Tour {
   overview?: string;
   esgDesc?: string;
   leiDesc?: string;
+  isActive?: boolean;
 }
 
 export interface PassengerCounts {
@@ -128,6 +134,6 @@ export interface BookingFormState {
   customerName: string;
   customerPhone: string;
   customerEmail: string;
-  customerIdCard: string;
+
   customerNotes: string;
 }
