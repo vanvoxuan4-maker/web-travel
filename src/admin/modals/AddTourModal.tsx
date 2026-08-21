@@ -868,11 +868,11 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         Giá Người Lớn (12t+) *
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         required
-                        step={100000}
-                        value={priceAdult}
-                        onChange={(e) => handleAdultPriceChange(Number(e.target.value))}
+                        value={priceAdult ? priceAdult.toLocaleString('vi-VN') : ''}
+                        onChange={(e) => handleAdultPriceChange(e.target.value)}
+                        placeholder="VD: 2.850.000"
                         style={{
                           width: '100%',
                           padding: '0.8rem 1rem',
@@ -886,17 +886,23 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           boxSizing: 'border-box'
                         }}
                       />
+                      <span style={{ fontSize: '0.74rem', color: '#047857', marginTop: '0.25rem', display: 'block', fontWeight: 700 }}>
+                        = {priceAdult ? priceAdult.toLocaleString('vi-VN') : 0} VNĐ
+                      </span>
                     </div>
 
                     <div>
                       <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#334155', marginBottom: '0.35rem' }}>
-                        Giá Trẻ Em (2-11t) ⚡
+                        Giá Trẻ Em (2–11t) ⚡
                       </label>
                       <input
-                        type="number"
-                        step={100000}
-                        value={priceChild}
-                        onChange={(e) => setPriceChild(Number(e.target.value))}
+                        type="text"
+                        value={priceChild ? priceChild.toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          const clean = Number(e.target.value.replace(/[^\d]/g, '')) || 0;
+                          setPriceChild(clean);
+                        }}
+                        placeholder="Tự tính = 75%"
                         style={{
                           width: '100%',
                           padding: '0.8rem 1rem',
@@ -909,7 +915,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         }}
                       />
                       <span style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-                        * Tự tính = 75% vé lớn
+                        * Tự tính = 75% vé lớn ({priceChild ? priceChild.toLocaleString('vi-VN') : 0} VNĐ)
                       </span>
                     </div>
 
@@ -918,32 +924,13 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         Em Bé (&lt;2t)
                       </label>
                       <input
-                        type="number"
-                        step={100000}
-                        value={priceInfant}
-                        onChange={(e) => setPriceInfant(Number(e.target.value))}
-                        style={{
-                          width: '100%',
-                          padding: '0.8rem 1rem',
-                          borderRadius: '10px',
-                          border: '1.5px solid #cbd5e1',
-                          fontSize: '0.95rem',
-                          fontWeight: 700,
-                          outline: 'none',
-                          boxSizing: 'border-box'
+                        type="text"
+                        value={priceInfant ? priceInfant.toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          const clean = Number(e.target.value.replace(/[^\d]/g, '')) || 0;
+                          setPriceInfant(clean);
                         }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#334155', marginBottom: '0.35rem' }}>
-                        Phụ Thu Phòng Đơn
-                      </label>
-                      <input
-                        type="number"
-                        step={100000}
-                        value={singleRoomSurcharge}
-                        onChange={(e) => setSingleRoomSurcharge(Number(e.target.value))}
+                        placeholder="VD: 500.000"
                         style={{
                           width: '100%',
                           padding: '0.8rem 1rem',
@@ -956,7 +943,35 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         }}
                       />
                       <span style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-                        * Tự tính = 35% vé lớn
+                        = {priceInfant ? priceInfant.toLocaleString('vi-VN') : 0} VNĐ
+                      </span>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#334155', marginBottom: '0.35rem' }}>
+                        Phụ Thu Phòng Đơn
+                      </label>
+                      <input
+                        type="text"
+                        value={singleRoomSurcharge ? singleRoomSurcharge.toLocaleString('vi-VN') : ''}
+                        onChange={(e) => {
+                          const clean = Number(e.target.value.replace(/[^\d]/g, '')) || 0;
+                          setSingleRoomSurcharge(clean);
+                        }}
+                        placeholder="Tự tính = 35%"
+                        style={{
+                          width: '100%',
+                          padding: '0.8rem 1rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.95rem',
+                          fontWeight: 700,
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+                        * Tự tính = 35% vé lớn ({singleRoomSurcharge ? singleRoomSurcharge.toLocaleString('vi-VN') : 0} VNĐ)
                       </span>
                     </div>
                   </div>
