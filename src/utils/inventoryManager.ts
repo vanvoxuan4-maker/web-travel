@@ -71,11 +71,11 @@ export function getRemainingSeats(tourId: string, date: string): number {
 /**
  * Get adult price for a specific tour on a given departure date
  */
-export function getDatePrice(tourId: string, date: string): number {
-  const tour = TOURS_DATA.find(t => t.id === tourId);
+export function getDatePrice(tourId: string, date: string, tourObj?: any): number {
+  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return 13590000;
   if (tour.departureDates && tour.departureDates.length > 0) {
-    const matched = tour.departureDates.find(d => d.date === date);
+    const matched = tour.departureDates.find((d: any) => d.date === date);
     if (matched && matched.priceAdult) {
       return matched.priceAdult;
     }
@@ -86,10 +86,10 @@ export function getDatePrice(tourId: string, date: string): number {
 /**
  * Get promotional/holiday label for a specific tour departure date
  */
-export function getDateLabel(tourId: string, date: string): string | null {
-  const tour = TOURS_DATA.find(t => t.id === tourId);
+export function getDateLabel(tourId: string, date: string, tourObj?: any): string | null {
+  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
   if (!tour || !tour.departureDates) return null;
-  const matched = tour.departureDates.find(d => d.date === date);
+  const matched = tour.departureDates.find((d: any) => d.date === date);
   return matched ? matched.label : null;
 }
 
@@ -108,13 +108,13 @@ export interface DateDetailResult extends DepartureDate {
 /**
  * Get comprehensive departure date object with transport and price breakdown
  */
-export function getDateDetails(tourId: string, date: string): DateDetailResult | null {
-  const tour = TOURS_DATA.find(t => t.id === tourId);
+export function getDateDetails(tourId: string, date: string, tourObj?: any): DateDetailResult | null {
+  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return null;
   
   let matched: DepartureDate | undefined = undefined;
   if (tour.departureDates && tour.departureDates.length > 0) {
-    matched = tour.departureDates.find(d => d.date === date);
+    matched = tour.departureDates.find((d: any) => d.date === date);
   }
 
   const priceAdult = (matched && matched.priceAdult) || tour.priceAdult || 5800000;

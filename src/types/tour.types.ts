@@ -1,4 +1,6 @@
 export type TourCategory = 'domestic' | 'international' | 'all';
+export type TravelStyle = 'package' | 'combo' | 'private' | 'mice';
+export type TourTheme = 'beach' | 'heritage' | 'adventure' | 'family' | 'wellness' | 'culinary';
 export type TourTier = 'budget' | 'standard' | 'luxury';
 
 export interface TransportLeg {
@@ -74,7 +76,9 @@ export interface Tour {
   shortTitle: string;
   destination: string;
   category: 'domestic' | 'international';
-  type: string;
+  travelStyle?: TravelStyle; // Hình thức: Tour trọn gói ghép đoàn, Combo, Tour riêng, MICE
+  theme?: TourTheme; // Chủ đề: Biển đảo, Di sản, Mạo hiểm, Gia đình, Wellness, Ẩm thực
+  type: string; // Tên hiển thị loại hình (VD: "Nghỉ Dưỡng & Biển Đảo")
   departureFrom: string;
   seatsLeft: number;
   departureSchedule: string;
@@ -86,6 +90,10 @@ export interface Tour {
   priceChild: number;
   priceToddler: number;
   priceInfant: number;
+  singleRoomSurcharge?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  isFlashSale?: boolean;
   tier: TourTier;
   tierName: string;
   hotelTier: string;

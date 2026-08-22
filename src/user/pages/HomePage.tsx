@@ -11,6 +11,8 @@ import { PackingList } from '../components/tools/PackingList';
 import { CustomBuilder } from '../components/tools/CustomBuilder';
 import { TourComparisonModal } from '../components/tour/TourComparisonModal';
 import { useTourFilter } from '../../hooks/useTourFilter';
+import { tourService } from '../../services/tourService';
+import { Tour } from '../../types/tour.types';
 import { TOURS_DATA } from '../../data/toursData';
 
 const WISHLIST_STORAGE_KEY = 'webtravel_saved_tours';
@@ -18,6 +20,30 @@ const WISHLIST_STORAGE_KEY = 'webtravel_saved_tours';
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const explorerTrackRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic tours state
+  const [allTours, setAllTours] = useState<Tour[]>(TOURS_DATA);
+
+  useEffect(() => {
+    let isMounted = true;
+    tourService.getAllTours().then((data) => {
+      if (isMounted && data && data.length > 0) {
+        setAllTours(data);
+      }
+    });
+
+    const handleToursUpdated = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setAllTours(e.detail);
+      }
+    };
+
+    window.addEventListener('webtravel:tours_updated', handleToursUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('webtravel:tours_updated', handleToursUpdated);
+    };
+  }, []);
 
   const {
     keyword,
@@ -29,7 +55,7 @@ export const HomePage: React.FC = () => {
     starTier,
     setStarTier,
     filteredTours
-  } = useTourFilter();
+  } = useTourFilter(allTours);
 
   const handleExplorerScroll = (direction: 'left' | 'right') => {
     if (!explorerTrackRef.current) return;
@@ -81,7 +107,7 @@ export const HomePage: React.FC = () => {
     });
   };
 
-  const comparedTours = TOURS_DATA.filter(t => comparedTourIds.includes(t.id));
+  const comparedTours = allTours.filter(t => comparedTourIds.includes(t.id));
 
   return (
     <div className="homepage-container">
@@ -108,6 +134,7 @@ export const HomePage: React.FC = () => {
 
       {/* 3. Flash Sale & Deals Section (Giảm 30% & Đồng hồ đếm ngược) */}
       <FlashDealsSection 
+        tours={allTours}
         wishlistedTourIds={wishlistedTourIds}
         onToggleWishlist={handleToggleWishlist}
         onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}
@@ -115,6 +142,7 @@ export const HomePage: React.FC = () => {
 
       {/* 4. All-Inclusive 5-Star Guided Tours Showcase */}
       <AllInclusiveSection 
+        tours={allTours}
         wishlistedTourIds={wishlistedTourIds}
         onToggleWishlist={handleToggleWishlist}
         onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}

@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS public.tours (
     slug TEXT UNIQUE NOT NULL,
     destination_id TEXT REFERENCES public.destinations(id) ON DELETE SET NULL,
     category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),
+    travel_style TEXT DEFAULT 'package' CHECK (travel_style IN ('package', 'combo', 'private', 'mice')),
+    theme TEXT DEFAULT 'beach' CHECK (theme IN ('beach', 'heritage', 'adventure', 'family', 'wellness', 'culinary')),
     type TEXT,
     tier TEXT DEFAULT 'standard' CHECK (tier IN ('luxury', 'standard', 'budget')),
     duration_days INTEGER NOT NULL DEFAULT 1 CHECK (duration_days >= 1),
@@ -100,8 +102,12 @@ CREATE TABLE IF NOT EXISTS public.tours (
     departure_from TEXT NOT NULL,
     price_adult NUMERIC NOT NULL CHECK (price_adult >= 0),
     price_child NUMERIC CHECK (price_child IS NULL OR price_child >= 0),
+    price_toddler NUMERIC CHECK (price_toddler IS NULL OR price_toddler >= 0),
     price_infant NUMERIC CHECK (price_infant IS NULL OR price_infant >= 0),
     single_room_supplement NUMERIC DEFAULT 0 CHECK (single_room_supplement >= 0),
+    original_price NUMERIC CHECK (original_price IS NULL OR original_price >= 0),
+    is_flash_deal BOOLEAN DEFAULT false,
+    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
     image TEXT NOT NULL,
     gallery JSONB DEFAULT '[]'::jsonb,
     esg_score TEXT DEFAULT '85/100',
@@ -495,9 +501,22 @@ CREATE POLICY "Users Update Own Profile" ON public.profiles FOR UPDATE USING (au
 
 CREATE POLICY "Public Read Destinations" ON public.destinations FOR SELECT USING (status = 'active' AND deleted_at IS NULL);
 CREATE POLICY "Public Read Tours" ON public.tours FOR SELECT USING (status != 'deleted' AND deleted_at IS NULL);
+CREATE POLICY "Enable Insert Tours for All" ON public.tours FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable Update Tours for All" ON public.tours FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable Delete Tours for All" ON public.tours FOR DELETE USING (true);
+
 CREATE POLICY "Public Read Tour Images" ON public.tour_images FOR SELECT USING (true);
+CREATE POLICY "Enable Insert Tour Images" ON public.tour_images FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable Update Tour Images" ON public.tour_images FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable Delete Tour Images" ON public.tour_images FOR DELETE USING (true);
+
 CREATE POLICY "Public Read Tour Variants" ON public.tour_variants FOR SELECT USING (status = 'active');
+CREATE POLICY "Enable Manage Tour Variants" ON public.tour_variants FOR ALL USING (true) WITH CHECK (true);
+
 CREATE POLICY "Public Read Departure Dates" ON public.departure_dates FOR SELECT USING (true);
+CREATE POLICY "Enable Insert Departure Dates" ON public.departure_dates FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable Update Departure Dates" ON public.departure_dates FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Enable Delete Departure Dates" ON public.departure_dates FOR DELETE USING (true);
 CREATE POLICY "Public Read Reviews" ON public.reviews FOR SELECT USING (status = 'approved' AND deleted_at IS NULL);
 
 -- Coupons: Chỉ xem các mã đang hoạt động và chưa hết hạn

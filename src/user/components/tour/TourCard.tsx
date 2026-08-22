@@ -49,6 +49,20 @@ export const TourCard: React.FC<TourCardProps> = ({
   const esgVal = tour.esgScore ? tour.esgScore.split('(')[0].replace('/100', '').trim() : '84';
   const leiVal = tour.leiScore ? tour.leiScore.split('(')[0].replace('/100', '').trim() : '76';
 
+  const effectiveOriginalPrice = originalPrice || tour.originalPrice;
+  const effectiveDiscountPercent = discountPercent || tour.discountPercent || (
+    effectiveOriginalPrice && effectiveOriginalPrice > tour.priceAdult
+      ? Math.round(((effectiveOriginalPrice - tour.priceAdult) / effectiveOriginalPrice) * 100)
+      : undefined
+  );
+  const effectiveBadgeType = badgeType !== 'standard' 
+    ? badgeType 
+    : (effectiveDiscountPercent || tour.isFlashSale) 
+      ? 'discount' 
+      : tour.tier === 'luxury' 
+        ? 'all-inclusive' 
+        : 'standard';
+
   return (
     <div className="tour-card-bento" data-id={tour.id}>
       {/* 1. Image Area with Badges & Symmetrical Bottom Overlay */}
@@ -83,11 +97,11 @@ export const TourCard: React.FC<TourCardProps> = ({
           </div>
 
           {/* Badge Giảm Giá hoặc Badge Trọn Gói thay cho Xem Nhanh */}
-          {badgeType === 'discount' ? (
+          {effectiveBadgeType === 'discount' ? (
             <div className="card-discount-badge-pill">
-              <i className="fa-solid fa-bolt"></i> GIẢM {discountPercent || 30}%
+              <i className="fa-solid fa-bolt"></i> GIẢM {effectiveDiscountPercent || 30}%
             </div>
-          ) : badgeType === 'all-inclusive' ? (
+          ) : effectiveBadgeType === 'all-inclusive' ? (
             <div className="card-inclusive-badge-pill">
               <i className="fa-solid fa-crown"></i> TRỌN GÓI 5★
             </div>
@@ -135,14 +149,14 @@ export const TourCard: React.FC<TourCardProps> = ({
         {/* 3. Card Footer (Price & Capsule Detail Button) */}
         <div className="card-footer-redesigned">
           <div className="card-price-group">
-            {originalPrice ? (
+            {effectiveOriginalPrice && effectiveOriginalPrice > tour.priceAdult ? (
               <span className="card-original-price">
-                {formatCurrencyVND(originalPrice)}
+                {formatCurrencyVND(effectiveOriginalPrice)}
               </span>
             ) : (
               <span className="card-price-label">Giá từ:</span>
             )}
-            <span className="card-price-value" style={{ color: badgeType === 'discount' ? '#dc2626' : undefined }}>
+            <span className="card-price-value" style={{ color: effectiveBadgeType === 'discount' ? '#dc2626' : undefined }}>
               {formatCurrencyVND(tour.priceAdult)}
             </span>
           </div>

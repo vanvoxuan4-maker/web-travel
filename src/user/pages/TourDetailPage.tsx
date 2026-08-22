@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { TOURS_DATA } from '../../data/toursData';
+import { tourService } from '../../services/tourService';
+import { Tour } from '../../types/tour.types';
 import { getDatePrice, getRemainingSeats, getDateDetails } from '../../utils/inventoryManager';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { HeroGallery } from './detail-sections/HeroGallery';
@@ -12,12 +14,35 @@ import { ETicketModal } from '../components/tour/ETicketModal';
 export const TourDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const tour = useMemo(() => TOURS_DATA.find(t => t.id === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null), [id]);
+
+  const [tour, setTour] = useState<Tour | null>(() => {
+    return TOURS_DATA.find(t => t.id === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
+  });
+
+  useEffect(() => {
+    if (id) {
+      const local = TOURS_DATA.find(t => t.id === id);
+      if (local) setTour(local);
+
+      tourService.getTourById(id).then(fetched => {
+        if (fetched) {
+          setTour(fetched);
+        }
+      });
+    }
+  }, [id]);
 
   const defaultFirstDate = tour?.departureDates?.[0]?.date || tour?.availableDates?.[0] || '12/09/2026';
   const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(defaultFirstDate);
   const [isETicketOpen, setIsETicketOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('section-schedule');
+
+  useEffect(() => {
+    if (tour) {
+      const first = tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '12/09/2026';
+      setSelectedDepartureDate(first);
+    }
+  }, [tour]);
 
   if (!tour) {
     return (
@@ -32,8 +57,8 @@ export const TourDetailPage: React.FC = () => {
     );
   }
 
-  const currentDateDetails = selectedDepartureDate ? getDateDetails(tour.id, selectedDepartureDate) : null;
-  const currentPrice = selectedDepartureDate ? getDatePrice(tour.id, selectedDepartureDate) : tour.priceAdult;
+  const currentDateDetails = selectedDepartureDate ? getDateDetails(tour.id, selectedDepartureDate, tour) : null;
+  const currentPrice = selectedDepartureDate ? getDatePrice(tour.id, selectedDepartureDate, tour) : tour.priceAdult;
   const currentSeats = selectedDepartureDate ? getRemainingSeats(tour.id, selectedDepartureDate) : tour.seatsLeft;
   const isSoldOut = currentSeats <= 0;
 

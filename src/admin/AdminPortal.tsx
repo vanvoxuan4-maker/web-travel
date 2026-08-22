@@ -4,6 +4,7 @@ import { Tour, DepartureDate } from '../types/tour.types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { profileService } from '../services/profileService';
 import { couponService } from '../services/couponService';
+import { tourService } from '../services/tourService';
 import { AdminTab, BookingRecord, CustomerRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -93,6 +94,12 @@ export const AdminPortal: React.FC = () => {
           }));
           setCoupons(mappedCoupons);
         }
+
+        // 4. Fetch Real Tours
+        const loadedTours = await tourService.getAllTours();
+        if (loadedTours && loadedTours.length > 0) {
+          setTours(loadedTours);
+        }
       }
     } catch (err: any) {
       console.error('Error loading Supabase data in AdminPortal:', err);
@@ -168,40 +175,62 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Add Tour
   const handleAddTour = async (newTour: Tour) => {
+    const result = await tourService.createTour(newTour);
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi thêm tour vào database' });
+      return;
+    }
     setTours([newTour, ...tours]);
     setActionFeedback({ type: 'success', message: 'Đã thêm tour mới thành công vào hệ thống!' });
   };
 
   // Handler: Full Save / Edit Tour
   const handleSaveTour = async (updatedTour: Tour) => {
+    const result = await tourService.updateTour(updatedTour);
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật tour' });
+      return;
+    }
     setTours(tours.map((t) => (t.id === updatedTour.id ? updatedTour : t)));
     setActionFeedback({ type: 'success', message: `Đã cập nhật thông tin tour "${updatedTour.title}" thành công!` });
   };
 
   // Handler: Update Schedule Dates & Capacity
   const handleUpdateSchedule = async (tourId: string, updatedDates: DepartureDate[]) => {
-    setTours(
-      tours.map((t) => {
-        if (t.id === tourId) {
-          const datesStr = updatedDates.map((d) => d.date);
-          const totalSeats = updatedDates.reduce((sum, d) => sum + (d.seats || 0), 0);
-          return {
-            ...t,
-            departureDates: updatedDates,
-            availableDates: datesStr,
-            seatsLeft: totalSeats > 0 ? totalSeats : t.seatsLeft
-          };
-        }
-        return t;
-      })
-    );
+    const datesStr = updatedDates.map((d) => d.date);
+    const totalSeats = updatedDates.reduce((sum, d) => sum + (d.seats || 0), 0);
+    const targetTour = tours.find((t) => t.id === tourId);
+
+    if (targetTour) {
+      const updatedObj = {
+        ...targetTour,
+        departureDates: updatedDates,
+        availableDates: datesStr,
+        seatsLeft: totalSeats > 0 ? totalSeats : targetTour.seatsLeft
+      };
+      const result = await tourService.updateTour(updatedObj);
+      if (!result.success) {
+        setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật lịch trình' });
+        return;
+      }
+      setTours(tours.map((t) => (t.id === tourId ? updatedObj : t)));
+    }
+
     setActionFeedback({ type: 'success', message: 'Đã cập nhật lịch khởi hành và số chỗ thành công!' });
   };
 
   // Handler: Toggle Active / Inactive
   const handleToggleTourActive = async (tourId: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
-    setTours(tours.map((t) => (t.id === tourId ? { ...t, isActive: newStatus } : t)));
+    const targetTour = tours.find((t) => t.id === tourId);
+    if (targetTour) {
+      const result = await tourService.updateTour({ ...targetTour, isActive: newStatus });
+      if (!result.success) {
+        setActionFeedback({ type: 'error', message: result.error || 'Lỗi thay đổi trạng thái tour' });
+        return;
+      }
+      setTours(tours.map((t) => (t.id === tourId ? { ...t, isActive: newStatus } : t)));
+    }
     setActionFeedback({
       type: 'success',
       message: newStatus ? 'Đã kích hoạt mở bán tour!' : 'Đã tạm dừng nhận khách / ẩn tour khỏi website!'
@@ -210,6 +239,11 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Delete Tour
   const handleDeleteTour = async (tourId: string) => {
+    const result = await tourService.deleteTour(tourId);
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi xóa tour' });
+      return;
+    }
     setTours(tours.filter((t) => t.id !== tourId));
     setActionFeedback({ type: 'success', message: 'Đã xóa tour thành công khỏi hệ thống!' });
   };

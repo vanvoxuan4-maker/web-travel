@@ -2,7 +2,11 @@ import { Tour } from '../types/tour.types';
 
 /**
  * Danh Sách Tour Du Lịch Cao Cấp (Flagship Tours Database)
- * Được cấu trúc chuẩn đa khách sạn theo từng ngày, bảng giá đa tầng và hình ảnh chất lượng cao.
+ * Chuẩn hóa 3 trục phân loại quốc tế:
+ * 1. category: 'domestic' | 'international' (Địa Lý)
+ * 2. travelStyle: 'package' | 'combo' | 'private' | 'mice' (Hình Thức Đi)
+ * 3. theme: 'beach' | 'heritage' | 'adventure' | 'family' | 'wellness' (Chủ Đề Trải Nghiệm)
+ * 4. tier: 'luxury' | 'standard' | 'budget' (Hạng Dịch Vụ 5★ / 4★ / 3★)
  */
 export const TOURS_DATA: Tour[] = [
   {
@@ -13,6 +17,8 @@ export const TOURS_DATA: Tour[] = [
     shortTitle: 'Hà Nội - Du Thuyền Hạ Long 5★ - Ninh Bình',
     destination: 'Hà Nội - Vịnh Hạ Long - Ninh Bình',
     category: 'domestic',
+    travelStyle: 'package',
+    theme: 'beach',
     type: 'Nghỉ Dưỡng & Di Sản',
     departureFrom: 'TP. Hồ Chí Minh / Hà Nội',
     seatsLeft: 9,
@@ -43,9 +49,13 @@ export const TOURS_DATA: Tour[] = [
     durationDays: 4,
     durationNights: 3,
     priceAdult: 8990000,
+    originalPrice: 11990000,
+    discountPercent: 25,
+    isFlashSale: true,
     priceChild: 6742500,
     priceToddler: 4495000,
     priceInfant: 500000,
+    singleRoomSurcharge: 2800000,
     tier: 'luxury',
     tierName: 'Dòng Luxury 5 Sao',
     hotelTier: 'Du Thuyền 5★ & Khách Sạn 4★',
@@ -173,6 +183,8 @@ export const TOURS_DATA: Tour[] = [
     shortTitle: 'Đà Nẵng - Huế - Hội An - Bà Nà Hills',
     destination: 'Đà Nẵng - Huế - Hội An',
     category: 'domestic',
+    travelStyle: 'package',
+    theme: 'heritage',
     type: 'Văn Hóa & Di Sản',
     departureFrom: 'TP. Hồ Chí Minh / Hà Nội',
     seatsLeft: 12,
@@ -203,9 +215,13 @@ export const TOURS_DATA: Tour[] = [
     durationDays: 4,
     durationNights: 3,
     priceAdult: 6490000,
+    originalPrice: 7990000,
+    discountPercent: 19,
+    isFlashSale: false,
     priceChild: 4867500,
     priceToddler: 3245000,
     priceInfant: 500000,
+    singleRoomSurcharge: 2100000,
     tier: 'standard',
     tierName: 'Dòng Tiêu Chuẩn 4-5 Sao',
     hotelTier: 'Khách Sạn 4★ & 5★ Liên Tuyến',
@@ -323,6 +339,8 @@ export const TOURS_DATA: Tour[] = [
     shortTitle: 'Phú Quốc 5★ - Cáp Treo Hòn Thơm',
     destination: 'Phú Quốc',
     category: 'domestic',
+    travelStyle: 'combo',
+    theme: 'beach',
     type: 'Nghỉ Dưỡng & Biển Đảo',
     departureFrom: 'TP. Hồ Chí Minh / Hà Nội',
     seatsLeft: 7,
@@ -343,9 +361,13 @@ export const TOURS_DATA: Tour[] = [
     durationDays: 3,
     durationNights: 2,
     priceAdult: 5490000,
+    originalPrice: 7850000,
+    discountPercent: 30,
+    isFlashSale: true,
     priceChild: 4117500,
     priceToddler: 2745000,
     priceInfant: 500000,
+    singleRoomSurcharge: 1800000,
     tier: 'luxury',
     tierName: 'Dòng Luxury 5 Sao',
     hotelTier: 'Resort 5★ Biển Riêng',
@@ -443,6 +465,8 @@ export const TOURS_DATA: Tour[] = [
     shortTitle: 'Sapa - Fansipan - Bản Cát Cát',
     destination: 'Sapa - Lào Cai',
     category: 'domestic',
+    travelStyle: 'package',
+    theme: 'adventure',
     type: 'Mạo Hiểm & Khám Phá',
     departureFrom: 'Hà Nội / TP.HCM',
     seatsLeft: 10,
@@ -463,9 +487,13 @@ export const TOURS_DATA: Tour[] = [
     durationDays: 3,
     durationNights: 2,
     priceAdult: 4890000,
+    originalPrice: 6200000,
+    discountPercent: 21,
+    isFlashSale: false,
     priceChild: 3667500,
     priceToddler: 2445000,
     priceInfant: 500000,
+    singleRoomSurcharge: 1600000,
     tier: 'standard',
     tierName: 'Dòng Tiêu Chuẩn 4-5 Sao',
     hotelTier: 'Khách Sạn 4★ View Thung Lũng',

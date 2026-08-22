@@ -2,13 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { TOURS_DATA } from '../../../data/toursData';
 import { TourCard } from '../tour/TourCard';
 
+import { Tour } from '../../../types/tour.types';
+
 interface FlashDealsSectionProps {
+  tours?: Tour[];
   wishlistedTourIds?: string[];
   onToggleWishlist?: (tourId: string) => void;
   onQuickBook?: (tourId: string) => void;
 }
 
 export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
+  tours,
   wishlistedTourIds = [],
   onToggleWishlist,
   onQuickBook
@@ -50,13 +54,15 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
     });
   };
 
+  const rawList = (tours && tours.length > 0 ? tours : TOURS_DATA).filter(t => t.isActive !== false);
+
   // Calculate discount percentage & original price for flash deal tours
-  const dealTours = TOURS_DATA.map((tour, idx) => {
-    const discountRate = idx % 3 === 0 ? 0.3 : idx % 3 === 1 ? 0.25 : 0.2;
-    const originalPrice = Math.round(tour.priceAdult / (1 - discountRate));
+  const dealTours = rawList.map((tour, idx) => {
+    const discountRate = tour.discountPercent ? tour.discountPercent / 100 : (idx % 3 === 0 ? 0.3 : idx % 3 === 1 ? 0.25 : 0.2);
+    const originalPrice = tour.originalPrice || Math.round(tour.priceAdult / (1 - discountRate));
     return {
       ...tour,
-      discountPercent: Math.round(discountRate * 100),
+      discountPercent: tour.discountPercent || Math.round(discountRate * 100),
       originalPrice
     };
   });

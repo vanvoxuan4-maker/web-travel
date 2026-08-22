@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { TOURS_DATA } from '../../data/toursData';
+import { tourService } from '../../services/tourService';
+import { Tour, DepartureDate } from '../../types/tour.types';
 import { getDateDetails, deductSeats, getRemainingSeats } from '../../utils/inventoryManager';
 import { formatCurrencyVND, getDayOfWeekVN } from '../../utils/formatters';
-import { DepartureDate } from '../../types/tour.types';
 import { bookingService } from '../../services/bookingService';
 import { useAuth } from '../../auth/useAuth';
 
@@ -15,7 +16,22 @@ export const CheckoutPage: React.FC = () => {
   const tourIdFromQuery = params.tourId || searchParams.get('tourId') || searchParams.get('id') || (TOURS_DATA[0]?.id || '');
   const initialDateFromQuery = searchParams.get('date');
 
-  const tour = useMemo(() => TOURS_DATA.find(t => t.id === tourIdFromQuery) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null), [tourIdFromQuery]);
+  const [tour, setTour] = useState<Tour | null>(() => {
+    return TOURS_DATA.find(t => t.id === tourIdFromQuery) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
+  });
+
+  useEffect(() => {
+    if (tourIdFromQuery) {
+      const local = TOURS_DATA.find(t => t.id === tourIdFromQuery);
+      if (local) setTour(local);
+
+      tourService.getTourById(tourIdFromQuery).then(fetched => {
+        if (fetched) {
+          setTour(fetched);
+        }
+      });
+    }
+  }, [tourIdFromQuery]);
 
   const departureList = useMemo<DepartureDate[]>(() => {
     if (!tour) return [];
@@ -33,11 +49,18 @@ export const CheckoutPage: React.FC = () => {
     return initialDateFromQuery || (departureList[0]?.date) || '12/09/2026';
   });
 
+  useEffect(() => {
+    if (tour && !initialDateFromQuery) {
+      const first = tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '12/09/2026';
+      setSelectedDate(first);
+    }
+  }, [tour, initialDateFromQuery]);
+
   const [showAllDates, setShowAllDates] = useState<boolean>(false);
 
   const currentDetails = useMemo(() => {
     if (!tour) return null;
-    return getDateDetails(tour.id, selectedDate);
+    return getDateDetails(tour.id, selectedDate, tour);
   }, [tour, selectedDate]);
 
   const maxSeats = currentDetails?.seats ?? (tour ? getRemainingSeats(tour.id, selectedDate) : 0);

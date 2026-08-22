@@ -2,13 +2,17 @@ import React, { useRef } from 'react';
 import { TOURS_DATA } from '../../../data/toursData';
 import { TourCard } from '../tour/TourCard';
 
+import { Tour } from '../../../types/tour.types';
+
 interface AllInclusiveSectionProps {
+  tours?: Tour[];
   wishlistedTourIds?: string[];
   onToggleWishlist?: (tourId: string) => void;
   onQuickBook?: (tourId: string) => void;
 }
 
 export const AllInclusiveSection: React.FC<AllInclusiveSectionProps> = ({
+  tours,
   wishlistedTourIds = [],
   onToggleWishlist,
   onQuickBook
@@ -25,7 +29,7 @@ export const AllInclusiveSection: React.FC<AllInclusiveSectionProps> = ({
   };
 
   // Provide all flagship tours for carousel
-  const allInclusiveTours = TOURS_DATA;
+  const allInclusiveTours = (tours && tours.length > 0 ? tours : TOURS_DATA).filter(t => t.isActive !== false);
 
   if (allInclusiveTours.length === 0) return null;
 
