@@ -432,14 +432,20 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   };
 
   // Submit updated tour
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentStep < 4) {
-      setCurrentStep((prev) => (prev + 1) as any);
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      alert('Vui lòng nhập Tên Tour trước khi lưu!');
+      setCurrentStep(1);
       return;
     }
-    if (!title.trim()) {
+    if (!destination.trim()) {
+      alert('Vui lòng nhập Điểm Đến Chính ở Tab 1!');
       setCurrentStep(1);
+      return;
+    }
+    if (priceAdult <= 0) {
+      alert('Vui lòng nhập Bảng Giá vé người lớn hợp lệ ở Tab 3!');
+      setCurrentStep(3);
       return;
     }
 
@@ -686,8 +692,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
         </div>
       </div>
 
-      {/* FULLSCREEN FORM BODY */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      {/* FULLSCREEN STUDIO BODY */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <div style={{ padding: '2rem 3rem', overflowY: 'auto', flex: 1 }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
             
@@ -2411,7 +2417,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={isSubmitting}
                 style={{
                   padding: '0.75rem 2.5rem',
@@ -2434,7 +2441,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
             )}
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
