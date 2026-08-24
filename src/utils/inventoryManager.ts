@@ -1,5 +1,6 @@
 import { TOURS_DATA } from '../data/toursData';
 import { DepartureDate } from '../types/tour.types';
+import { tourService } from '../services/tourService';
 
 const INVENTORY_STORAGE_KEY = 'webtravel_tours_inventory_v1';
 let inMemoryStore: Record<string, Record<string, number>> | null = null;
@@ -72,7 +73,7 @@ export function getRemainingSeats(tourId: string, date: string): number {
  * Get adult price for a specific tour on a given departure date
  */
 export function getDatePrice(tourId: string, date: string, tourObj?: any): number {
-  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
+  const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return 13590000;
   if (tour.departureDates && tour.departureDates.length > 0) {
     const matched = tour.departureDates.find((d: any) => d.date === date);
@@ -87,7 +88,7 @@ export function getDatePrice(tourId: string, date: string, tourObj?: any): numbe
  * Get promotional/holiday label for a specific tour departure date
  */
 export function getDateLabel(tourId: string, date: string, tourObj?: any): string | null {
-  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
+  const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour || !tour.departureDates) return null;
   const matched = tour.departureDates.find((d: any) => d.date === date);
   return matched ? matched.label : null;
@@ -109,7 +110,7 @@ export interface DateDetailResult extends DepartureDate {
  * Get comprehensive departure date object with transport and price breakdown
  */
 export function getDateDetails(tourId: string, date: string, tourObj?: any): DateDetailResult | null {
-  const tour = tourObj || TOURS_DATA.find(t => t.id === tourId);
+  const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return null;
   
   let matched: DepartureDate | undefined = undefined;

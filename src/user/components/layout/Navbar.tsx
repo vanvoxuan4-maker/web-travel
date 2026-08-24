@@ -466,8 +466,8 @@ export const Navbar: React.FC = () => {
                     <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', display: 'block', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {user.fullName || user.email.split('@')[0]}
                     </span>
-                    <span style={{ fontSize: '0.68rem', color: user.role === 'admin' ? '#d97706' : '#059669', fontWeight: 600 }}>
-                      {user.role === 'admin' ? '👑 Admin' : `⭐ ${user.loyaltyPoints || 0} điểm`}
+                    <span style={{ fontSize: '0.68rem', color: (user.role === 'admin' || user.role === 'super_admin') ? '#d97706' : '#059669', fontWeight: 600 }}>
+                      {user.role === 'super_admin' ? '⚡ Super Admin' : user.role === 'admin' ? '👑 Admin' : `⭐ ${user.loyaltyPoints || 0} điểm`}
                     </span>
                   </div>
                   <i className="fa-solid fa-chevron-down" style={{ fontSize: '0.65rem', color: '#94a3b8', marginLeft: '0.2rem' }}></i>

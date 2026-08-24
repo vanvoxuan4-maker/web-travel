@@ -71,6 +71,7 @@ export interface ItineraryDay {
 export interface Tour {
   id: string;
   code: string;
+  slug?: string;
   sku: string;
   title: string;
   shortTitle: string;
@@ -116,6 +117,9 @@ export interface Tour {
   overview?: string;
   esgDesc?: string;
   leiDesc?: string;
+  isAllInclusive?: boolean;
+  weatherNotice?: string;
+  status?: 'published' | 'draft' | 'hidden' | 'weather_suspended';
   isActive?: boolean;
 }
 

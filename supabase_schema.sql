@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- WEBTRAVEL EDITORIAL - COMPLETE PRODUCTION DATABASE SCHEMA (POSTGRESQL + SUPABASE)
--- Phiên bản: 3.2 - TINH GỌN, TOÀN DIỆN, CHUẨN DOANH NGHIỆP TRONG NƯỚC & QUỐC TẾ
+-- Phiên bản: 3.4 - CHUẨN DOANH NGHIỆP TRONG NƯỚC & QUỐC TẾ
+-- TOÀN BỘ CỘT ĐƯỢC CHÚ THÍCH (COMMENT) TIẾNG VIỆT ĐẦY ĐỦ Ở DÒNG LỆNH & METADATA SUPABASE
 -- ==============================================================================
 -- Hướng dẫn: Copy toàn bộ nội dung file này và Dán (Paste) vào Supabase SQL Editor
 -- Sau đó nhấn nút [ RUN ] để khởi tạo toàn bộ hệ thống bảng và phân quyền bảo mật.
@@ -13,18 +14,18 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. BẢNG HỒ SƠ NGƯỜI DÙNG & PHÂN QUYỀN (profiles - User & Admin)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT UNIQUE NOT NULL,
-    full_name TEXT,
-    phone TEXT,
-    avatar_url TEXT,
-    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'staff', 'admin', 'super_admin')),
-    loyalty_points INTEGER DEFAULT 0 CHECK (loyalty_points >= 0),
-    address TEXT,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'banned', 'deleted')),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,                      -- Mã ID người dùng, liên kết trực tiếp với bảng tài khoản auth.users của Supabase
+    email TEXT UNIQUE NOT NULL,                                                           -- Email đăng nhập của người dùng (duy nhất trên toàn hệ thống)
+    full_name TEXT,                                                                       -- Họ và tên đầy đủ của người dùng / khách hàng
+    phone TEXT,                                                                           -- Số điện thoại liên hệ nhận vé điện tử và thông báo chuyến đi
+    avatar_url TEXT,                                                                      -- Đường dẫn URL ảnh đại diện (avatar) của người dùng
+    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'staff', 'admin', 'super_admin')), -- Phân quyền hệ thống: 'customer' (Khách hàng), 'staff' (Nhân viên), 'admin' (Quản trị viên), 'super_admin' (Quản trị tối cao)
+    loyalty_points INTEGER DEFAULT 0 CHECK (loyalty_points >= 0),                         -- Điểm thưởng tích lũy thành viên (dùng để giảm giá khi đặt các tour tiếp theo)
+    address TEXT,                                                                         -- Địa chỉ cư trú / địa chỉ giao vé hoặc liên hệ của khách hàng
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'banned', 'deleted')), -- Trạng thái tài khoản: 'active' (Hoạt động bình thường), 'banned' (Đã bị khóa), 'deleted' (Đã xóa)
+    deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời gian xóa mềm tài khoản (phục vụ đối soát lịch sử)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm đăng ký / khởi tạo tài khoản
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm cập nhật thông tin hồ sơ gần nhất
 );
 
 -- Trigger tự động tạo profile khi đăng ký tài khoản mới qua Supabase Auth
@@ -68,61 +69,70 @@ CREATE TRIGGER on_auth_user_email_updated
 -- 2. BẢNG ĐIỂM ĐẾN DU LỊCH (destinations)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.destinations (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    slug TEXT UNIQUE NOT NULL,
-    category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),
-    region TEXT,
-    tag TEXT,
-    image TEXT NOT NULL,
-    tour_count INTEGER DEFAULT 0 CHECK (tour_count >= 0),
-    min_price NUMERIC DEFAULT 0 CHECK (min_price >= 0),
-    is_featured BOOLEAN DEFAULT true,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'deleted')),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id TEXT PRIMARY KEY,                                                                  -- Mã định danh điểm đến (VD: 'dest-sapa', 'dest-halong', 'dest-japan')
+    name TEXT NOT NULL,                                                                   -- Tên địa danh / điểm đến (VD: "Sapa", "Vịnh Hạ Long", "Đà Nẵng", "Nhật Bản")
+    slug TEXT UNIQUE NOT NULL,                                                            -- Đường dẫn URL thân thiện cho SEO (VD: "sapa", "ha-long", "nhat-ban")
+    category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),             -- Phân loại phạm vi địa lý: 'domestic' (Trong nước) hoặc 'international' (Quốc tế)
+    region TEXT,                                                                          -- Khu vực / Vùng miền du lịch (VD: "Tây Bắc", "Đông Bắc", "Miền Trung", "Đông Bắc Á")
+    tag TEXT,                                                                             -- Nhãn ngắn đặc trưng (VD: "Núi & Bản Làng", "Du Thuyền 5★", "Hoa Anh Đào")
+    image TEXT NOT NULL,                                                                  -- Đường dẫn URL ảnh đại diện tiêu biểu của điểm đến
+    tour_count INTEGER DEFAULT 0 CHECK (tour_count >= 0),                                 -- Tổng số lượng tour đang mở bán tại điểm đến này (Tự động cập nhật qua Trigger)
+    min_price NUMERIC DEFAULT 0 CHECK (min_price >= 0),                                   -- Giá tour thấp nhất tại điểm đến này (Tự động cập nhật qua Trigger)
+    is_featured BOOLEAN DEFAULT true,                                                     -- Đánh dấu hiển thị điểm đến nổi bật ngoài trang chủ (true: Có, false: Không)
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'deleted')), -- Trạng thái điểm đến: 'active' (Hiển thị), 'hidden' (Tạm ẩn), 'deleted' (Đã xóa)
+    deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời gian xóa mềm điểm đến
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tạo điểm đến trong hệ thống
 );
 
 -- ==============================================================================
 -- 3. BẢNG DANH SÁCH TOUR (tours)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.tours (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    short_title TEXT,
-    slug TEXT UNIQUE NOT NULL,
-    destination_id TEXT REFERENCES public.destinations(id) ON DELETE SET NULL,
-    category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),
-    travel_style TEXT DEFAULT 'package' CHECK (travel_style IN ('package', 'combo', 'private', 'mice')),
-    theme TEXT DEFAULT 'beach' CHECK (theme IN ('beach', 'heritage', 'adventure', 'family', 'wellness', 'culinary')),
-    type TEXT,
-    tier TEXT DEFAULT 'standard' CHECK (tier IN ('luxury', 'standard', 'budget')),
-    duration_days INTEGER NOT NULL DEFAULT 1 CHECK (duration_days >= 1),
-    duration_nights INTEGER NOT NULL DEFAULT 0 CHECK (duration_nights >= 0),
-    departure_from TEXT NOT NULL,
-    price_adult NUMERIC NOT NULL CHECK (price_adult >= 0),
-    price_child NUMERIC CHECK (price_child IS NULL OR price_child >= 0),
-    price_toddler NUMERIC CHECK (price_toddler IS NULL OR price_toddler >= 0),
-    price_infant NUMERIC CHECK (price_infant IS NULL OR price_infant >= 0),
-    single_room_supplement NUMERIC DEFAULT 0 CHECK (single_room_supplement >= 0),
-    original_price NUMERIC CHECK (original_price IS NULL OR original_price >= 0),
-    is_flash_deal BOOLEAN DEFAULT false,
-    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
-    image TEXT NOT NULL,
-    gallery JSONB DEFAULT '[]'::jsonb,
-    esg_score TEXT DEFAULT '85/100',
-    lei_score TEXT DEFAULT '78/100',
-    highlights JSONB DEFAULT '[]'::jsonb,
-    itinerary JSONB DEFAULT '[]'::jsonb,
-    included JSONB DEFAULT '[]'::jsonb,
-    excluded JSONB DEFAULT '[]'::jsonb,
-    is_flash_deal BOOLEAN DEFAULT false,
-    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
-    is_all_inclusive BOOLEAN DEFAULT false,
-    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'draft', 'hidden', 'weather_suspended', 'deleted')),
-    weather_notice TEXT, -- Thông báo khi thời tiết xấu: Bão, cấm tàu...
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id TEXT PRIMARY KEY,                                                                  -- Mã định danh duy nhất của tour (VD: 'tour-01', 'tour-sapa-02')
+    title TEXT NOT NULL,                                                                  -- Tiêu đề đầy đủ của tour du lịch (VD: "Khám Phá Di Sản Hạ Long - Du Thuyền 5 Sao Ambassador")
+    short_title TEXT,                                                                     -- Tiêu đề ngắn gọn dùng cho thanh điều hướng và nhãn thẻ (VD: "Hà Nội - Du Thuyền Hạ Long 5★")
+    code TEXT UNIQUE,                                                                     -- Mã định danh quản lý tour duy nhất (VD: "WT-HAGIANG3N2D-9LJQ", "WT-HALONG-4N3D")
+    slug TEXT UNIQUE NOT NULL,                                                            -- Đường dẫn URL thân thiện cho SEO (VD: "kham-pha-di-san-ha-long-du-thuyen-5-sao")
+    destination_id TEXT REFERENCES public.destinations(id) ON DELETE SET NULL,           -- Khóa ngoại: Liên kết đến điểm đến tương ứng trong bảng destinations
+    category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),             -- Trục 1 - Địa lý: 'domestic' (Tour Trong Nước) hoặc 'international' (Tour Quốc Tế)
+    travel_style TEXT DEFAULT 'package' CHECK (travel_style IN ('package', 'combo', 'private', 'mice')), -- Trục 2 - Hình thức: 'package' (Trọn gói ghép đoàn có HDV), 'combo' (Free & Easy vé+KS), 'private' (Tour riêng may đo), 'mice' (Doanh nghiệp MICE)
+    theme TEXT DEFAULT 'beach' CHECK (theme IN ('beach', 'heritage', 'adventure', 'family', 'wellness', 'culinary')), -- Trục 3 - Chủ đề: 'beach' (Biển đảo), 'heritage' (Di sản), 'adventure' (Mạo hiểm), 'family' (Gia đình), 'wellness' (Nghỉ dưỡng), 'culinary' (Ẩm thực)
+    type TEXT,                                                                            -- Tên hiển thị loại hình tour (VD: "Nghỉ Dưỡng & Biển Đảo", "Văn Hóa & Di Sản")
+    tier TEXT DEFAULT 'standard' CHECK (tier IN ('luxury', 'standard', 'budget')),         -- Trục 4 - Hạng sao dịch vụ: 'luxury' (Cao cấp 5★), 'standard' (Tiêu chuẩn 4★), 'budget' (Tiết kiệm 3★)
+    duration_days INTEGER NOT NULL DEFAULT 1 CHECK (duration_days >= 1),                  -- Tổng số ngày của chuyến đi (VD: 3 ngày, 4 ngày)
+    duration_nights INTEGER NOT NULL DEFAULT 0 CHECK (duration_nights >= 0),              -- Tổng số đêm lưu trú của chuyến đi (VD: 2 đêm, 3 đêm)
+    departure_from TEXT NOT NULL,                                                         -- Điểm tập trung / sân bay khởi hành chính (VD: "Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng")
+    price_adult NUMERIC NOT NULL CHECK (price_adult >= 0),                                -- Giá vé người lớn cơ bản (áp dụng cho khách từ 12 tuổi trở lên)
+    price_child NUMERIC CHECK (price_child IS NULL OR price_child >= 0),                  -- Giá vé trẻ em (từ 5 đến 11 tuổi, thường bằng 75% giá vé người lớn)
+    price_toddler NUMERIC CHECK (price_toddler IS NULL OR price_toddler >= 0),            -- Giá vé trẻ nhỏ (từ 2 đến 4 tuổi, thường bằng 50% giá vé người lớn)
+    price_infant NUMERIC CHECK (price_infant IS NULL OR price_infant >= 0),               -- Giá vé em bé (dưới 2 tuổi, phụ phí dịch vụ & bảo hiểm 500.000đ)
+    single_room_supplement NUMERIC DEFAULT 0 CHECK (single_room_supplement >= 0),        -- Phí phụ thu phòng đơn (dành cho khách đi 1 mình muốn ngủ riêng 1 phòng)
+    original_price NUMERIC CHECK (original_price IS NULL OR original_price >= 0),         -- Giá gốc niêm yết trước khi giảm (dùng để hiển thị giá gạch ngang khuyến mãi)
+    is_flash_deal BOOLEAN DEFAULT false,                                                  -- Đánh dấu tour thuộc chương trình Flash Sale 24h có đồng hồ đếm ngược (true/false)
+    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100), -- Mức giảm giá theo % (VD: 25% ➔ hiển thị huy hiệu 'GIẢM 25%')
+    is_all_inclusive BOOLEAN DEFAULT false,                                               -- Đánh dấu tour trọn gói 100% không phát sinh chi phí phụ (true/false)
+    seats_left INTEGER DEFAULT 15 CHECK (seats_left >= 0),                                -- Tổng số lượng chỗ dự phòng / chỗ còn lại của chuyến đi
+    badge TEXT DEFAULT 'Nổi Bật',                                                         -- Nhãn huy hiệu hiển thị trên thẻ tour (VD: "Bán Chạy Nhất", "Mới Ra Mắt", "Flash Sale")
+    image TEXT NOT NULL,                                                                  -- Đường dẫn URL ảnh bìa chính hiển thị trên thẻ tour
+    gallery JSONB DEFAULT '[]'::jsonb,                                                    -- Mảng JSONB chứa album bộ sưu tập ảnh chất lượng cao của tour
+    available_dates JSONB DEFAULT '[]'::jsonb,                                            -- Mảng JSONB chứa danh sách chuỗi các ngày khởi hành khả dụng (VD: ['15/09/2026', '22/09/2026'])
+    departure_dates JSONB DEFAULT '[]'::jsonb,                                            -- Mảng JSONB lưu chi tiết từng ngày khởi hành: ngày, thứ, tháng, số chỗ, giá vé riêng từng ngày, nhãn khuyến mãi
+    hotel_specs JSONB DEFAULT '{}'::jsonb,                                                -- Mảng JSONB thông tin khách sạn chi tiết: tên khách sạn, hạng phòng, tiện ích đi kèm
+    highlights JSONB DEFAULT '[]'::jsonb,                                                 -- Mảng JSONB chứa các điểm nhấn nổi bật đặc sắc nhất của chuyến đi
+    itinerary JSONB DEFAULT '[]'::jsonb,                                                  -- Mảng JSONB chi tiết lịch trình từng ngày (ngày, tiêu đề, bữa ăn, khách sạn, hoạt động)
+    included JSONB DEFAULT '[]'::jsonb,                                                   -- Mảng JSONB danh sách dịch vụ đã bao gồm trong giá vé
+    excluded JSONB DEFAULT '[]'::jsonb,                                                   -- Mảng JSONB danh sách dịch vụ không bao gồm trong giá vé
+    refund_policy JSONB DEFAULT '[]'::jsonb,                                              -- Mảng JSONB quy định & chính sách hoàn hủy vé theo mốc thời gian
+    faqs JSONB DEFAULT '[]'::jsonb,                                                       -- Mảng JSONB bộ câu hỏi và giải đáp thường gặp cho tour
+    esg_score TEXT DEFAULT '85/100',                                                      -- Điểm tiêu chuẩn du lịch bền vững & bảo vệ môi trường (VD: '88/100')
+    lei_score TEXT DEFAULT '78/100',                                                      -- Điểm chất lượng trải nghiệm văn hóa & dịch vụ bản địa (VD: '92/100')
+    rating NUMERIC DEFAULT 5.0 CHECK (rating >= 0 AND rating <= 5),                       -- Điểm đánh giá chất lượng tour (1.0 đến 5.0 sao)
+    reviews_count INTEGER DEFAULT 0 CHECK (reviews_count >= 0),                           -- Tổng số lượt đánh giá / bình luận thực tế
+    weather_notice TEXT,                                                                  -- Cảnh báo khẩn cấp khi thời tiết xấu: Bão biển, sạt lở núi, cấm tàu thuyền...
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'draft', 'hidden', 'weather_suspended', 'deleted')), -- Trạng thái tour: 'published' (Mở bán), 'draft' (Nháp), 'hidden' (Ẩn), 'weather_suspended' (Tạm dừng do thời tiết), 'deleted' (Đã xóa)
+    deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời gian xóa mềm tour
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm tạo tour trong hệ thống
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm cập nhật thông tin tour gần nhất
 );
 
 -- Trigger tự động cập nhật tour_count & min_price trong destinations
@@ -160,99 +170,98 @@ CREATE TRIGGER trg_sync_destination_stats
 -- 4. BẢNG THƯ VIỆN HÌNH ẢNH CHI TIẾT (tour_images)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.tour_images (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
-    image_url TEXT NOT NULL,
-    caption TEXT,                        -- Chú thích: "Phòng ngủ view biển", "Buffet tôm hùm"
-    alt_text TEXT,                       -- Tối ưu SEO hình ảnh
-    category TEXT DEFAULT 'attraction' CHECK (category IN ('hotel', 'attraction', 'food', 'cruise', 'activity', 'other')),
-    display_order INTEGER DEFAULT 0,     -- Thứ tự sắp xếp hiển thị
-    is_cover BOOLEAN DEFAULT false,      -- Đánh dấu ảnh bìa chính
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh bản ghi hình ảnh (UUID)
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,                  -- Khóa ngoại: Liên kết đến tour tương ứng trong bảng tours
+    image_url TEXT NOT NULL,                                                              -- Đường dẫn URL tải ảnh chất lượng cao (CDN / Storage)
+    caption TEXT,                                                                         -- Chú thích ảnh (VD: "Phòng ngủ Suite view biển", "Buffet tôm hùm 5 sao")
+    alt_text TEXT,                                                                        -- Văn bản thay thế tối ưu SEO cho công cụ tìm kiếm Google Images
+    category TEXT DEFAULT 'attraction' CHECK (category IN ('hotel', 'attraction', 'food', 'cruise', 'activity', 'other')), -- Phân loại ảnh: 'hotel' (Khách sạn), 'attraction' (Cảnh đẹp), 'food' (Ẩm thực), 'cruise' (Du thuyền), 'activity' (Hoạt động), 'other' (Khác)
+    display_order INTEGER DEFAULT 0,                                                      -- Thứ tự sắp xếp hiển thị ảnh trong thư viện (số nhỏ hiển thị trước)
+    is_cover BOOLEAN DEFAULT false,                                                       -- Đánh dấu ảnh này làm ảnh bìa chính của album (true/false)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tải ảnh lên hệ thống
 );
 
 -- ==============================================================================
--- 5. BẢNG BIẾN THỂ GÓI TOUR (tour_variants)
+-- 5. BẢNG BIẾN THỂ GÓI TOUR (tour_variants - Package Options)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.tour_variants (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
-    variant_name TEXT NOT NULL,          -- "Gói Tiêu Chuẩn 3★", "Gói VIP 5★ Vinpearl"
-    departure_city TEXT,                 -- "Khởi hành từ Hà Nội", "Khởi hành từ TP.HCM"
-    hotel_star INTEGER DEFAULT 3 CHECK (hotel_star BETWEEN 1 AND 5),
-    flight_included BOOLEAN DEFAULT true,
-    price_adult NUMERIC NOT NULL CHECK (price_adult >= 0),
-    price_child NUMERIC CHECK (price_child IS NULL OR price_child >= 0),
-    price_infant NUMERIC CHECK (price_infant IS NULL OR price_infant >= 0),
-    single_room_supplement NUMERIC DEFAULT 0 CHECK (single_room_supplement >= 0),
-    benefits JSONB DEFAULT '[]'::jsonb,  -- Danh sách quyền lợi riêng của gói
-    is_default BOOLEAN DEFAULT false,    -- Gói mặc định hiển thị
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'deleted')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh của biến thể gói tour (UUID)
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,                  -- Khóa ngoại: Liên kết đến tour gốc tương ứng trong bảng tours
+    variant_name TEXT NOT NULL,                                                           -- Tên gói dịch vụ (VD: "Gói Tiêu Chuẩn 3★", "Gói VIP 5★ Vinpearl", "Gói Land Tour Tự Túc Vé Bay")
+    departure_city TEXT,                                                                  -- Thành phố xuất phát của gói (VD: "Khởi hành từ Hà Nội", "Khởi hành từ TP.HCM")
+    hotel_star INTEGER DEFAULT 3 CHECK (hotel_star BETWEEN 1 AND 5),                      -- Tiêu chuẩn sao cam kết của khách sạn trong gói (từ 1 đến 5 sao)
+    flight_included BOOLEAN DEFAULT true,                                                 -- Gói đã bao gồm vé máy bay khứ hồi hay chưa (true: Đã gồm, false: Chưa gồm)
+    price_adult NUMERIC NOT NULL CHECK (price_adult >= 0),                                -- Giá vé người lớn của riêng gói biến thể này
+    price_child NUMERIC CHECK (price_child IS NULL OR price_child >= 0),                  -- Giá vé trẻ em của riêng gói biến thể này
+    price_infant NUMERIC CHECK (price_infant IS NULL OR price_infant >= 0),               -- Giá vé em bé của riêng gói biến thể này
+    single_room_supplement NUMERIC DEFAULT 0 CHECK (single_room_supplement >= 0),        -- Phí phụ thu phòng đơn của riêng gói biến thể này
+    benefits JSONB DEFAULT '[]'::jsonb,                                                   -- Mảng JSONB chứa danh sách quyền lợi / đặc quyền riêng của gói (VD: tặng vé Safari, miễn phí spa)
+    is_default BOOLEAN DEFAULT false,                                                     -- Đánh dấu đây là gói mặc định hiển thị trước cho khách (true/false)
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hidden', 'deleted')), -- Trạng thái gói: 'active' (Mở bán), 'hidden' (Tạm ẩn), 'deleted' (Đã xóa)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tạo gói biến thể
 );
 
 -- ==============================================================================
 -- 6. BẢNG LỊCH KHỞI HÀNH & CHỖ TRỐNG (departure_dates)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.departure_dates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    available_seats INTEGER NOT NULL DEFAULT 20,
-    total_seats INTEGER NOT NULL DEFAULT 20,
-    status TEXT DEFAULT 'available' CHECK (status IN ('available', 'few_seats', 'sold_out')),
-    price_adjustment NUMERIC DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE (tour_id, date),
-    CONSTRAINT chk_available_seats CHECK (available_seats >= 0 AND available_seats <= total_seats)
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh bản ghi ngày khởi hành (UUID)
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,                  -- Khóa ngoại: Liên kết đến tour tương ứng trong bảng tours
+    date DATE NOT NULL,                                                                   -- Ngày khởi hành thực tế (định dạng chuẩn YYYY-MM-DD)
+    available_seats INTEGER NOT NULL DEFAULT 20,                                          -- Số lượng chỗ trống còn nhận khách thực tế (Tự động trừ khi có khách đặt thành công)
+    total_seats INTEGER NOT NULL DEFAULT 20,                                              -- Tổng số lượng chỗ tối đa mở bán cho chuyến đi này
+    status TEXT DEFAULT 'available' CHECK (status IN ('available', 'few_seats', 'sold_out')), -- Trạng thái chỗ: 'available' (Còn chỗ), 'few_seats' (Sắp hết chỗ <= 5), 'sold_out' (Hết chỗ)
+    price_adjustment NUMERIC DEFAULT 0,                                                   -- Mức giá điều chỉnh tăng/giảm so với giá gốc (VD: +500.000đ vào ngày lễ Tết)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm mở bán lịch khởi hành
+    UNIQUE (tour_id, date),                                                               -- Ràng buộc: Mỗi tour chỉ có 1 bản ghi duy nhất cho mỗi ngày khởi hành
+    CONSTRAINT chk_available_seats CHECK (available_seats >= 0 AND available_seats <= total_seats) -- Ràng buộc: Số chỗ còn lại không được âm và không vượt quá tổng chỗ
 );
 
 -- ==============================================================================
 -- 7. BẢNG MÃ GIẢM GIÁ & KHUYẾN MÃI (coupons)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.coupons (
-    code TEXT PRIMARY KEY,
-    description TEXT NOT NULL,
-    discount_amount NUMERIC DEFAULT 0 CHECK (discount_amount >= 0),
-    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100),
-    min_order_value NUMERIC DEFAULT 0 CHECK (min_order_value >= 0),
-    usage_limit INTEGER DEFAULT 100 CHECK (usage_limit >= 0),
-    used_count INTEGER DEFAULT 0 CHECK (used_count >= 0),
-    expires_at TIMESTAMP WITH TIME ZONE,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    code TEXT PRIMARY KEY,                                                                -- Mã giảm giá khách nhập khi đặt tour (VD: 'WEBTRAVEL500K', 'SUMMER2026')
+    description TEXT NOT NULL,                                                            -- Mô tả chi tiết nội dung chương trình ưu đãi của mã
+    discount_amount NUMERIC DEFAULT 0 CHECK (discount_amount >= 0),                       -- Số tiền giảm cố định (đơn vị VNĐ, VD: 500.000đ)
+    discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100), -- Mức giảm theo % trên tổng giá trị đơn hàng (0 đến 100%)
+    min_order_value NUMERIC DEFAULT 0 CHECK (min_order_value >= 0),                       -- Giá trị đơn hàng tối thiểu để được áp dụng mã giảm giá này
+    usage_limit INTEGER DEFAULT 100 CHECK (usage_limit >= 0),                             -- Giới hạn tổng số lượt sử dụng tối đa của mã trên toàn hệ thống
+    used_count INTEGER DEFAULT 0 CHECK (used_count >= 0),                                 -- Số lượt mã đã được sử dụng thực tế (Tự động tăng khi có đơn đặt thành công)
+    expires_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời hạn hết hiệu lực của mã giảm giá (null nếu không giới hạn thời gian)
+    is_active BOOLEAN DEFAULT true,                                                       -- Bật / Tắt hiệu lực sử dụng của mã (true: Đang hoạt động, false: Tạm ngưng)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tạo mã giảm giá
 );
 
 -- ==============================================================================
 -- 8. BẢNG ĐƠN ĐẶT TOUR (bookings)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.bookings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    booking_code TEXT UNIQUE NOT NULL,
-    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE RESTRICT,
-    variant_id UUID REFERENCES public.tour_variants(id) ON DELETE SET NULL,
-    tour_title TEXT NOT NULL,
-    departure_date DATE NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
-    customer_address TEXT,
-    customer_notes TEXT,
-    adults_count INTEGER NOT NULL DEFAULT 1 CHECK (adults_count >= 1),
-    children_count INTEGER NOT NULL DEFAULT 0 CHECK (children_count >= 0),
-    infants_count INTEGER NOT NULL DEFAULT 0 CHECK (infants_count >= 0),
-    single_rooms_count INTEGER NOT NULL DEFAULT 0 CHECK (single_rooms_count >= 0),
-    currency TEXT NOT NULL DEFAULT 'VND' CHECK (currency IN ('VND', 'USD')),
-    total_amount NUMERIC NOT NULL CHECK (total_amount >= 0),
-    paid_amount NUMERIC DEFAULT 0 CHECK (paid_amount >= 0),
-    coupon_code TEXT REFERENCES public.coupons(code) ON DELETE SET NULL,
-    -- Bộ 4 phương thức thanh toán tinh gọn: VietQR, MoMo (VN) + Visa/MasterCard, PayPal (Quốc tế)
-    payment_method TEXT NOT NULL CHECK (payment_method IN ('vietqr', 'momo', 'credit_card', 'paypal', 'bank_transfer', 'cash')),
-    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'partially_paid', 'paid', 'failed', 'refunded')),
-    booking_status TEXT NOT NULL DEFAULT 'confirmed' CHECK (booking_status IN ('pending', 'confirmed', 'completed', 'cancelled', 'refunded')),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh duy nhất của đơn đặt tour (UUID)
+    booking_code TEXT UNIQUE NOT NULL,                                                    -- Mã tra cứu đơn hàng thân thiện cho khách (VD: 'BK-20260824-001')
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,                       -- Khóa ngoại: Liên kết đến tài khoản thành viên (nếu khách chưa đăng nhập thì để null)
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE RESTRICT,                 -- Khóa ngoại: Liên kết đến tour được đặt trong bảng tours (chặn xóa tour nếu đang có đơn)
+    variant_id UUID REFERENCES public.tour_variants(id) ON DELETE SET NULL,               -- Khóa ngoại: Liên kết đến gói biến thể được chọn trong bảng tour_variants (nếu có)
+    tour_title TEXT NOT NULL,                                                             -- Tên tour tại thời điểm đặt (lưu cố định để đối soát lịch sử không bị thay đổi)
+    departure_date DATE NOT NULL,                                                         -- Ngày khởi hành chính xác mà khách chọn đi
+    customer_name TEXT NOT NULL,                                                          -- Họ và tên của người đại diện đặt tour
+    customer_phone TEXT NOT NULL,                                                         -- Số điện thoại liên hệ nhận vé và thông báo đón đoàn
+    customer_email TEXT NOT NULL,                                                         -- Email nhận vé điện tử (E-Ticket) và hợp đồng du lịch
+    customer_address TEXT,                                                                -- Địa chỉ liên hệ / giao nhận hợp đồng của khách hàng
+    customer_notes TEXT,                                                                  -- Ghi chú hoặc yêu cầu đặc biệt của khách (VD: ăn chay, có trẻ sơ sinh, xe lăn...)
+    adults_count INTEGER NOT NULL DEFAULT 1 CHECK (adults_count >= 1),                    -- Số lượng khách người lớn (từ 12 tuổi trở lên, tối thiểu 1 người)
+    children_count INTEGER NOT NULL DEFAULT 0 CHECK (children_count >= 0),                -- Số lượng khách trẻ em (từ 5 đến 11 tuổi)
+    infants_count INTEGER NOT NULL DEFAULT 0 CHECK (infants_count >= 0),                  -- Số lượng khách em bé (dưới 5 tuổi)
+    single_rooms_count INTEGER NOT NULL DEFAULT 0 CHECK (single_rooms_count >= 0),        -- Số lượng phòng đơn yêu cầu phụ thu riêng
+    currency TEXT NOT NULL DEFAULT 'VND' CHECK (currency IN ('VND', 'USD')),              -- Đơn vị tiền tệ thanh toán ('VND' hoặc 'USD')
+    total_amount NUMERIC NOT NULL CHECK (total_amount >= 0),                              -- Tổng số tiền của đơn hàng sau khi tính số khách, phụ thu và giảm giá
+    paid_amount NUMERIC DEFAULT 0 CHECK (paid_amount >= 0),                               -- Số tiền thực tế khách đã thanh toán thành công (Tự động cập nhật qua Trigger)
+    coupon_code TEXT REFERENCES public.coupons(code) ON DELETE SET NULL,                 -- Khóa ngoại: Mã giảm giá đã áp dụng cho đơn hàng này
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('vietqr', 'momo', 'credit_card', 'paypal', 'bank_transfer', 'cash')), -- Phương thức thanh toán: 'vietqr', 'momo', 'credit_card', 'paypal', 'bank_transfer', 'cash'
+    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'partially_paid', 'paid', 'failed', 'refunded')), -- Trạng thái thanh toán: 'pending' (Chờ tiền), 'partially_paid' (Đã cọc 50%), 'paid' (Đã trả 100%), 'failed' (Thất bại), 'refunded' (Đã hoàn tiền)
+    booking_status TEXT NOT NULL DEFAULT 'confirmed' CHECK (booking_status IN ('pending', 'confirmed', 'completed', 'cancelled', 'refunded')), -- Trạng thái xử lý đơn: 'pending' (Chờ xử lý), 'confirmed' (Đã xác nhận), 'completed' (Đã đi xong tour), 'cancelled' (Đã hủy), 'refunded' (Đã hoàn tiền)
+    deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời gian xóa mềm đơn hàng
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm khách tạo đơn đặt tour
 );
 
 -- Trigger quản lý trừ ghế và hoàn trả ghế tự động
@@ -325,20 +334,20 @@ CREATE TRIGGER trg_manage_coupon_usage
 -- 9. BẢNG LỊCH SỬ THANH TOÁN (payment_transactions)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.payment_transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,
-    booking_code TEXT NOT NULL,
-    transaction_code TEXT UNIQUE NOT NULL, -- Mã giao dịch ngân hàng / VietQR / MoMo / PayPal
-    amount NUMERIC NOT NULL CHECK (amount > 0),
-    currency TEXT NOT NULL DEFAULT 'VND' CHECK (currency IN ('VND', 'USD')),
-    payment_method TEXT NOT NULL CHECK (payment_method IN ('vietqr', 'momo', 'credit_card', 'paypal', 'bank_transfer', 'cash')),
-    payment_type TEXT DEFAULT 'full' CHECK (payment_type IN ('deposit', 'remaining', 'full', 'refund')),
-    status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('pending', 'success', 'failed', 'refunded')),
-    bank_name TEXT,
-    payer_name TEXT,
-    notes TEXT,
-    paid_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh giao dịch thanh toán (UUID)
+    booking_id UUID NOT NULL REFERENCES public.bookings(id) ON DELETE CASCADE,            -- Khóa ngoại: Liên kết đến đơn đặt tour tương ứng trong bảng bookings
+    booking_code TEXT NOT NULL,                                                           -- Mã đơn đặt tour dùng để đối soát nhanh
+    transaction_code TEXT UNIQUE NOT NULL,                                                -- Mã giao dịch đối soát của Ngân hàng / VietQR / MoMo / Stripe / PayPal (duy nhất)
+    amount NUMERIC NOT NULL CHECK (amount > 0),                                           -- Số tiền thực tế chuyển khoản trong giao dịch này (phải lớn hơn 0)
+    currency TEXT NOT NULL DEFAULT 'VND' CHECK (currency IN ('VND', 'USD')),              -- Đơn vị tiền tệ giao dịch ('VND' hoặc 'USD')
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('vietqr', 'momo', 'credit_card', 'paypal', 'bank_transfer', 'cash')), -- Phương thức thanh toán sử dụng trong giao dịch
+    payment_type TEXT DEFAULT 'full' CHECK (payment_type IN ('deposit', 'remaining', 'full', 'refund')), -- Loại thanh toán: 'deposit' (Đặt cọc), 'remaining' (Trả nốt), 'full' (100%), 'refund' (Hoàn tiền)
+    status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('pending', 'success', 'failed', 'refunded')), -- Trạng thái giao dịch: 'pending' (Chờ tiền về), 'success' (Thành công), 'failed' (Thất bại), 'refunded' (Đã hoàn lại)
+    bank_name TEXT,                                                                       -- Tên ngân hàng nhận tiền / chuyển tiền (VD: "Vietcombank", "MB Bank", "Techcombank")
+    payer_name TEXT,                                                                      -- Tên chủ tài khoản người chuyển tiền thực tế
+    notes TEXT,                                                                           -- Nội dung chuyển khoản hoặc ghi chú đối soát từ cổng thanh toán
+    paid_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,       -- Thời điểm tiền vào tài khoản thực tế
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tạo bản ghi giao dịch
 );
 
 -- Trigger tự động đồng bộ tiền đã thanh toán và cập nhật trạng thái đơn hàng
@@ -381,74 +390,74 @@ CREATE TRIGGER trg_sync_booking_payment
 -- 10. BẢNG YÊU CẦU TỰ THIẾT KẾ TOUR (custom_tour_requests)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.custom_tour_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_email TEXT,
-    destinations TEXT[] NOT NULL,
-    duration_days INTEGER NOT NULL CHECK (duration_days >= 1),
-    estimated_budget NUMERIC CHECK (estimated_budget IS NULL OR estimated_budget >= 0),
-    travel_style TEXT,
-    hotel_star INTEGER DEFAULT 4 CHECK (hotel_star BETWEEN 1 AND 5),
-    group_size INTEGER DEFAULT 2 CHECK (group_size >= 1),
-    departure_month TEXT,
-    special_requirements TEXT,
-    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'quoted', 'completed', 'cancelled')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh yêu cầu thiết kế tour riêng (UUID)
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,                       -- Khóa ngoại: Liên kết đến tài khoản thành viên gửi yêu cầu (nếu đã đăng nhập)
+    customer_name TEXT NOT NULL,                                                          -- Họ và tên khách hàng cần tư vấn thiết kế tour
+    customer_phone TEXT NOT NULL,                                                         -- Số điện thoại liên hệ nhận tư vấn và báo giá
+    customer_email TEXT,                                                                  -- Email nhận lộ trình tour và báo giá chi tiết
+    destinations TEXT[] NOT NULL,                                                         -- Mảng danh sách các điểm đến khách muốn ghé thăm (VD: ["Đà Nẵng", "Hội An", "Huế"])
+    duration_days INTEGER NOT NULL CHECK (duration_days >= 1),                            -- Tổng số ngày dự kiến của chuyến đi (tối thiểu 1 ngày)
+    estimated_budget NUMERIC CHECK (estimated_budget IS NULL OR estimated_budget >= 0),   -- Dự toán ngân sách tối đa trên mỗi người (VNĐ)
+    travel_style TEXT,                                                                    -- Phong cách chuyến đi mong muốn (Gia đình nghỉ dưỡng, Mạo hiểm trekking, Khám phá văn hóa...)
+    hotel_star INTEGER DEFAULT 4 CHECK (hotel_star BETWEEN 1 AND 5),                      -- Tiêu chuẩn sao khách sạn mong muốn (từ 1 đến 5 sao)
+    group_size INTEGER DEFAULT 2 CHECK (group_size >= 1),                                 -- Số lượng thành viên dự kiến tham gia trong đoàn
+    departure_month TEXT,                                                                 -- Tháng dự kiến khởi hành (VD: "Tháng 10/2026")
+    special_requirements TEXT,                                                            -- Các yêu cầu đặc biệt khác (xe Limousine riêng, ăn chay, hướng dẫn viên tiếng Anh...)
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'quoted', 'completed', 'cancelled')), -- Trạng thái xử lý: 'new' (Mới), 'contacted' (Đã liên hệ), 'quoted' (Đã báo giá), 'completed' (Đã chốt tour), 'cancelled' (Đã hủy)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm gửi yêu cầu thiết kế tour
 );
 
 -- ==============================================================================
 -- 11. BẢNG YÊU CẦU TƯ VẤN & LIÊN HỆ (contact_inquiries)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.contact_inquiries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    full_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    email TEXT,
-    inquiry_type TEXT DEFAULT 'general' CHECK (inquiry_type IN ('general', 'visa', 'insurance', 'custom_quote', 'callback')),
-    message TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'resolved')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh thư liên hệ / yêu cầu tư vấn (UUID)
+    full_name TEXT NOT NULL,                                                              -- Họ và tên người gửi câu hỏi / liên hệ
+    phone TEXT NOT NULL,                                                                  -- Số điện thoại để nhân viên gọi lại hỗ trợ
+    email TEXT,                                                                           -- Địa chỉ email để nhận thư phản hồi
+    inquiry_type TEXT DEFAULT 'general' CHECK (inquiry_type IN ('general', 'visa', 'insurance', 'custom_quote', 'callback')), -- Phân loại yêu cầu: 'general' (Chung), 'visa' (Hồ sơ Visa), 'insurance' (Bảo hiểm), 'custom_quote' (Báo giá đoàn), 'callback' (Gọi lại tư vấn)
+    message TEXT NOT NULL,                                                                -- Nội dung câu hỏi / thắc mắc của khách hàng
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'resolved')), -- Trạng thái xử lý: 'pending' (Chờ xử lý), 'processing' (Đang xử lý), 'resolved' (Đã giải quyết xong)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm khách gửi liên hệ
 );
 
 -- ==============================================================================
 -- 12. BẢNG TOUR YÊU THÍCH (wishlists)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.wishlists (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(user_id, tour_id)
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh bản ghi yêu thích (UUID)
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,               -- Khóa ngoại: Liên kết đến tài khoản người dùng trong bảng profiles
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,                  -- Khóa ngoại: Liên kết đến tour được yêu thích trong bảng tours
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm người dùng bấm lưu tour yêu thích
+    UNIQUE(user_id, tour_id)                                                              -- Ràng buộc: Mỗi người dùng chỉ lưu 1 tour vào danh sách yêu thích một lần
 );
 
 -- ==============================================================================
 -- 13. BẢNG ĐÁNH GIÁ TOUR (reviews)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.reviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    user_name TEXT NOT NULL,
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT NOT NULL,
-    verified_purchase BOOLEAN DEFAULT true,
-    status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    UNIQUE(tour_id, user_id)
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh đánh giá (UUID)
+    tour_id TEXT NOT NULL REFERENCES public.tours(id) ON DELETE CASCADE,                  -- Khóa ngoại: Liên kết đến tour được đánh giá trong bảng tours
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,                       -- Khóa ngoại: Liên kết đến tài khoản người dùng gửi đánh giá (nếu có)
+    user_name TEXT NOT NULL,                                                              -- Tên hiển thị của khách hàng viết đánh giá
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),                          -- Điểm đánh giá chất lượng (từ 1 đến 5 sao)
+    comment TEXT NOT NULL,                                                                -- Nội dung cảm nghĩ / trải nghiệm thực tế về chuyến đi
+    verified_purchase BOOLEAN DEFAULT true,                                               -- Đánh dấu đã xác thực khách hàng đã từng mua và trải nghiệm tour này (true/false)
+    status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')), -- Trạng thái duyệt: 'pending' (Chờ duyệt), 'approved' (Đã duyệt hiển thị), 'rejected' (Bị từ chối)
+    deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời điểm xóa mềm đánh giá
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm gửi đánh giá
+    UNIQUE(tour_id, user_id)                                                              -- Ràng buộc: Mỗi người dùng chỉ đánh giá 1 tour một lần
 );
 
 -- ==============================================================================
 -- 14. BẢNG EMAIL BẢN TIN KHUYẾN MÃI (subscribers)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.subscribers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL,
-    discount_code TEXT DEFAULT 'WEBTRAVEL500K',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),                                        -- Mã định danh bản ghi đăng ký nhận tin (UUID)
+    email TEXT UNIQUE NOT NULL,                                                           -- Địa chỉ email đăng ký nhận thông tin khuyến mãi (duy nhất)
+    discount_code TEXT DEFAULT 'WEBTRAVEL500K',                                           -- Mã giảm giá tặng kèm cho khách khi đăng ký thành công
+    is_active BOOLEAN DEFAULT true,                                                       -- Trạng thái đăng ký nhận tin (true: Đang nhận tin, false: Đã hủy đăng ký)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm đăng ký nhận bản tin
 );
 
 -- ==============================================================================
@@ -539,6 +548,16 @@ CREATE POLICY "Users Manage Wishlists" ON public.wishlists FOR ALL USING (auth.u
 CREATE POLICY "Public Insert Reviews" ON public.reviews FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Insert Subscribers" ON public.subscribers FOR INSERT WITH CHECK (true);
 
+-- CẤP QUYỀN TOÀN DIỆN CHO CÁC ROLE TRUY CẬP SUPABASE
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
 -- ==============================================================================
 -- DỮ LIỆU KHỞI TẠO MẪU (SEED DATA)
 -- ==============================================================================
@@ -559,70 +578,7 @@ INSERT INTO public.destinations (id, name, slug, category, region, tag, image, t
 ('dest-korea',  'Hàn Quốc',    'han-quoc', 'international', 'Đông Bắc Á',  'Seoul & Nami',    'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80', 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
--- 3. Danh Sách Tour Mẫu
-INSERT INTO public.tours (
-    id, title, short_title, slug, destination_id, category, type, tier,
-    duration_days, duration_nights, departure_from,
-    price_adult, price_child, price_infant, single_room_supplement,
-    image, esg_score, lei_score, highlights, is_flash_deal, discount_percent, is_all_inclusive
-) VALUES
-(
-    'tour-01', 'Khám Phá Di Sản Hạ Long - Du Thuyền 5 Sao Ambassador', 'Hà Nội - Du Thuyền Hạ Long 5★',
-    'kham-pha-di-san-ha-long-du-thuyen-5-sao', 'dest-halong', 'domestic', 'Tour Nghỉ Dưỡng', 'luxury',
-    3, 2, 'Hà Nội', 8500000, 6375000, 1500000, 2500000,
-    'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80',
-    '92/100', '88/100',
-    '["Du thuyền 5 sao chuẩn quốc tế", "Buffet tôm hùm thượng hạng", "Chèo thuyền Kayak Hang Luồn"]'::jsonb,
-    true, 30, true
-),
-(
-    'tour-02', 'Chinh Phục Đỉnh Fansipan & Khám Phá Bản Cát Cát Sapa', 'Hà Nội - Sapa Fansipan Legend',
-    'chinh-phuc-dinh-fansipan-sapa', 'dest-sapa', 'domestic', 'Tour Văn Hóa', 'standard',
-    3, 2, 'Hà Nội / Hải Phòng', 3200000, 2400000, 500000, 1200000,
-    'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=800&q=80',
-    '88/100', '82/100',
-    '["Vé cáp treo Sun World Fansipan", "Khách sạn 4 sao trung tâm", "Lẩu cá hồi đặc sản Sapa"]'::jsonb,
-    false, 0, false
-),
-(
-    'tour-03', 'Di Sản Miền Trung: Đà Nẵng - Bà Nà Hills - Cố Đô Huế - Hội An', 'Đà Nẵng - Bà Nà - Huế - Hội An',
-    'di-san-mien-trung-da-nang-hue-hoi-an', 'dest-danang', 'domestic', 'Tour Di Sản', 'luxury',
-    4, 3, 'TP. Hồ Chí Minh / Hà Nội', 5800000, 4350000, 1000000, 1800000,
-    'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=800&q=80',
-    '90/100', '86/100',
-    '["Cầu Vàng Bà Nà Hills biểu tượng", "Thả đèn hoa đăng Hội An", "Đại Nội Huế & Ca Huế sông Hương"]'::jsonb,
-    true, 25, true
-),
-(
-    'tour-04', 'Cung Đường Vàng Tokyo - Núi Phú Sĩ - Kyoto - Osaka Mùa Hoa Anh Đào', 'Nhật Bản: Tokyo - Phú Sĩ - Kyoto - Osaka',
-    'cung-duong-vang-nhat-ban-tokyo-osaka', 'dest-japan', 'international', 'Tour Quốc Tế', 'luxury',
-    6, 5, 'Hà Nội / TP. Hồ Chí Minh', 31900000, 27115000, 5000000, 8500000,
-    'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80',
-    '95/100', '94/100',
-    '["Tàu Shinkansen 300km/h", "Bò Kobe thượng hạng", "Tắm Onsen truyền thống núi Phú Sĩ"]'::jsonb,
-    true, 30, true
-),
-(
-    'tour-05', 'Seoul - Đảo Nami - Công Viên Everland - Tháp Namsan Hàn Quốc', 'Hàn Quốc: Seoul - Nami - Everland',
-    'han-quoc-seoul-nami-everland', 'dest-korea', 'international', 'Tour Quốc Tế', 'standard',
-    5, 4, 'Hà Nội / Đà Nẵng / TP.HCM', 13590000, 11550000, 2500000, 4500000,
-    'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80',
-    '87/100', '84/100',
-    '["Mặc Hanbok Cung Cảnh Phúc", "Vui chơi Everland", "BBQ thịt nướng chuẩn vị Hàn"]'::jsonb,
-    false, 0, true
-)
-ON CONFLICT (id) DO NOTHING;
-
--- 4. Biến Thể Gói Tour Mẫu (tour_variants)
-INSERT INTO public.tour_variants (tour_id, variant_name, departure_city, hotel_star, price_adult, benefits, is_default) VALUES
-('tour-01', 'Gói Tiêu Chuẩn - Cabin Deluxe', 'Hà Nội', 5, 8500000, '["Cabin ban công riêng tầng 1", "Buffet hải sản", "Kayak"]'::jsonb, true),
-('tour-01', 'Gói VIP - Cabin Suite Tổng Thống', 'Hà Nội', 5, 12500000, '["Cabin Suite tầng 3 view 360", "Rượu vang Pháp đón chào", "Massage spa 60p"]'::jsonb, false),
-('tour-03', 'Gói Khởi Hành TP.HCM (Đã gồm vé máy bay)', 'TP. Hồ Chí Minh', 4, 5800000, '["Vé máy bay khứ hồi Vietnam Airlines", "Khách sạn 4 sao biển", "Vé cáp treo Bà Nà"]'::jsonb, true),
-('tour-03', 'Gói Khởi Hành Hà Nội', 'Hà Nội', 4, 5500000, '["Vé máy bay khứ hồi Vietjet Air", "Khách sạn 4 sao", "Vé cáp treo Bà Nà"]'::jsonb, false)
-ON CONFLICT DO NOTHING;
-
--- Kiểm tra kết quả
-SELECT count(*) AS total_tours FROM public.tours;
-SELECT count(*) AS total_variants FROM public.tour_variants;
+-- Kiểm tra trạng thái hệ thống
 SELECT count(*) AS total_coupons FROM public.coupons;
 SELECT count(*) AS total_destinations FROM public.destinations;
+SELECT count(*) AS total_tours FROM public.tours;

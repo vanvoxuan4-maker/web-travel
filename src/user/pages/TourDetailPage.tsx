@@ -16,21 +16,30 @@ export const TourDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [tour, setTour] = useState<Tour | null>(() => {
-    return TOURS_DATA.find(t => t.id === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
+    if (!id) return TOURS_DATA.length > 0 ? TOURS_DATA[0] : null;
+    return tourService.getTourByIdSync(id) || TOURS_DATA.find(t => t.id === id || t.slug === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
   });
 
   useEffect(() => {
     if (id) {
-      const local = TOURS_DATA.find(t => t.id === id);
-      if (local) setTour(local);
+      const local = tourService.getTourByIdSync(id) || TOURS_DATA.find(t => t.id === id || t.slug === id);
+      if (local) {
+        setTour(local);
+        if (local.slug && local.slug !== id) {
+          navigate(`/tour/${local.slug}`, { replace: true });
+        }
+      }
 
       tourService.getTourById(id).then(fetched => {
         if (fetched) {
           setTour(fetched);
+          if (fetched.slug && fetched.slug !== id) {
+            navigate(`/tour/${fetched.slug}`, { replace: true });
+          }
         }
       });
     }
-  }, [id]);
+  }, [id, navigate]);
 
   const defaultFirstDate = tour?.departureDates?.[0]?.date || tour?.availableDates?.[0] || '12/09/2026';
   const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(defaultFirstDate);
@@ -100,6 +109,11 @@ export const TourDetailPage: React.FC = () => {
               <span className={`badge ${tour.tier === 'luxury' ? 'badge-gold' : 'badge-emerald'}`}>
                 <i className="fa-solid fa-crown" style={{ marginRight: '0.3rem' }}></i> {tour.tierName || 'Dòng Tiêu Chuẩn'}
               </span>
+              {tour.departureDates?.some(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới'))) && (
+                <span className="badge" style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 800 }}>
+                  🎉 Có Lịch Đại Lễ &amp; Tết
+                </span>
+              )}
               <span className="badge badge-forest" style={{ background: '#f8fafc', color: '#111827', border: '1px solid var(--glass-border)' }}>
                 Mã Tour: <strong>{tour.code}</strong> {tour.sku ? `(SKU: ${tour.sku})` : ''}
               </span>
@@ -249,14 +263,32 @@ export const TourDetailPage: React.FC = () => {
                     {formatCurrencyVND(currentPrice)}
                   </span>
                 </div>
-                <button 
-                  type="button" 
-                  className="badge" 
-                  onClick={() => scrollToSection('section-schedule')}
-                  style={{ background: '#ecfdf5', color: 'var(--accent-forest)', fontWeight: 800, fontSize: '0.85rem', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', transition: 'var(--transition-fast)' }}
-                >
-                  <span>{selectedDepartureDate || 'Chưa chọn ngày'} <i className="fa-solid fa-calendar-days" style={{ fontSize: '0.75rem' }}></i></span>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+                  <button 
+                    type="button" 
+                    className="badge" 
+                    onClick={() => scrollToSection('section-schedule')}
+                    style={{ background: '#ecfdf5', color: 'var(--accent-forest)', fontWeight: 800, fontSize: '0.85rem', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', transition: 'var(--transition-fast)' }}
+                  >
+                    <span>{selectedDepartureDate || 'Chưa chọn ngày'} <i className="fa-solid fa-calendar-days" style={{ fontSize: '0.75rem' }}></i></span>
+                  </button>
+                  {currentDateDetails?.label && (
+                    <span 
+                      style={{ 
+                        fontSize: '0.74rem', 
+                        fontWeight: 800, 
+                        padding: '0.15rem 0.5rem', 
+                        borderRadius: '6px', 
+                        background: currentDateDetails.label.includes('Lễ') || currentDateDetails.label.includes('Tết') || currentDateDetails.label.includes('Quốc Khánh') || currentDateDetails.label.includes('Giáng Sinh') || currentDateDetails.label.includes('Năm Mới') ? '#fff1f2' : '#eff6ff', 
+                        color: currentDateDetails.label.includes('Lễ') || currentDateDetails.label.includes('Tết') || currentDateDetails.label.includes('Quốc Khánh') || currentDateDetails.label.includes('Giáng Sinh') || currentDateDetails.label.includes('Năm Mới') ? '#e11d48' : '#1d4ed8',
+                        border: currentDateDetails.label.includes('Lễ') || currentDateDetails.label.includes('Tết') || currentDateDetails.label.includes('Quốc Khánh') || currentDateDetails.label.includes('Giáng Sinh') || currentDateDetails.label.includes('Năm Mới') ? '1px solid #fecdd3' : '1px solid #bfdbfe',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {currentDateDetails.label}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

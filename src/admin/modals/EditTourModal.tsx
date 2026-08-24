@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate } from '../../types/tour.types';
-import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS } from './AddTourModal';
+import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode, generateSlug } from './AddTourModal';
 
 const getThemeLabel = (t: TourTheme): string => {
   switch (t) {
@@ -15,7 +15,7 @@ const getThemeLabel = (t: TourTheme): string => {
 };
 
 interface EditTourModalProps {
-  tour: Tour | null;
+  tour: Tour;
   isOpen: boolean;
   onClose: () => void;
   onSaveTour: (updatedTour: Tour) => Promise<void>;
@@ -35,14 +35,14 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   onClose,
   onSaveTour
 }) => {
-  if (!isOpen || !tour) return null;
-
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // STEP 1: Basic Information
-  const [title, setTitle] = useState(tour.title);
-  const [code, setCode] = useState(tour.code);
-  const [destination, setDestination] = useState(tour.destination);
+  const [title, setTitle] = useState(tour.title || '');
+  const [slug, setSlug] = useState(tour.slug || generateSlug(tour.title || ''));
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(Boolean(tour.slug));
+  const [code, setCode] = useState(tour.code || '');
+  const [destination, setDestination] = useState(tour.destination || '');
   const [departureFrom, setDepartureFrom] = useState(tour.departureFrom || 'TP. Hồ Chí Minh / Hà Nội');
   const [category, setCategory] = useState<'domestic' | 'international'>(tour.category || 'domestic');
   const [travelStyle, setTravelStyle] = useState<TravelStyle>(tour.travelStyle || 'package');
@@ -131,14 +131,29 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   const [quickDatePrice, setQuickDatePrice] = useState<number>(tour?.priceAdult || 6500000);
   const [quickDateSeats, setQuickDateSeats] = useState<number>(15);
   const [dateFormError, setDateFormError] = useState<string | null>(null);
+
+  // New Enterprise Fields: All-Inclusive, Weather Notice, Status & Gallery
+  const [isAllInclusive, setIsAllInclusive] = useState(tour?.isAllInclusive || false);
+  const [weatherNotice, setWeatherNotice] = useState(tour?.weatherNotice || '');
+  const [status, setStatus] = useState<'published' | 'draft' | 'hidden' | 'weather_suspended'>(
+    tour?.status || (tour?.isActive === false ? 'hidden' : 'published')
+  );
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(
+    tour?.gallery && tour.gallery.length > 0
+      ? tour.gallery.map((g) => g.url).filter((u) => u !== tour.image)
+      : []
+  );
+  const [newGalleryInput, setNewGalleryInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Synchronize initial values if tour prop changes
   useEffect(() => {
     if (tour) {
-      setTitle(tour.title);
-      setCode(tour.code);
-      setDestination(tour.destination);
+      setTitle(tour.title || '');
+      setCode(tour.code || '');
+      setSlug(tour.slug || generateSlug(tour.title || ''));
+      setIsSlugManuallyEdited(Boolean(tour.slug));
+      setDestination(tour.destination || '');
       setDepartureFrom(tour.departureFrom || 'TP. Hồ Chí Minh / Hà Nội');
       setCategory(tour.category || 'domestic');
       setTravelStyle(tour.travelStyle || 'package');
@@ -160,6 +175,12 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
       setImage(tour.image || SAMPLE_IMAGES[0].url);
       setBadge(tour.badge || 'Bán Chạy');
       setHighlights(tour.highlights ? tour.highlights.join('\n') : '');
+      setIsAllInclusive(tour.isAllInclusive || false);
+      setWeatherNotice(tour.weatherNotice || '');
+      setStatus(tour.status || (tour.isActive === false ? 'hidden' : 'published'));
+      if (tour.gallery && tour.gallery.length > 0) {
+        setGalleryUrls(tour.gallery.map((g) => g.url).filter((u) => u !== tour.image));
+      }
       if (tour.inclusionsList) setInclusions(tour.inclusionsList);
       if (tour.exclusionsList) setExclusions(tour.exclusionsList);
       if (tour.itinerary && tour.itinerary.length > 0) {
@@ -200,6 +221,9 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     }
 
     const adultP = Number(quickDatePrice) > 0 ? Number(quickDatePrice) : priceAdult;
+    const matchedPreset = HOLIDAY_PRESETS.find((p) => p.date === dStr);
+    const finalLabel = quickDateLabel.trim() || (matchedPreset ? matchedPreset.label : null);
+
     const newEntry: DepartureDate = {
       date: dStr,
       dayOfWeek: computeDayOfWeek(dStr),
@@ -210,7 +234,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
       priceToddler: Math.round(adultP * 0.5),
       priceInfant: 500000,
       singleRoomSurcharge: Math.round(adultP * 0.35),
-      label: quickDateLabel.trim() || null
+      label: finalLabel
     };
 
     setDepartureDatesList([...departureDatesList, newEntry]);
@@ -360,10 +384,31 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     }
   };
 
+  // Handle Title input change with real-time auto slug if not manually edited
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!isSlugManuallyEdited) {
+      setSlug(generateSlug(newTitle));
+    }
+  };
+
+  // Handle Destination input change (preserve existing tour code)
+  const handleDestinationChange = (newDest: string) => {
+    setDestination(newDest);
+  };
+
+  // Handle Nights change
+  const handleNightsChange = (newNights: number) => {
+    const validNights = Math.max(0, newNights);
+    setDurationNights(validNights);
+  };
+
   // Day quantity adjustment
   const handleDaysChange = (days: number) => {
     const validDays = Math.max(1, days);
+    const validNights = Math.max(0, validDays - 1);
     setDurationDays(validDays);
+    setDurationNights(validNights);
     const currentItin = [...itineraryDays];
     if (validDays > currentItin.length) {
       for (let i = currentItin.length + 1; i <= validDays; i++) {
@@ -389,9 +434,22 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   };
 
   // Submit updated tour
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      alert('Vui lòng nhập Tên Tour trước khi lưu!');
+      setCurrentStep(1);
+      return;
+    }
+    if (!destination.trim()) {
+      alert('Vui lòng nhập Điểm Đến Chính ở Tab 1!');
+      setCurrentStep(1);
+      return;
+    }
+    if (priceAdult <= 0) {
+      alert('Vui lòng nhập Bảng Giá vé người lớn hợp lệ ở Tab 3!');
+      setCurrentStep(3);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -412,11 +470,15 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
+      const finalCode = code.trim().toUpperCase() || tour.code || generateStyle1TourCode(destination || title || 'TOUR');
+      const finalSlug = slug.trim() || tour.slug || generateSlug(title.trim());
+
       const updatedTourObj: Tour = {
         ...tour,
         title: title.trim(),
         shortTitle: title.trim(),
-        code: code.trim().toUpperCase(),
+        code: finalCode,
+        slug: finalSlug,
         destination: destination.trim(),
         departureFrom: departureFrom.trim(),
         category,
@@ -451,7 +513,15 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
         itinerary: itineraryDays,
         highlights: highlightsArr.length > 0 ? highlightsArr : tour.highlights,
         inclusionsList: inclusions,
-        exclusionsList: exclusions
+        exclusionsList: exclusions,
+        isAllInclusive,
+        weatherNotice: weatherNotice.trim() || undefined,
+        status,
+        isActive: status !== 'hidden',
+        gallery: [
+          { url: image.trim() || tour.image, title: title.trim() },
+          ...galleryUrls.map((u) => ({ url: u, title: title.trim() }))
+        ]
       };
 
       await onSaveTour(updatedTourObj);
@@ -460,6 +530,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
       setIsSubmitting(false);
     }
   };
+
+  if (!isOpen || !tour) return null;
 
   return (
     <div
@@ -511,7 +583,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
-                MÃ: {tour.code}
+                MÃ: {code || tour.code}
               </span>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
                 Chỉnh Sửa Chi Tiết Tour Du Lịch
@@ -628,8 +700,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
         </div>
       </div>
 
-      {/* FULLSCREEN FORM BODY */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      {/* FULLSCREEN STUDIO BODY */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <div style={{ padding: '2rem 3rem', overflowY: 'auto', flex: 1 }}>
           <div style={{ maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
             
@@ -638,7 +710,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
             {/* ========================================================================= */}
             {currentStep === 1 && (
               <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                <div style={{ marginBottom: '1.75rem' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
                     Tên Tour Lữ Hành Đầy Đủ *
                   </label>
@@ -646,7 +718,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                     type="text"
                     required
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => handleTitleChange(e.target.value)}
                     placeholder="Ví dụ: Tour Hà Nội - Du Thuyền Hạ Long 5★ 4N3Đ"
                     style={{
                       width: '100%',
@@ -661,6 +733,63 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                   />
                 </div>
 
+                {/* URL Slug (SEO Friendly) */}
+                <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.85rem 1.1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.84rem', fontWeight: 800, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-link" style={{ color: '#047857' }}></i> Đường Dẫn Thân Thiện (URL Slug / SEO)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSlugManuallyEdited(false);
+                        setSlug(generateSlug(title));
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '0.75rem',
+                        color: '#047857',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                      title="Tự động đồng bộ lại từ Tên Tour"
+                    >
+                      <i className="fa-solid fa-rotate"></i> Đồng bộ theo Tên
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="vd: tour-ha-noi-ha-long-ninh-binh-4n3d"
+                    value={slug}
+                    onChange={(e) => {
+                      setIsSlugManuallyEdited(true);
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      fontFamily: 'monospace',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>Xem trước liên kết:</span>
+                    <code style={{ background: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px', color: '#047857', fontWeight: 700 }}>
+                      https://webtravel.vn/tour/{slug || generateSlug(title) || 'ten-tour-mau'}
+                    </code>
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
@@ -670,7 +799,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       type="text"
                       required
                       value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',
@@ -684,9 +813,28 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
-                      Mã Tour (Tour Code)
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0f172a' }}>
+                        Mã Tour Tự Động (Tour Code)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR'))}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '0.76rem',
+                          color: '#047857',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}
+                      >
+                        <i className="fa-solid fa-wand-magic-sparkles"></i> Tự sinh mã
+                      </button>
+                    </div>
                     <input
                       type="text"
                       required
@@ -874,7 +1022,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       min={0}
                       max={30}
                       value={durationNights}
-                      onChange={(e) => setDurationNights(Number(e.target.value))}
+                      onChange={(e) => handleNightsChange(Number(e.target.value))}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',
@@ -889,8 +1037,30 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                   </div>
                 </div>
 
+                {/* Weather Notice & Best Season */}
+                <div style={{ marginBottom: '1.75rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
+                    <i className="fa-solid fa-cloud-sun" style={{ color: '#0284c7', marginRight: '0.35rem' }}></i> Lưu Ý Thời Tiết &amp; Mùa Khởi Hành Đẹp Nhất (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    value={weatherNotice}
+                    onChange={(e) => setWeatherNotice(e.target.value)}
+                    placeholder="Ví dụ: Mùa hoa anh đào từ T3-T4 / Mùa biển êm từ T4-T8 / Tháng 10-12 có thể đổi cano sang tàu cao tốc"
+                    style={{
+                      width: '100%',
+                      padding: '0.8rem 1rem',
+                      borderRadius: '10px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.92rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
                 {/* Cover Image URL */}
-                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
                     Link Ảnh Bìa Đại Diện (Cover Image URL) *
                   </label>
@@ -910,6 +1080,80 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       boxSizing: 'border-box'
                     }}
                   />
+                </div>
+
+                {/* Album Gallery Images */}
+                <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
+                    <i className="fa-solid fa-images" style={{ color: '#047857', marginRight: '0.35rem' }}></i> Thư Viện Album Ảnh Phụ (Gallery - Tùy chọn)
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="url"
+                      placeholder="Dán link ảnh Unsplash/CDN để thêm vào album..."
+                      value={newGalleryInput}
+                      onChange={(e) => setNewGalleryInput(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.88rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newGalleryInput.trim()) {
+                          setGalleryUrls([...galleryUrls, newGalleryInput.trim()]);
+                          setNewGalleryInput('');
+                        }
+                      }}
+                      style={{
+                        padding: '0.65rem 1.2rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#047857',
+                        color: '#fff',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + Thêm Ảnh
+                    </button>
+                  </div>
+                  {galleryUrls.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {galleryUrls.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '90px', height: '65px', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+                          <img src={url} alt="album" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button
+                            type="button"
+                            onClick={() => setGalleryUrls(galleryUrls.filter((_, i) => i !== idx))}
+                            style={{
+                              position: 'absolute',
+                              top: '3px',
+                              right: '3px',
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              background: 'rgba(239, 68, 68, 0.9)',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '0.7rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1198,6 +1442,48 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       </label>
                     </div>
                   </div>
+
+                  {/* All-Inclusive & Publish Status Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr', gap: '1.25rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px dashed #fcd34d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ffffff', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1px solid #fcd34d' }}>
+                      <div>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 850, color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <i className="fa-solid fa-gem" style={{ color: '#d97706' }}></i> Gói All-Inclusive 100%
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#b45309' }}>Trọn gói không phát sinh bất kỳ phí nào</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isAllInclusive}
+                        onChange={(e) => setIsAllInclusive(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#d97706' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#ffffff', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1px solid #fcd34d' }}>
+                      <label style={{ fontSize: '0.84rem', fontWeight: 850, color: '#92400e', whiteSpace: 'nowrap' }}>
+                        Trạng thái tour:
+                      </label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as any)}
+                        style={{
+                          flex: 1,
+                          padding: '0.4rem 0.6rem',
+                          borderRadius: '6px',
+                          border: '1.5px solid #cbd5e1',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          color: status === 'published' ? '#047857' : status === 'draft' ? '#b45309' : '#64748b',
+                          background: status === 'published' ? '#f0fdf4' : status === 'draft' ? '#fefce8' : '#f1f5f9'
+                        }}
+                      >
+                        <option value="published">🟢 Mở Bán Ngay (Published)</option>
+                        <option value="draft">🟡 Lưu Bản Nháp (Draft)</option>
+                        <option value="hidden">⚪ Tạm Ẩn Tour (Hidden)</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 {/* 4 Age Tiers Pricing Grid */}
@@ -1476,6 +1762,12 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                           type="text"
                           value={quickDateInput}
                           onChange={(e) => setQuickDateInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Ngày đi: DD/MM/YYYY (VD: 20/10/2026)"
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 700, outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1487,6 +1779,12 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                           type="text"
                           value={quickDateLabel}
                           onChange={(e) => setQuickDateLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Nhãn sự kiện: VD: Lễ 30/4, Cuối Tuần..."
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 600, outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1499,6 +1797,12 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                           step={50000}
                           value={quickDatePrice}
                           onChange={(e) => setQuickDatePrice(Math.max(0, Number(e.target.value) || 0))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Giá vé lớn (VNĐ)"
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 800, color: '#047857', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1512,6 +1816,12 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                           max={99}
                           value={quickDateSeats}
                           onChange={(e) => setQuickDateSeats(Math.max(1, Number(e.target.value) || 15))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Số chỗ"
                           style={{ width: '100%', padding: '0.65rem 0.6rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1897,11 +2207,27 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                         </div>
 
                         {/* 2. Hotel per day & Star rating */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '1rem', marginBottom: '0.85rem', background: '#f0fdf4', padding: '0.85rem', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 1.2fr',
+                          gap: '1rem',
+                          marginBottom: '0.85rem',
+                          background: dayItem.hotelStar === 0 ? '#fff1f2' : '#f0fdf4',
+                          padding: '0.85rem',
+                          borderRadius: '10px',
+                          border: dayItem.hotelStar === 0 ? '1.5px solid #fecdd3' : '1px solid #bbf7d0'
+                        }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '0.25rem' }}>
-                              🏨 Khách Sạn Lưu Trú Đêm {dayItem.day}
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 800, color: dayItem.hotelStar === 0 ? '#dc2626' : '#166534' }}>
+                                {dayItem.hotelStar === 0 ? '🚫 Lưu Trú (Không ở)' : `🏨 Khách Sạn Lưu Trú Đêm ${dayItem.day}`}
+                              </label>
+                              {dayItem.hotelStar === 0 && (
+                                <span style={{ fontSize: '0.7rem', color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecdd3', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>
+                                  Không ở lại
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               value={dayItem.hotel || ''}
@@ -1910,46 +2236,58 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                                 updated[idx].hotel = e.target.value;
                                 setItineraryDays(updated);
                               }}
-                              placeholder="VD: Du Thuyền 5★ Hạ Long"
+                              placeholder={dayItem.hotelStar === 0 ? 'Không ở (Kết thúc tour / Trở về)' : 'VD: Du Thuyền 5★ Hạ Long'}
                               style={{
                                 width: '100%',
                                 padding: '0.65rem 0.85rem',
                                 borderRadius: '8px',
-                                border: '1.5px solid #86efac',
+                                border: dayItem.hotelStar === 0 ? '1.5px dashed #f87171' : '1.5px solid #86efac',
                                 fontSize: '0.88rem',
                                 outline: 'none',
                                 background: '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#991b1b' : '#0f172a',
+                                fontWeight: dayItem.hotelStar === 0 ? 700 : 400,
                                 boxSizing: 'border-box'
                               }}
                             />
                           </div>
 
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '0.25rem' }}>
-                              Hạng Sao Khách Sạn
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: dayItem.hotelStar === 0 ? '#dc2626' : '#166534', marginBottom: '0.25rem' }}>
+                              ⭐ Hạng Sao / Lưu Trú
                             </label>
                             <select
-                              value={dayItem.hotelStar ?? 4}
+                              value={dayItem.hotelStar !== undefined ? dayItem.hotelStar : 4}
                               onChange={(e) => {
+                                const val = Number(e.target.value);
                                 const updated = [...itineraryDays];
-                                updated[idx].hotelStar = Number(e.target.value);
+                                updated[idx].hotelStar = val;
+                                if (val === 0) {
+                                  if (!updated[idx].hotel || updated[idx].hotel?.includes('Khách sạn') || updated[idx].hotel?.includes('Resort')) {
+                                    updated[idx].hotel = 'Không ở (Kết thúc tour / Trở về)';
+                                  }
+                                } else if (val > 0 && updated[idx].hotel?.includes('Không ở')) {
+                                  updated[idx].hotel = `Khách sạn ${val} sao tiêu chuẩn`;
+                                }
                                 setItineraryDays(updated);
                               }}
                               style={{
                                 width: '100%',
                                 padding: '0.65rem 0.85rem',
                                 borderRadius: '8px',
-                                border: '1.5px solid #86efac',
+                                border: dayItem.hotelStar === 0 ? '1.5px solid #f87171' : '1.5px solid #86efac',
                                 fontSize: '0.88rem',
                                 outline: 'none',
                                 background: '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#dc2626' : '#0f172a',
+                                fontWeight: 700,
                                 boxSizing: 'border-box'
                               }}
                             >
-                              <option value={5}>⭐⭐⭐⭐⭐ 5 Sao</option>
-                              <option value={4}>⭐⭐⭐⭐ 4 Sao</option>
-                              <option value={3}>⭐⭐⭐ 3 Sao</option>
-                              <option value={0}>Không lưu trú (Về nhà)</option>
+                              <option value={5}>⭐⭐⭐⭐⭐ 5★ Resort</option>
+                              <option value={4}>⭐⭐⭐⭐ 4★ Khách sạn</option>
+                              <option value={3}>⭐⭐⭐ 3★ Khách sạn</option>
+                              <option value={0}>🚫 Không ở (Về)</option>
                             </select>
                           </div>
                         </div>
@@ -2172,7 +2510,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 disabled={isSubmitting}
                 style={{
                   padding: '0.75rem 2.5rem',
@@ -2195,7 +2534,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
             )}
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

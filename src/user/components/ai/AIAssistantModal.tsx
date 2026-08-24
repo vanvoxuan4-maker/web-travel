@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { TOURS_DATA } from '../../../data/toursData';
+import { tourService } from '../../../services/tourService';
 import { formatCurrencyVND, escapeHTML } from '../../../utils/formatters';
 
 interface ChatMessage {
@@ -191,10 +192,13 @@ export const AIAssistantModal: React.FC = () => {
                 }}
               >
                 <div>{msg.text}</div>
-                {msg.recommendedTourId && (
-                  <Link
-                    to={`/tour/${msg.recommendedTourId}`}
-                    onClick={() => setIsOpen(false)}
+                {msg.recommendedTourId && (() => {
+                  const targetTour = tourService.getTourByIdSync(msg.recommendedTourId);
+                  const targetUrl = `/tour/${targetTour?.slug || msg.recommendedTourId}`;
+                  return (
+                    <Link
+                      to={targetUrl}
+                      onClick={() => setIsOpen(false)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -212,7 +216,8 @@ export const AIAssistantModal: React.FC = () => {
                   >
                     <i className="fa-solid fa-arrow-right"></i> Xem chi tiết tour này
                   </Link>
-                )}
+                );
+              })()}
               </div>
             ))}
             {isTyping && (

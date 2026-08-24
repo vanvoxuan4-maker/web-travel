@@ -97,7 +97,7 @@ export const AdminPortal: React.FC = () => {
 
         // 4. Fetch Real Tours
         const loadedTours = await tourService.getAllTours();
-        if (loadedTours && loadedTours.length > 0) {
+        if (loadedTours) {
           setTours(loadedTours);
         }
       }
