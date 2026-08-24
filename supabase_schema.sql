@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS public.tours (
     id TEXT PRIMARY KEY,                                                                  -- Mã định danh duy nhất của tour (VD: 'tour-01', 'tour-sapa-02')
     title TEXT NOT NULL,                                                                  -- Tiêu đề đầy đủ của tour du lịch (VD: "Khám Phá Di Sản Hạ Long - Du Thuyền 5 Sao Ambassador")
     short_title TEXT,                                                                     -- Tiêu đề ngắn gọn dùng cho thanh điều hướng và nhãn thẻ (VD: "Hà Nội - Du Thuyền Hạ Long 5★")
+    code TEXT UNIQUE,                                                                     -- Mã định danh quản lý tour duy nhất (VD: "WT-HAGIANG3N2D-9LJQ", "WT-HALONG-4N3D")
     slug TEXT UNIQUE NOT NULL,                                                            -- Đường dẫn URL thân thiện cho SEO (VD: "kham-pha-di-san-ha-long-du-thuyen-5-sao")
     destination_id TEXT REFERENCES public.destinations(id) ON DELETE SET NULL,           -- Khóa ngoại: Liên kết đến điểm đến tương ứng trong bảng destinations
     category TEXT NOT NULL CHECK (category IN ('domestic', 'international')),             -- Trục 1 - Địa lý: 'domestic' (Tour Trong Nước) hoặc 'international' (Tour Quốc Tế)
@@ -109,21 +110,29 @@ CREATE TABLE IF NOT EXISTS public.tours (
     original_price NUMERIC CHECK (original_price IS NULL OR original_price >= 0),         -- Giá gốc niêm yết trước khi giảm (dùng để hiển thị giá gạch ngang khuyến mãi)
     is_flash_deal BOOLEAN DEFAULT false,                                                  -- Đánh dấu tour thuộc chương trình Flash Sale 24h có đồng hồ đếm ngược (true/false)
     discount_percent INTEGER DEFAULT 0 CHECK (discount_percent >= 0 AND discount_percent <= 100), -- Mức giảm giá theo % (VD: 25% ➔ hiển thị huy hiệu 'GIẢM 25%')
+    is_all_inclusive BOOLEAN DEFAULT false,                                               -- Đánh dấu tour trọn gói 100% không phát sinh chi phí phụ (true/false)
+    seats_left INTEGER DEFAULT 15 CHECK (seats_left >= 0),                                -- Tổng số lượng chỗ dự phòng / chỗ còn lại của chuyến đi
+    badge TEXT DEFAULT 'Nổi Bật',                                                         -- Nhãn huy hiệu hiển thị trên thẻ tour (VD: "Bán Chạy Nhất", "Mới Ra Mắt", "Flash Sale")
     image TEXT NOT NULL,                                                                  -- Đường dẫn URL ảnh bìa chính hiển thị trên thẻ tour
     gallery JSONB DEFAULT '[]'::jsonb,                                                    -- Mảng JSONB chứa album bộ sưu tập ảnh chất lượng cao của tour
     available_dates JSONB DEFAULT '[]'::jsonb,                                            -- Mảng JSONB chứa danh sách chuỗi các ngày khởi hành khả dụng (VD: ['15/09/2026', '22/09/2026'])
     departure_dates JSONB DEFAULT '[]'::jsonb,                                            -- Mảng JSONB lưu chi tiết từng ngày khởi hành: ngày, thứ, tháng, số chỗ, giá vé riêng từng ngày, nhãn khuyến mãi
-    esg_score TEXT DEFAULT '85/100',                                                      -- Điểm tiêu chuẩn du lịch bền vững & bảo vệ môi trường (VD: '88/100')
-    lei_score TEXT DEFAULT '78/100',                                                      -- Điểm chất lượng trải nghiệm văn hóa & dịch vụ bản địa (VD: '92/100')
+    hotel_specs JSONB DEFAULT '{}'::jsonb,                                                -- Mảng JSONB thông tin khách sạn chi tiết: tên khách sạn, hạng phòng, tiện ích đi kèm
     highlights JSONB DEFAULT '[]'::jsonb,                                                 -- Mảng JSONB chứa các điểm nhấn nổi bật đặc sắc nhất của chuyến đi
     itinerary JSONB DEFAULT '[]'::jsonb,                                                  -- Mảng JSONB chi tiết lịch trình từng ngày (ngày, tiêu đề, bữa ăn, khách sạn, hoạt động)
     included JSONB DEFAULT '[]'::jsonb,                                                   -- Mảng JSONB danh sách dịch vụ đã bao gồm trong giá vé
     excluded JSONB DEFAULT '[]'::jsonb,                                                   -- Mảng JSONB danh sách dịch vụ không bao gồm trong giá vé
-    is_all_inclusive BOOLEAN DEFAULT false,                                               -- Đánh dấu tour trọn gói 100% không phát sinh chi phí phụ (true/false)
-    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'draft', 'hidden', 'weather_suspended', 'deleted')), -- Trạng thái tour: 'published' (Mở bán), 'draft' (Nháp), 'hidden' (Ẩn), 'weather_suspended' (Tạm dừng do thời tiết), 'deleted' (Đã xóa)
+    refund_policy JSONB DEFAULT '[]'::jsonb,                                              -- Mảng JSONB quy định & chính sách hoàn hủy vé theo mốc thời gian
+    faqs JSONB DEFAULT '[]'::jsonb,                                                       -- Mảng JSONB bộ câu hỏi và giải đáp thường gặp cho tour
+    esg_score TEXT DEFAULT '85/100',                                                      -- Điểm tiêu chuẩn du lịch bền vững & bảo vệ môi trường (VD: '88/100')
+    lei_score TEXT DEFAULT '78/100',                                                      -- Điểm chất lượng trải nghiệm văn hóa & dịch vụ bản địa (VD: '92/100')
+    rating NUMERIC DEFAULT 5.0 CHECK (rating >= 0 AND rating <= 5),                       -- Điểm đánh giá chất lượng tour (1.0 đến 5.0 sao)
+    reviews_count INTEGER DEFAULT 0 CHECK (reviews_count >= 0),                           -- Tổng số lượt đánh giá / bình luận thực tế
     weather_notice TEXT,                                                                  -- Cảnh báo khẩn cấp khi thời tiết xấu: Bão biển, sạt lở núi, cấm tàu thuyền...
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'draft', 'hidden', 'weather_suspended', 'deleted')), -- Trạng thái tour: 'published' (Mở bán), 'draft' (Nháp), 'hidden' (Ẩn), 'weather_suspended' (Tạm dừng do thời tiết), 'deleted' (Đã xóa)
     deleted_at TIMESTAMP WITH TIME ZONE,                                                  -- Thời gian xóa mềm tour
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm tạo tour trong hệ thống
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,   -- Thời điểm tạo tour trong hệ thống
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL    -- Thời điểm cập nhật thông tin tour gần nhất
 );
 
 -- Trigger tự động cập nhật tour_count & min_price trong destinations
@@ -539,6 +548,16 @@ CREATE POLICY "Users Manage Wishlists" ON public.wishlists FOR ALL USING (auth.u
 CREATE POLICY "Public Insert Reviews" ON public.reviews FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public Insert Subscribers" ON public.subscribers FOR INSERT WITH CHECK (true);
 
+-- CẤP QUYỀN TOÀN DIỆN CHO CÁC ROLE TRUY CẬP SUPABASE
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
 -- ==============================================================================
 -- DỮ LIỆU KHỞI TẠO MẪU (SEED DATA)
 -- ==============================================================================
@@ -559,70 +578,7 @@ INSERT INTO public.destinations (id, name, slug, category, region, tag, image, t
 ('dest-korea',  'Hàn Quốc',    'han-quoc', 'international', 'Đông Bắc Á',  'Seoul & Nami',    'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80', 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
--- 3. Danh Sách Tour Mẫu
-INSERT INTO public.tours (
-    id, title, short_title, slug, destination_id, category, type, tier,
-    duration_days, duration_nights, departure_from,
-    price_adult, price_child, price_infant, single_room_supplement,
-    image, esg_score, lei_score, highlights, is_flash_deal, discount_percent, is_all_inclusive
-) VALUES
-(
-    'tour-01', 'Khám Phá Di Sản Hạ Long - Du Thuyền 5 Sao Ambassador', 'Hà Nội - Du Thuyền Hạ Long 5★',
-    'kham-pha-di-san-ha-long-du-thuyen-5-sao', 'dest-halong', 'domestic', 'Tour Nghỉ Dưỡng', 'luxury',
-    3, 2, 'Hà Nội', 8500000, 6375000, 1500000, 2500000,
-    'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80',
-    '92/100', '88/100',
-    '["Du thuyền 5 sao chuẩn quốc tế", "Buffet tôm hùm thượng hạng", "Chèo thuyền Kayak Hang Luồn"]'::jsonb,
-    true, 30, true
-),
-(
-    'tour-02', 'Chinh Phục Đỉnh Fansipan & Khám Phá Bản Cát Cát Sapa', 'Hà Nội - Sapa Fansipan Legend',
-    'chinh-phuc-dinh-fansipan-sapa', 'dest-sapa', 'domestic', 'Tour Văn Hóa', 'standard',
-    3, 2, 'Hà Nội / Hải Phòng', 3200000, 2400000, 500000, 1200000,
-    'https://images.unsplash.com/photo-1583417319070-4a69db38a482?auto=format&fit=crop&w=800&q=80',
-    '88/100', '82/100',
-    '["Vé cáp treo Sun World Fansipan", "Khách sạn 4 sao trung tâm", "Lẩu cá hồi đặc sản Sapa"]'::jsonb,
-    false, 0, false
-),
-(
-    'tour-03', 'Di Sản Miền Trung: Đà Nẵng - Bà Nà Hills - Cố Đô Huế - Hội An', 'Đà Nẵng - Bà Nà - Huế - Hội An',
-    'di-san-mien-trung-da-nang-hue-hoi-an', 'dest-danang', 'domestic', 'Tour Di Sản', 'luxury',
-    4, 3, 'TP. Hồ Chí Minh / Hà Nội', 5800000, 4350000, 1000000, 1800000,
-    'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=800&q=80',
-    '90/100', '86/100',
-    '["Cầu Vàng Bà Nà Hills biểu tượng", "Thả đèn hoa đăng Hội An", "Đại Nội Huế & Ca Huế sông Hương"]'::jsonb,
-    true, 25, true
-),
-(
-    'tour-04', 'Cung Đường Vàng Tokyo - Núi Phú Sĩ - Kyoto - Osaka Mùa Hoa Anh Đào', 'Nhật Bản: Tokyo - Phú Sĩ - Kyoto - Osaka',
-    'cung-duong-vang-nhat-ban-tokyo-osaka', 'dest-japan', 'international', 'Tour Quốc Tế', 'luxury',
-    6, 5, 'Hà Nội / TP. Hồ Chí Minh', 31900000, 27115000, 5000000, 8500000,
-    'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80',
-    '95/100', '94/100',
-    '["Tàu Shinkansen 300km/h", "Bò Kobe thượng hạng", "Tắm Onsen truyền thống núi Phú Sĩ"]'::jsonb,
-    true, 30, true
-),
-(
-    'tour-05', 'Seoul - Đảo Nami - Công Viên Everland - Tháp Namsan Hàn Quốc', 'Hàn Quốc: Seoul - Nami - Everland',
-    'han-quoc-seoul-nami-everland', 'dest-korea', 'international', 'Tour Quốc Tế', 'standard',
-    5, 4, 'Hà Nội / Đà Nẵng / TP.HCM', 13590000, 11550000, 2500000, 4500000,
-    'https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80',
-    '87/100', '84/100',
-    '["Mặc Hanbok Cung Cảnh Phúc", "Vui chơi Everland", "BBQ thịt nướng chuẩn vị Hàn"]'::jsonb,
-    false, 0, true
-)
-ON CONFLICT (id) DO NOTHING;
-
--- 4. Biến Thể Gói Tour Mẫu (tour_variants)
-INSERT INTO public.tour_variants (tour_id, variant_name, departure_city, hotel_star, price_adult, benefits, is_default) VALUES
-('tour-01', 'Gói Tiêu Chuẩn - Cabin Deluxe', 'Hà Nội', 5, 8500000, '["Cabin ban công riêng tầng 1", "Buffet hải sản", "Kayak"]'::jsonb, true),
-('tour-01', 'Gói VIP - Cabin Suite Tổng Thống', 'Hà Nội', 5, 12500000, '["Cabin Suite tầng 3 view 360", "Rượu vang Pháp đón chào", "Massage spa 60p"]'::jsonb, false),
-('tour-03', 'Gói Khởi Hành TP.HCM (Đã gồm vé máy bay)', 'TP. Hồ Chí Minh', 4, 5800000, '["Vé máy bay khứ hồi Vietnam Airlines", "Khách sạn 4 sao biển", "Vé cáp treo Bà Nà"]'::jsonb, true),
-('tour-03', 'Gói Khởi Hành Hà Nội', 'Hà Nội', 4, 5500000, '["Vé máy bay khứ hồi Vietjet Air", "Khách sạn 4 sao", "Vé cáp treo Bà Nà"]'::jsonb, false)
-ON CONFLICT DO NOTHING;
-
--- Kiểm tra kết quả
-SELECT count(*) AS total_tours FROM public.tours;
-SELECT count(*) AS total_variants FROM public.tour_variants;
+-- Kiểm tra trạng thái hệ thống
 SELECT count(*) AS total_coupons FROM public.coupons;
 SELECT count(*) AS total_destinations FROM public.destinations;
+SELECT count(*) AS total_tours FROM public.tours;

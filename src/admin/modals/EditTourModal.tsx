@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate } from '../../types/tour.types';
-import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode, extractSuffixFromCode } from './AddTourModal';
+import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode, generateSlug } from './AddTourModal';
 
 const getThemeLabel = (t: TourTheme): string => {
   switch (t) {
@@ -15,7 +15,7 @@ const getThemeLabel = (t: TourTheme): string => {
 };
 
 interface EditTourModalProps {
-  tour: Tour | null;
+  tour: Tour;
   isOpen: boolean;
   onClose: () => void;
   onSaveTour: (updatedTour: Tour) => Promise<void>;
@@ -35,14 +35,14 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   onClose,
   onSaveTour
 }) => {
-  if (!isOpen || !tour) return null;
-
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
   // STEP 1: Basic Information
-  const [title, setTitle] = useState(tour.title);
-  const [code, setCode] = useState(tour.code);
-  const [destination, setDestination] = useState(tour.destination);
+  const [title, setTitle] = useState(tour.title || '');
+  const [slug, setSlug] = useState(tour.slug || generateSlug(tour.title || ''));
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(Boolean(tour.slug));
+  const [code, setCode] = useState(tour.code || '');
+  const [destination, setDestination] = useState(tour.destination || '');
   const [departureFrom, setDepartureFrom] = useState(tour.departureFrom || 'TP. Hồ Chí Minh / Hà Nội');
   const [category, setCategory] = useState<'domestic' | 'international'>(tour.category || 'domestic');
   const [travelStyle, setTravelStyle] = useState<TravelStyle>(tour.travelStyle || 'package');
@@ -149,9 +149,11 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   // Synchronize initial values if tour prop changes
   useEffect(() => {
     if (tour) {
-      setTitle(tour.title);
-      setCode(tour.code);
-      setDestination(tour.destination);
+      setTitle(tour.title || '');
+      setCode(tour.code || '');
+      setSlug(tour.slug || generateSlug(tour.title || ''));
+      setIsSlugManuallyEdited(Boolean(tour.slug));
+      setDestination(tour.destination || '');
       setDepartureFrom(tour.departureFrom || 'TP. Hồ Chí Minh / Hà Nội');
       setCategory(tour.category || 'domestic');
       setTravelStyle(tour.travelStyle || 'package');
@@ -382,20 +384,17 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     }
   };
 
-  // Handle Title input change with real-time auto code & destination extraction
+  // Handle Title input change with real-time auto slug if not manually edited
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    if (!destination.trim()) {
-      const suffix = extractSuffixFromCode(code);
-      setCode(generateStyle1TourCode(newTitle, suffix));
+    if (!isSlugManuallyEdited) {
+      setSlug(generateSlug(newTitle));
     }
   };
 
-  // Handle Destination input change with real-time auto code update
+  // Handle Destination input change (preserve existing tour code)
   const handleDestinationChange = (newDest: string) => {
     setDestination(newDest);
-    const suffix = extractSuffixFromCode(code);
-    setCode(generateStyle1TourCode(newDest || title, suffix));
   };
 
   // Handle Nights change
@@ -471,11 +470,15 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
+      const finalCode = code.trim().toUpperCase() || tour.code || generateStyle1TourCode(destination || title || 'TOUR');
+      const finalSlug = slug.trim() || tour.slug || generateSlug(title.trim());
+
       const updatedTourObj: Tour = {
         ...tour,
         title: title.trim(),
         shortTitle: title.trim(),
-        code: code.trim().toUpperCase(),
+        code: finalCode,
+        slug: finalSlug,
         destination: destination.trim(),
         departureFrom: departureFrom.trim(),
         category,
@@ -528,6 +531,8 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     }
   };
 
+  if (!isOpen || !tour) return null;
+
   return (
     <div
       style={{
@@ -578,7 +583,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>
-                MÃ: {tour.code}
+                MÃ: {code || tour.code}
               </span>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
                 Chỉnh Sửa Chi Tiết Tour Du Lịch
@@ -705,7 +710,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
             {/* ========================================================================= */}
             {currentStep === 1 && (
               <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                <div style={{ marginBottom: '1.75rem' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
                     Tên Tour Lữ Hành Đầy Đủ *
                   </label>
@@ -726,6 +731,63 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       boxSizing: 'border-box'
                     }}
                   />
+                </div>
+
+                {/* URL Slug (SEO Friendly) */}
+                <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.85rem 1.1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.84rem', fontWeight: 800, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-link" style={{ color: '#047857' }}></i> Đường Dẫn Thân Thiện (URL Slug / SEO)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSlugManuallyEdited(false);
+                        setSlug(generateSlug(title));
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '0.75rem',
+                        color: '#047857',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                      title="Tự động đồng bộ lại từ Tên Tour"
+                    >
+                      <i className="fa-solid fa-rotate"></i> Đồng bộ theo Tên
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="vd: tour-ha-noi-ha-long-ninh-binh-4n3d"
+                    value={slug}
+                    onChange={(e) => {
+                      setIsSlugManuallyEdited(true);
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      fontFamily: 'monospace',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>Xem trước liên kết:</span>
+                    <code style={{ background: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px', color: '#047857', fontWeight: 700 }}>
+                      https://webtravel.vn/tour/{slug || generateSlug(title) || 'ten-tour-mau'}
+                    </code>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -2145,11 +2207,27 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                         </div>
 
                         {/* 2. Hotel per day & Star rating */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '1rem', marginBottom: '0.85rem', background: '#f0fdf4', padding: '0.85rem', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 1.2fr',
+                          gap: '1rem',
+                          marginBottom: '0.85rem',
+                          background: dayItem.hotelStar === 0 ? '#fff1f2' : '#f0fdf4',
+                          padding: '0.85rem',
+                          borderRadius: '10px',
+                          border: dayItem.hotelStar === 0 ? '1.5px solid #fecdd3' : '1px solid #bbf7d0'
+                        }}>
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '0.25rem' }}>
-                              🏨 Khách Sạn Lưu Trú Đêm {dayItem.day}
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 800, color: dayItem.hotelStar === 0 ? '#dc2626' : '#166534' }}>
+                                {dayItem.hotelStar === 0 ? '🚫 Lưu Trú (Không ở)' : `🏨 Khách Sạn Lưu Trú Đêm ${dayItem.day}`}
+                              </label>
+                              {dayItem.hotelStar === 0 && (
+                                <span style={{ fontSize: '0.7rem', color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecdd3', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>
+                                  Không ở lại
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               value={dayItem.hotel || ''}
@@ -2158,46 +2236,58 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                                 updated[idx].hotel = e.target.value;
                                 setItineraryDays(updated);
                               }}
-                              placeholder="VD: Du Thuyền 5★ Hạ Long"
+                              placeholder={dayItem.hotelStar === 0 ? 'Không ở (Kết thúc tour / Trở về)' : 'VD: Du Thuyền 5★ Hạ Long'}
                               style={{
                                 width: '100%',
                                 padding: '0.65rem 0.85rem',
                                 borderRadius: '8px',
-                                border: '1.5px solid #86efac',
+                                border: dayItem.hotelStar === 0 ? '1.5px dashed #f87171' : '1.5px solid #86efac',
                                 fontSize: '0.88rem',
                                 outline: 'none',
                                 background: '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#991b1b' : '#0f172a',
+                                fontWeight: dayItem.hotelStar === 0 ? 700 : 400,
                                 boxSizing: 'border-box'
                               }}
                             />
                           </div>
 
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '0.25rem' }}>
-                              Hạng Sao Khách Sạn
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: dayItem.hotelStar === 0 ? '#dc2626' : '#166534', marginBottom: '0.25rem' }}>
+                              ⭐ Hạng Sao / Lưu Trú
                             </label>
                             <select
-                              value={dayItem.hotelStar ?? 4}
+                              value={dayItem.hotelStar !== undefined ? dayItem.hotelStar : 4}
                               onChange={(e) => {
+                                const val = Number(e.target.value);
                                 const updated = [...itineraryDays];
-                                updated[idx].hotelStar = Number(e.target.value);
+                                updated[idx].hotelStar = val;
+                                if (val === 0) {
+                                  if (!updated[idx].hotel || updated[idx].hotel?.includes('Khách sạn') || updated[idx].hotel?.includes('Resort')) {
+                                    updated[idx].hotel = 'Không ở (Kết thúc tour / Trở về)';
+                                  }
+                                } else if (val > 0 && updated[idx].hotel?.includes('Không ở')) {
+                                  updated[idx].hotel = `Khách sạn ${val} sao tiêu chuẩn`;
+                                }
                                 setItineraryDays(updated);
                               }}
                               style={{
                                 width: '100%',
                                 padding: '0.65rem 0.85rem',
                                 borderRadius: '8px',
-                                border: '1.5px solid #86efac',
+                                border: dayItem.hotelStar === 0 ? '1.5px solid #f87171' : '1.5px solid #86efac',
                                 fontSize: '0.88rem',
                                 outline: 'none',
                                 background: '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#dc2626' : '#0f172a',
+                                fontWeight: 700,
                                 boxSizing: 'border-box'
                               }}
                             >
-                              <option value={5}>⭐⭐⭐⭐⭐ 5 Sao</option>
-                              <option value={4}>⭐⭐⭐⭐ 4 Sao</option>
-                              <option value={3}>⭐⭐⭐ 3 Sao</option>
-                              <option value={0}>Không lưu trú (Về nhà)</option>
+                              <option value={5}>⭐⭐⭐⭐⭐ 5★ Resort</option>
+                              <option value={4}>⭐⭐⭐⭐ 4★ Khách sạn</option>
+                              <option value={3}>⭐⭐⭐ 3★ Khách sạn</option>
+                              <option value={0}>🚫 Không ở (Về)</option>
                             </select>
                           </div>
                         </div>

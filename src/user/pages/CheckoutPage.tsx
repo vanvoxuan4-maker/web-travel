@@ -17,12 +17,13 @@ export const CheckoutPage: React.FC = () => {
   const initialDateFromQuery = searchParams.get('date');
 
   const [tour, setTour] = useState<Tour | null>(() => {
-    return TOURS_DATA.find(t => t.id === tourIdFromQuery) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
+    if (!tourIdFromQuery) return TOURS_DATA.length > 0 ? TOURS_DATA[0] : null;
+    return tourService.getTourByIdSync(tourIdFromQuery) || TOURS_DATA.find(t => t.id === tourIdFromQuery || t.slug === tourIdFromQuery) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
   });
 
   useEffect(() => {
     if (tourIdFromQuery) {
-      const local = TOURS_DATA.find(t => t.id === tourIdFromQuery);
+      const local = tourService.getTourByIdSync(tourIdFromQuery) || TOURS_DATA.find(t => t.id === tourIdFromQuery || t.slug === tourIdFromQuery);
       if (local) setTour(local);
 
       tourService.getTourById(tourIdFromQuery).then(fetched => {
@@ -238,7 +239,7 @@ export const CheckoutPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
           <Link to="/" style={{ color: '#64748b', textDecoration: 'none' }}>Trang Chủ</Link>
           <i className="fa-solid fa-angle-right" style={{ fontSize: '0.75rem' }}></i>
-          <Link to={`/tour/${tour.id}`} style={{ color: '#64748b', textDecoration: 'none' }}>{tour.shortTitle || tour.title}</Link>
+          <Link to={`/tour/${tour.slug || tour.id}`} style={{ color: '#64748b', textDecoration: 'none' }}>{tour.shortTitle || tour.title}</Link>
           <i className="fa-solid fa-angle-right" style={{ fontSize: '0.75rem' }}></i>
           <span style={{ color: 'var(--accent-forest)', fontWeight: 700 }}>Xác Nhận Đặt Chỗ &amp; Thanh Toán</span>
         </div>
@@ -287,7 +288,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link to={`/tour/${tour.id}`} className="btn-secondary" style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}>
+              <Link to={`/tour/${tour.slug || tour.id}`} className="btn-secondary" style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}>
                 <i className="fa-solid fa-arrow-left"></i> Quay Lại Trang Tour
               </Link>
               <Link to="/" className="btn-primary" style={{ padding: '0.8rem 2rem', fontSize: '0.95rem' }}>

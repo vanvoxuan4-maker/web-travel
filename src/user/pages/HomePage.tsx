@@ -27,7 +27,7 @@ export const HomePage: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     tourService.getAllTours().then((data) => {
-      if (isMounted && data && data.length > 0) {
+      if (isMounted && data) {
         setAllTours(data);
       }
     });

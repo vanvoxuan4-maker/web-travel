@@ -71,6 +71,7 @@ export interface ItineraryDay {
 export interface Tour {
   id: string;
   code: string;
+  slug?: string;
   sku: string;
   title: string;
   shortTitle: string;

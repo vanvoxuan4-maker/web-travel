@@ -64,12 +64,13 @@ export const TourCard: React.FC<TourCardProps> = ({
         : 'standard';
 
   const holidayDep = tour.departureDates?.find(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới')));
+  const tourUrl = `/tour/${tour.slug || tour.id}`;
 
   return (
     <div className="tour-card-bento" data-id={tour.id}>
       {/* 1. Image Area with Badges & Symmetrical Bottom Overlay */}
       <div className="card-img-wrap">
-        <Link to={`/tour/${tour.id}`} aria-label={`Xem chi tiết ${tour.title}`} style={{ display: 'block', height: '100%' }}>
+        <Link to={tourUrl} aria-label={`Xem chi tiết ${tour.title}`} style={{ display: 'block', height: '100%' }}>
           <img src={tour.image} alt={tour.title} loading="lazy" />
         </Link>
 
@@ -122,7 +123,7 @@ export const TourCard: React.FC<TourCardProps> = ({
           <i className="fa-solid fa-award card-award-icon" title="Hành trình chuẩn chất lượng"></i>
           
           <h3 className="card-title-text">
-            <Link to={`/tour/${tour.id}`} title={tour.shortTitle || tour.title}>
+            <Link to={tourUrl} title={tour.shortTitle || tour.title}>
               {tour.shortTitle || tour.title}
             </Link>
           </h3>
@@ -170,7 +171,7 @@ export const TourCard: React.FC<TourCardProps> = ({
             </span>
           </div>
 
-          <Link to={`/tour/${tour.id}`} className="btn-capsule-detail">
+          <Link to={tourUrl} className="btn-capsule-detail">
             Xem chi tiết
           </Link>
         </div>

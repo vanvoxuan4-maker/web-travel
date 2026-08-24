@@ -50,13 +50,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!supabase || !isSupabaseConfigured) return null;
 
     try {
+      // 1. First attempt: Query by User ID
+      let profileRow: any = null;
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
+      if (data) {
+        profileRow = data;
+      } else if (userEmail) {
+        // 2. Second attempt: Query by Email if ID mismatch or created manually
+        const { data: emailData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', userEmail.trim())
+          .maybeSingle();
+
+        if (emailData) {
+          profileRow = emailData;
+        }
+      }
+
+      if (!profileRow) {
+        console.warn('Profile not found in Supabase, using baseline customer profile:', error?.message);
         const fallbackProfile: UserProfile = {
           id: userId,
           email: userEmail,
@@ -72,17 +90,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       return {
-        id: data.id,
-        email: data.email,
-        fullName: data.full_name || data.email.split('@')[0],
-        phone: data.phone || '',
-        avatarUrl: data.avatar_url,
-        role: (data.role as UserRole) || 'customer',
-        loyaltyPoints: data.loyalty_points || 0,
-        address: data.address || '',
-        status: data.status || 'active',
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
+        id: profileRow.id,
+        email: profileRow.email || userEmail,
+        fullName: profileRow.full_name || (profileRow.email || userEmail).split('@')[0],
+        phone: profileRow.phone || '',
+        avatarUrl: profileRow.avatar_url,
+        role: (profileRow.role as UserRole) || 'customer',
+        loyaltyPoints: profileRow.loyalty_points || 0,
+        address: profileRow.address || '',
+        status: profileRow.status || 'active',
+        createdAt: profileRow.created_at || new Date().toISOString(),
+        updatedAt: profileRow.updated_at || new Date().toISOString()
       };
     } catch (err) {
       console.error('Error fetching profile:', err);

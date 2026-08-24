@@ -28,8 +28,10 @@ export const AllInclusiveSection: React.FC<AllInclusiveSectionProps> = ({
     });
   };
 
-  // Provide all flagship tours for carousel
-  const allInclusiveTours = (tours && tours.length > 0 ? tours : TOURS_DATA).filter(t => t.isActive !== false);
+  // Only display tours that are explicitly marked as All-Inclusive
+  const allInclusiveTours = (tours ? tours : TOURS_DATA).filter(
+    t => t.isActive !== false && Boolean(t.isAllInclusive)
+  );
 
   if (allInclusiveTours.length === 0) return null;
 

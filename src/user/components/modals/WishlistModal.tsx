@@ -205,7 +205,7 @@ export const WishlistModal: React.FC<WishlistModalProps> = ({ isOpen, onClose })
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flexShrink: 0 }}>
                     <Link
-                      to={`/tour/${t.id}`}
+                      to={`/tour/${t.slug || t.id}`}
                       onClick={onClose}
                       style={{
                         padding: '0.45rem 0.85rem',

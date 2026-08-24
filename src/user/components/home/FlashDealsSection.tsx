@@ -54,11 +54,13 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
     });
   };
 
-  const rawList = (tours && tours.length > 0 ? tours : TOURS_DATA).filter(t => t.isActive !== false);
+  const rawList = (tours ? tours : TOURS_DATA).filter(
+    t => t.isActive !== false && (Boolean(t.isFlashSale) || (Number(t.discountPercent) >= 25))
+  );
 
   // Calculate discount percentage & original price for flash deal tours
-  const dealTours = rawList.map((tour, idx) => {
-    const discountRate = tour.discountPercent ? tour.discountPercent / 100 : (idx % 3 === 0 ? 0.3 : idx % 3 === 1 ? 0.25 : 0.2);
+  const dealTours = rawList.map((tour) => {
+    const discountRate = tour.discountPercent ? tour.discountPercent / 100 : 0.25;
     const originalPrice = tour.originalPrice || Math.round(tour.priceAdult / (1 - discountRate));
     return {
       ...tour,

@@ -452,6 +452,7 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
       {/* Modals */}
       {editingTour && (
         <EditTourModal
+          key={editingTour.id}
           tour={editingTour}
           isOpen={!!editingTour}
           onClose={() => setEditingTour(null)}

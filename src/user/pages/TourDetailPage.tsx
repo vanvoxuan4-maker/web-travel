@@ -16,21 +16,30 @@ export const TourDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [tour, setTour] = useState<Tour | null>(() => {
-    return TOURS_DATA.find(t => t.id === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
+    if (!id) return TOURS_DATA.length > 0 ? TOURS_DATA[0] : null;
+    return tourService.getTourByIdSync(id) || TOURS_DATA.find(t => t.id === id || t.slug === id) || (TOURS_DATA.length > 0 ? TOURS_DATA[0] : null);
   });
 
   useEffect(() => {
     if (id) {
-      const local = TOURS_DATA.find(t => t.id === id);
-      if (local) setTour(local);
+      const local = tourService.getTourByIdSync(id) || TOURS_DATA.find(t => t.id === id || t.slug === id);
+      if (local) {
+        setTour(local);
+        if (local.slug && local.slug !== id) {
+          navigate(`/tour/${local.slug}`, { replace: true });
+        }
+      }
 
       tourService.getTourById(id).then(fetched => {
         if (fetched) {
           setTour(fetched);
+          if (fetched.slug && fetched.slug !== id) {
+            navigate(`/tour/${fetched.slug}`, { replace: true });
+          }
         }
       });
     }
-  }, [id]);
+  }, [id, navigate]);
 
   const defaultFirstDate = tour?.departureDates?.[0]?.date || tour?.availableDates?.[0] || '12/09/2026';
   const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(defaultFirstDate);

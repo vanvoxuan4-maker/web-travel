@@ -2,16 +2,24 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Tour, TravelStyle, TourTheme, TourTier } from '../types/tour.types';
 import { TOURS_DATA } from '../data/toursData';
 
-const TOURS_CACHE_KEY = 'webtravel_tours_cache_v2';
+const TOURS_CACHE_KEY = 'webtravel_tours_cache_v3';
 
 // In-memory cache for fast reactive access
 let cachedTours: Tour[] | null = null;
 
 try {
   if (typeof window !== 'undefined') {
+    // Clear legacy mock cache keys
+    localStorage.removeItem('webtravel_tours_cache_v1');
+    localStorage.removeItem('webtravel_tours_cache_v2');
+
     const local = localStorage.getItem(TOURS_CACHE_KEY);
     if (local) {
-      cachedTours = JSON.parse(local);
+      const parsed = JSON.parse(local);
+      // Filter out any legacy hardcoded mock tours
+      cachedTours = Array.isArray(parsed)
+        ? parsed.filter(t => !t.id.match(/^tour-(halong-01|sapa-02|danang-03|phuquoc-04|bangkok-05)$/))
+        : [];
     }
   }
 } catch {
@@ -48,9 +56,16 @@ export function mapDbTourToTour(row: any): Tour {
         label: idx === 0 ? 'Chuyến Gần Nhất' : null
       }));
 
+  // Resolve authentic tour code without synthesizing from slug
+  const localMatch = cachedTours?.find(t => t.id === row.id);
+  const codeFromDates = Array.isArray(row.departure_dates) && row.departure_dates[0]?.tourCode;
+  const rawCode = row.code || localMatch?.code || codeFromDates || row.tour_code;
+  const finalCode = rawCode || (row.sku ? `WT-${row.sku}` : `WT-${row.id?.replace(/[^\d]/g, '') || '01'}`);
+
   return {
     id: row.id,
-    code: row.slug ? `WT-${row.slug.toUpperCase()}` : `WT-${row.id}`,
+    slug: row.slug || undefined,
+    code: finalCode,
     sku: `WT${row.id?.replace(/[^\d]/g, '') || '1000'}`,
     title: row.title || '',
     shortTitle: row.short_title || row.title || '',
@@ -60,7 +75,7 @@ export function mapDbTourToTour(row: any): Tour {
     theme: (row.theme || 'beach') as TourTheme,
     type: row.type || 'Nghỉ Dưỡng & Khám Phá',
     departureFrom: row.departure_from || 'TP. Hồ Chí Minh / Hà Nội',
-    seatsLeft: 15,
+    seatsLeft: Number(row.seats_left) || 15,
     departureSchedule: 'Định kỳ hàng tuần',
     availableDates: datesArr,
     departureDates,
@@ -81,7 +96,7 @@ export function mapDbTourToTour(row: any): Tour {
     starCategory: (row.tier || 'standard') as TourTier,
     leiScore: row.lei_score || '88/100',
     esgScore: row.esg_score || '85/100',
-    hotelSpecs: {
+    hotelSpecs: row.hotel_specs && Object.keys(row.hotel_specs).length > 0 ? row.hotel_specs : {
       hotelName: 'Khách sạn / Resort tiêu chuẩn cao cấp',
       roomType: 'Phòng Deluxe / Superior (2 khách/phòng)',
       inclusions: ['Buffet sáng', 'Wifi miễn phí', 'Tiện ích phòng cao cấp']
@@ -101,16 +116,16 @@ export function mapDbTourToTour(row: any): Tour {
       'Tiền TIP cho tài xế và hướng dẫn viên',
       'Thuế VAT 8% (nếu yêu cầu xuất hóa đơn)'
     ],
-    refundPolicy: [
+    refundPolicy: Array.isArray(row.refund_policy) && row.refund_policy.length > 0 ? row.refund_policy : [
       { condition: 'Hủy trước 7 ngày', fee: 'Hoàn 100% tiền vé' },
       { condition: 'Hủy trước 3 - 5 ngày', fee: 'Hoàn 50% tiền vé' }
     ],
-    faqs: [
+    faqs: Array.isArray(row.faqs) && row.faqs.length > 0 ? row.faqs : [
       { q: 'Tour bao gồm những bữa ăn nào?', a: 'Đã bao gồm toàn bộ bữa ăn chính theo lịch trình và buffet sáng tại khách sạn.' }
     ],
-    rating: 4.9,
-    reviewsCount: 48,
-    badge: row.is_flash_deal ? '🔥 Flash Sale' : 'Nổi Bật',
+    rating: Number(row.rating) || 5.0,
+    reviewsCount: Number(row.reviews_count) || 48,
+    badge: row.badge || (row.is_flash_deal ? '🔥 Flash Sale' : 'Nổi Bật'),
     image: row.image || 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=85',
     highlights: Array.isArray(row.highlights) && row.highlights.length > 0 ? row.highlights : [
       'Hành trình khám phá thiên nhiên và danh thắng tuyệt đẹp',
@@ -130,12 +145,17 @@ export function mapDbTourToTour(row: any): Tour {
 export function mapTourToDbTour(tour: Tour): any {
   // Only use valid destination_id if matches foreign key pattern, otherwise null to avoid FK error
   const validDestinationId = (tour.destination && tour.destination.startsWith('dest-')) ? tour.destination : null;
+  const departureDatesWithMeta = (tour.departureDates || []).map(d => ({
+    ...d,
+    tourCode: tour.code
+  }));
 
   return {
     id: tour.id,
+    code: tour.code,
     title: tour.title,
     short_title: tour.shortTitle || tour.title,
-    slug: tour.id.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    slug: tour.slug || tour.id.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     destination_id: validDestinationId,
     category: tour.category || 'domestic',
     travel_style: tour.travelStyle || 'package',
@@ -153,19 +173,26 @@ export function mapTourToDbTour(tour: Tour): any {
     original_price: tour.originalPrice || null,
     is_flash_deal: Boolean(tour.isFlashSale),
     discount_percent: tour.discountPercent || 0,
+    is_all_inclusive: Boolean(tour.isAllInclusive),
+    seats_left: tour.seatsLeft || 15,
+    badge: tour.badge || (tour.isFlashSale ? '🔥 Flash Sale' : 'Nổi Bật'),
     image: tour.image,
     gallery: tour.gallery || [],
     available_dates: tour.availableDates || [],
-    departure_dates: tour.departureDates || [],
+    departure_dates: departureDatesWithMeta,
+    hotel_specs: tour.hotelSpecs || {},
     highlights: tour.highlights || [],
     itinerary: tour.itinerary || [],
     included: tour.inclusionsList || [],
     excluded: tour.exclusionsList || [],
-    is_all_inclusive: Boolean(tour.isAllInclusive),
-    weather_notice: tour.weatherNotice || null,
-    status: tour.status || (tour.isActive === false ? 'hidden' : 'published'),
+    refund_policy: tour.refundPolicy || [],
+    faqs: tour.faqs || [],
     esg_score: tour.esgScore || '88/100',
-    lei_score: tour.leiScore || '85/100'
+    lei_score: tour.leiScore || '85/100',
+    rating: tour.rating || 5.0,
+    reviews_count: tour.reviewsCount || 0,
+    weather_notice: tour.weatherNotice || null,
+    status: tour.status || (tour.isActive === false ? 'hidden' : 'published')
   };
 }
 
@@ -181,14 +208,15 @@ export const tourService = {
   },
 
   /**
-   * Get single tour by ID synchronously from cache or local data
+   * Get single tour by ID or Slug synchronously from cache or local data
    */
-  getTourByIdSync(id: string): Tour | undefined {
+  getTourByIdSync(idOrSlug: string): Tour | undefined {
+    if (!idOrSlug) return undefined;
     if (cachedTours) {
-      const found = cachedTours.find(t => t.id === id);
+      const found = cachedTours.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
       if (found) return found;
     }
-    return TOURS_DATA.find(t => t.id === id);
+    return TOURS_DATA.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
   },
 
   /**
@@ -211,7 +239,14 @@ export const tourService = {
         return cachedTours || TOURS_DATA;
       }
 
-      const mapped = data.map(mapDbTourToTour);
+      const mapped = data.map(row => {
+        const tour = mapDbTourToTour(row);
+        const local = cachedTours?.find(c => c.id === tour.id);
+        if (local && local.code && (!row.code || row.code === '')) {
+          tour.code = local.code;
+        }
+        return tour;
+      });
       notifyListeners(mapped);
       return mapped;
     } catch (err) {
@@ -221,33 +256,35 @@ export const tourService = {
   },
 
   /**
-   * Get single tour by ID
+   * Get single tour by ID or SEO slug
    */
-  async getTourById(id: string): Promise<Tour | undefined> {
+  async getTourById(idOrSlug: string): Promise<Tour | undefined> {
+    if (!idOrSlug) return undefined;
     if (cachedTours) {
-      const found = cachedTours.find(t => t.id === id);
+      const found = cachedTours.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
       if (found) return found;
     }
 
     if (!isSupabaseConfigured || !supabase) {
-      return TOURS_DATA.find(t => t.id === id);
+      return TOURS_DATA.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
     }
 
     try {
       const { data, error } = await supabase
         .from('tours')
         .select('*')
-        .eq('id', id)
-        .single();
+        .or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`)
+        .limit(1)
+        .maybeSingle();
 
       if (error || !data) {
-        return TOURS_DATA.find(t => t.id === id);
+        return TOURS_DATA.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
       }
 
       return mapDbTourToTour(data);
     } catch (err) {
-      console.error(`Error fetching tour ${id} from Supabase:`, err);
-      return TOURS_DATA.find(t => t.id === id);
+      console.error(`Error fetching tour ${idOrSlug} from Supabase:`, err);
+      return TOURS_DATA.find(t => t.id === idOrSlug || (t.slug && t.slug === idOrSlug));
     }
   },
 

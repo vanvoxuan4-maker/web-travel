@@ -170,6 +170,15 @@ export const generateStyle1TourCode = (destOrTitle: string, customSuffix?: strin
   return `WT-${keyword}-${suffix}`;
 };
 
+export const generateSlug = (text: string): string => {
+  return removeVietnameseTones(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+};
+
 export const AddTourModal: React.FC<AddTourModalProps> = ({
   isOpen,
   onClose,
@@ -180,6 +189,8 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
   // STEP 1: Basic Info & Route
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
   const [destination, setDestination] = useState('');
   const [departureFrom, setDepartureFrom] = useState('Hà Nội / TP.HCM');
   const [category, setCategory] = useState<'domestic' | 'international'>('domestic');
@@ -483,6 +494,9 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   // Handle Title input change with real-time auto code & destination extraction
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
+    if (!isSlugManuallyEdited) {
+      setSlug(generateSlug(newTitle));
+    }
     const suffix = extractSuffixFromCode(code);
     const newCode = generateStyle1TourCode(destination || newTitle, suffix);
     setCode(newCode);
@@ -598,8 +612,11 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
   // Fast Quick-Template Fill
   const handleLoadTemplate = (type: 'beach' | 'mountain' | 'heritage') => {
+    setIsSlugManuallyEdited(false);
     if (type === 'beach') {
-      setTitle('Tour Nha Trang - Biển Xanh Vịnh Ngọc 4N3Đ (Resort 5 Sao)');
+      const tTitle = 'Tour Nha Trang - Biển Xanh Vịnh Ngọc 4N3Đ (Resort 5 Sao)';
+      setTitle(tTitle);
+      setSlug(generateSlug(tTitle));
       setDestination('Nha Trang');
       setCode(generateStyle1TourCode('Nha Trang'));
       setCategory('domestic');
@@ -619,7 +636,9 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
       setImage('https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=85');
       setBadge('Hot 5 Sao');
     } else if (type === 'mountain') {
-      setTitle('Tour Sapa - Fansipan - Bản Cát Cát 3N2Đ (Khách Sạn 4-5 Sao)');
+      const tTitle = 'Tour Sapa - Fansipan - Bản Cát Cát 3N2Đ (Khách Sạn 4-5 Sao)';
+      setTitle(tTitle);
+      setSlug(generateSlug(tTitle));
       setDestination('Sapa');
       setCode(generateStyle1TourCode('Sapa'));
       setCategory('domestic');
@@ -638,7 +657,9 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
       setImage('https://images.unsplash.com/photo-1570789210967-2cac24afeb00?auto=format&fit=crop&w=1200&q=85');
       setBadge('Bán Chạy');
     } else {
-      setTitle('Tour Đà Nẵng - Cố Đô Huế - Phố Cổ Hội An 4N3Đ');
+      const tTitle = 'Tour Đà Nẵng - Cố Đô Huế - Phố Cổ Hội An 4N3Đ';
+      setTitle(tTitle);
+      setSlug(generateSlug(tTitle));
       setDestination('Đà Nẵng');
       setCode(generateStyle1TourCode('Đà Nẵng'));
       setCategory('domestic');
@@ -711,9 +732,11 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
       const finalCode = code.trim() || generateStyle1TourCode(destination || title || 'TOUR');
 
+      const finalSlug = slug.trim() || generateSlug(title.trim());
       const newTourObj: Tour = {
         id: `tour-${Date.now()}`,
         code: finalCode.toUpperCase(),
+        slug: finalSlug,
         sku: `WT${Math.floor(1000 + Math.random() * 9000)}`,
         title: title.trim(),
         shortTitle: title.trim(),
@@ -992,7 +1015,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
             {/* ========================================================================= */}
             {currentStep === 1 && (
               <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
-                <div style={{ marginBottom: '1.75rem' }}>
+                <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
                     Tên Tour Du Lịch Đầy Đủ (Title) *
                   </label>
@@ -1013,6 +1036,63 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                       boxSizing: 'border-box'
                     }}
                   />
+                </div>
+
+                {/* URL Slug (SEO Friendly) */}
+                <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.85rem 1.1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <label style={{ fontSize: '0.84rem', fontWeight: 800, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-link" style={{ color: '#047857' }}></i> Đường Dẫn Thân Thiện (URL Slug / SEO)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSlugManuallyEdited(false);
+                        setSlug(generateSlug(title));
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '0.75rem',
+                        color: '#047857',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                      title="Tự động đồng bộ lại từ Tên Tour"
+                    >
+                      <i className="fa-solid fa-rotate"></i> Đồng bộ theo Tên
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="vd: tour-ha-noi-ha-long-ninh-binh-4n3d"
+                    value={slug}
+                    onChange={(e) => {
+                      setIsSlugManuallyEdited(true);
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.88rem',
+                      fontFamily: 'monospace',
+                      color: '#0f172a',
+                      background: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <span>Xem trước liên kết:</span>
+                    <code style={{ background: '#e2e8f0', padding: '0.15rem 0.45rem', borderRadius: '4px', color: '#047857', fontWeight: 700 }}>
+                      https://webtravel.vn/tour/{slug || generateSlug(title) || 'ten-tour-mau'}
+                    </code>
+                  </div>
                 </div>
 
                 {/* Destination & Auto Code */}
@@ -2392,7 +2472,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         </div>
 
                         {/* 4 Fields Grid per Day */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 0.6fr', gap: '1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr 0.8fr', gap: '1rem', marginBottom: '1rem' }}>
                           <div>
                             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: '0.3rem' }}>
                               🍽️ Bữa Ăn
@@ -2411,9 +2491,16 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           </div>
 
                           <div>
-                            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: '0.3rem' }}>
-                              🏨 Khách Sạn Lưu Trú
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                              <label style={{ fontSize: '0.78rem', fontWeight: 800, color: dayItem.hotelStar === 0 ? '#dc2626' : '#475569' }}>
+                                {dayItem.hotelStar === 0 ? '🚫 Lưu Trú (Không ở)' : '🏨 Khách Sạn Lưu Trú'}
+                              </label>
+                              {dayItem.hotelStar === 0 && (
+                                <span style={{ fontSize: '0.7rem', color: '#b91c1c', background: '#fee2e2', border: '1px solid #fecdd3', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 800 }}>
+                                  Không ở lại
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               value={dayItem.hotel}
@@ -2422,8 +2509,19 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                                 updated[idx].hotel = e.target.value;
                                 setItineraryDays(updated);
                               }}
-                              placeholder="Tên khách sạn / Resort"
-                              style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                              placeholder={dayItem.hotelStar === 0 ? 'Không ở (Kết thúc tour / Trở về)' : 'Tên khách sạn / Resort'}
+                              style={{
+                                width: '100%',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                border: dayItem.hotelStar === 0 ? '1.5px dashed #f87171' : '1px solid #cbd5e1',
+                                background: dayItem.hotelStar === 0 ? '#fff1f2' : '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#991b1b' : '#0f172a',
+                                fontSize: '0.85rem',
+                                fontWeight: dayItem.hotelStar === 0 ? 700 : 400,
+                                outline: 'none',
+                                boxSizing: 'border-box'
+                              }}
                             />
                           </div>
 
@@ -2446,21 +2544,40 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
                           <div>
                             <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: '0.3rem' }}>
-                              ⭐ Hạng Sao
+                              ⭐ Hạng Sao / Lưu Trú
                             </label>
                             <select
-                              value={dayItem.hotelStar || 4}
+                              value={dayItem.hotelStar !== undefined ? dayItem.hotelStar : 4}
                               onChange={(e) => {
+                                const val = Number(e.target.value);
                                 const updated = [...itineraryDays];
-                                updated[idx].hotelStar = Number(e.target.value);
+                                updated[idx].hotelStar = val;
+                                if (val === 0) {
+                                  if (!updated[idx].hotel || updated[idx].hotel?.includes('Khách sạn') || updated[idx].hotel?.includes('Resort')) {
+                                    updated[idx].hotel = 'Không ở (Kết thúc tour / Trở về)';
+                                  }
+                                } else if (val > 0 && updated[idx].hotel?.includes('Không ở')) {
+                                  updated[idx].hotel = `Khách sạn ${val} sao tiêu chuẩn`;
+                                }
                                 setItineraryDays(updated);
                               }}
-                              style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 700, outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
+                              style={{
+                                width: '100%',
+                                padding: '0.6rem 0.75rem',
+                                borderRadius: '8px',
+                                border: dayItem.hotelStar === 0 ? '1.5px solid #f87171' : '1px solid #cbd5e1',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                outline: 'none',
+                                background: dayItem.hotelStar === 0 ? '#fff1f2' : '#ffffff',
+                                color: dayItem.hotelStar === 0 ? '#dc2626' : '#0f172a',
+                                boxSizing: 'border-box'
+                              }}
                             >
-                              <option value={5}>5★ Resort</option>
-                              <option value={4}>4★ Khách sạn</option>
-                              <option value={3}>3★ Khách sạn</option>
-                              <option value={0}>Không (Về)</option>
+                              <option value={5}>⭐⭐⭐⭐⭐ 5★ Resort</option>
+                              <option value={4}>⭐⭐⭐⭐ 4★ Khách sạn</option>
+                              <option value={3}>⭐⭐⭐ 3★ Khách sạn</option>
+                              <option value={0}>🚫 Không ở (Về)</option>
                             </select>
                           </div>
                         </div>
