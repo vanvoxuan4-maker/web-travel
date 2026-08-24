@@ -358,6 +358,9 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     }
 
     const adultP = Number(quickDatePrice) > 0 ? Number(quickDatePrice) : priceAdult;
+    const matchedPreset = HOLIDAY_PRESETS.find(p => p.date === dStr);
+    const finalLabel = quickDateLabel.trim() || (matchedPreset ? matchedPreset.label : null);
+
     const newEntry: DepartureDate = {
       date: dStr,
       dayOfWeek: computeDayOfWeek(dStr),
@@ -368,7 +371,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
       priceToddler: Math.round(adultP * 0.5),
       priceInfant: 500000,
       singleRoomSurcharge: Math.round(adultP * 0.35),
-      label: quickDateLabel.trim() || null
+      label: finalLabel
     };
 
     setDepartureDatesList([...departureDatesList, newEntry]);

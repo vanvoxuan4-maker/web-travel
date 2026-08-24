@@ -63,6 +63,8 @@ export const TourCard: React.FC<TourCardProps> = ({
         ? 'all-inclusive' 
         : 'standard';
 
+  const holidayDep = tour.departureDates?.find(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới')));
+
   return (
     <div className="tour-card-bento" data-id={tour.id}>
       {/* 1. Image Area with Badges & Symmetrical Bottom Overlay */}
@@ -141,10 +143,17 @@ export const TourCard: React.FC<TourCardProps> = ({
           </span>
         </div>
 
-        {/* Category / Region Tag Pill */}
-        <span className="card-tag-pill">
-          {regionTag}
-        </span>
+        {/* Category / Region Tag & Holiday Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+          <span className="card-tag-pill">
+            {regionTag}
+          </span>
+          {holidayDep && (
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#e11d48', background: '#fff1f2', border: '1px solid #fecdd3', padding: '0.15rem 0.5rem', borderRadius: '6px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+              <i className="fa-solid fa-fire" style={{ fontSize: '0.65rem' }}></i> {holidayDep.label}
+            </span>
+          )}
+        </div>
 
         {/* 3. Card Footer (Price & Capsule Detail Button) */}
         <div className="card-footer-redesigned">

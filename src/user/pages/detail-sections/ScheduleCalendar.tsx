@@ -47,7 +47,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       </h3>
 
       {/* Month Filter Tabs (Brand Emerald Green) */}
-      <div className="schedule-month-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+      <div className="schedule-month-tabs" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
         {uniqueMonths.map(m => {
           const parts = m.split(' ');
           const monthText = parts.length >= 2 ? `${parts[0]} ${parts[1]}` : m;
@@ -87,6 +87,44 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         })}
       </div>
 
+      {/* Holiday / Tet Highlights Bar (if tour has holiday dates) */}
+      {departureList.some(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới'))) && (
+        <div style={{ background: 'linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%)', border: '1.5px solid #fecdd3', borderRadius: '12px', padding: '0.75rem 1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.15rem' }}>🎉</span>
+            <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#9f1239' }}>
+              Tour có lịch khởi hành dịp Đại Lễ 30/4, 2/9, Giáng Sinh &amp; Tết Nguyên Đán:
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+            {departureList.filter(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới'))).map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => {
+                  if (d.monthLabel) setActiveMonth(d.monthLabel);
+                  onSelectDate(d.date);
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  background: selectedDate === d.date ? '#e11d48' : '#ffffff',
+                  color: selectedDate === d.date ? '#ffffff' : '#e11d48',
+                  border: '1px solid #fecdd3',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(225, 29, 72, 0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {d.label} ({d.date})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Departure Rows List */}
       <div className="schedule-rows-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {depsToRender.map(dep => {
@@ -125,10 +163,28 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
               >
                 {/* 1. Header Bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-forest, #047857)', background: '#ecfdf5', padding: '0.35rem 1rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)' }}>
                       {dayOfWeek}, {dep.date}
                     </span>
+                    {dep.label && (
+                      <span 
+                        style={{ 
+                          fontWeight: 800, 
+                          fontSize: '0.8rem', 
+                          color: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#e11d48' : dep.label.includes('Cuối') ? '#1d4ed8' : '#047857', 
+                          background: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#fff1f2' : dep.label.includes('Cuối') ? '#eff6ff' : '#ecfdf5', 
+                          padding: '0.3rem 0.85rem', 
+                          borderRadius: '9999px', 
+                          border: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '1px solid #fecdd3' : dep.label.includes('Cuối') ? '1px solid #bfdbfe' : '1px solid #a7f3d0',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
+                        }}
+                      >
+                        {dep.label}
+                      </span>
+                    )}
                     <span style={{ color: '#334155', fontSize: '0.92rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
                       <i className="fa-solid fa-ticket" style={{ color: '#94a3b8' }}></i> {sku}
                     </span>
@@ -317,11 +373,30 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   gap: '1rem'
                 }}
               >
-                <div className="schedule-row-left" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'nowrap', minWidth: 0 }}>
+                <div className="schedule-row-left" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#111827', whiteSpace: 'nowrap' }}>
                     {dayOfWeek}, {dep.date}
                   </span>
-                  <span style={{ color: '#64748b', fontSize: '0.9rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {dep.label && (
+                    <span 
+                      style={{ 
+                        fontWeight: 800, 
+                        fontSize: '0.74rem', 
+                        color: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#e11d48' : dep.label.includes('Cuối') ? '#1d4ed8' : '#047857', 
+                        background: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#fff1f2' : dep.label.includes('Cuối') ? '#eff6ff' : '#ecfdf5', 
+                        padding: '0.22rem 0.6rem', 
+                        borderRadius: '6px', 
+                        border: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '1px solid #fecdd3' : dep.label.includes('Cuối') ? '1px solid #bfdbfe' : '1px solid #a7f3d0',
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                    >
+                      {dep.label}
+                    </span>
+                  )}
+                  <span style={{ color: '#64748b', fontSize: '0.88rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <i className="fa-solid fa-ticket" style={{ color: '#94a3b8' }}></i> {sku}
                   </span>
                 </div>
