@@ -81,19 +81,76 @@ const removeVietnameseTones = (str: string): string => {
     .replace(/Đ/g, 'D');
 };
 
-const getCleanDestKeyword = (dest: string): string => {
-  if (!dest || !dest.trim()) return 'TOUR';
-  const firstSegment = dest.split(/[-–,/]/)[0].trim();
+const POPULAR_DESTINATION_KEYWORDS: { [key: string]: string } = {
+  'sapa': 'SAPA',
+  'fansipan': 'SAPA',
+  'ha long': 'HALONG',
+  'halong': 'HALONG',
+  'da nang': 'DANANG',
+  'danang': 'DANANG',
+  'hoi an': 'HOIAN',
+  'hoian': 'HOIAN',
+  'hue': 'HUE',
+  'phu quoc': 'PHUQUOC',
+  'phuquoc': 'PHUQUOC',
+  'nha trang': 'NHATRANG',
+  'nhatrang': 'NHATRANG',
+  'da lat': 'DALAT',
+  'dalat': 'DALAT',
+  'ninh binh': 'NINHBINH',
+  'ninhbinh': 'NINHBINH',
+  'quy nhon': 'QUYNHON',
+  'quynhon': 'QUYNHON',
+  'ha noi': 'HANOI',
+  'hanoi': 'HANOI',
+  'sai gon': 'SAIGON',
+  'saigon': 'SAIGON',
+  'ho chi minh': 'SAIGON',
+  'quang binh': 'QUANGBINH',
+  'con dao': 'CONDAO',
+  'condao': 'CONDAO',
+  'nhat ban': 'JAPAN',
+  'japan': 'JAPAN',
+  'tokyo': 'TOKYO',
+  'osaka': 'OSAKA',
+  'kyoto': 'KYOTO',
+  'han quoc': 'KOREA',
+  'korea': 'KOREA',
+  'seoul': 'SEOUL',
+  'thai lan': 'THAILAND',
+  'thailand': 'THAILAND',
+  'bangkok': 'BANGKOK',
+  'singapore': 'SINGAPORE',
+  'malaysia': 'MALAYSIA',
+  'bali': 'BALI'
+};
+
+const getCleanDestKeyword = (destOrTitle: string): string => {
+  if (!destOrTitle || !destOrTitle.trim()) return 'TOUR';
+  const lowerNoTone = removeVietnameseTones(destOrTitle).toLowerCase();
+  
+  // Check known keywords first
+  for (const [k, codeName] of Object.entries(POPULAR_DESTINATION_KEYWORDS)) {
+    if (lowerNoTone.includes(k)) {
+      return codeName;
+    }
+  }
+
+  // Otherwise clean string
+  const firstSegment = destOrTitle.split(/[-–,/:]/)[0].trim();
   const clean = removeVietnameseTones(firstSegment)
-    .replace(/^(TP\.?|THANH PHO|TINH|VINH|DAO|QUAN|KHU)\s+/i, '')
+    .replace(/^(TOUR|DU LICH|HANH TRINH|KHAM PHA|TP\.?|THANH PHO|TINH|VINH|DAO|QUAN|KHU)\s+/gi, '')
     .replace(/[^a-zA-Z0-9]/g, '')
     .toUpperCase();
+
   return clean || 'TOUR';
 };
 
-const generateStyle1TourCode = (dest: string, days: number, nights: number): string => {
-  const keyword = getCleanDestKeyword(dest);
-  return `WT-${keyword}-${days}N${nights}D`;
+export const generateStyle1TourCode = (destOrTitle: string, days: number, nights: number): string => {
+  const keyword = getCleanDestKeyword(destOrTitle);
+  const d = Math.max(1, days || 1);
+  const n = Math.max(0, nights >= 0 ? nights : d - 1);
+  return `WT-${keyword}-${d}N${n}D`;
 };
 
 export const AddTourModal: React.FC<AddTourModalProps> = ({
@@ -106,7 +163,6 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
   // STEP 1: Basic Info & Route
   const [title, setTitle] = useState('');
-  const [code, setCode] = useState('');
   const [destination, setDestination] = useState('');
   const [departureFrom, setDepartureFrom] = useState('Hà Nội / TP.HCM');
   const [category, setCategory] = useState<'domestic' | 'international'>('domestic');
@@ -114,6 +170,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   const [theme, setTheme] = useState<TourTheme>('beach');
   const [durationDays, setDurationDays] = useState(4);
   const [durationNights, setDurationNights] = useState(3);
+  const [code, setCode] = useState(() => generateStyle1TourCode('TOUR', 4, 3));
 
   // STEP 2: Hotel Standard & Multi-Tier Pricing
   const [tier, setTier] = useState<TourTier>('standard');
@@ -403,10 +460,42 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     setDepartureDatesList(departureDatesList.filter((_, idx) => idx !== index));
   };
 
+  // Handle Title input change with real-time auto code & destination extraction
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    const newCode = generateStyle1TourCode(destination || newTitle, durationDays, durationNights);
+    setCode(newCode);
+
+    // Auto extract destination if empty
+    if (!destination.trim()) {
+      const lower = removeVietnameseTones(newTitle).toLowerCase();
+      for (const [k] of Object.entries(POPULAR_DESTINATION_KEYWORDS)) {
+        if (lower.includes(k)) {
+          const capName = k.charAt(0).toUpperCase() + k.slice(1);
+          setDestination(capName);
+          break;
+        }
+      }
+    }
+  };
+
+  // Handle Destination input change with real-time auto code update
+  const handleDestinationChange = (newDest: string) => {
+    setDestination(newDest);
+    setCode(generateStyle1TourCode(newDest || title, durationDays, durationNights));
+  };
+
+  // Handle Nights change
+  const handleNightsChange = (newNights: number) => {
+    const validNights = Math.max(0, newNights);
+    setDurationNights(validNights);
+    setCode(generateStyle1TourCode(destination || title, durationDays, validNights));
+  };
+
   // Trigger auto-code on initial open
   useEffect(() => {
     if (!code) {
-      setCode(generateStyle1TourCode(destination || 'VIETNAM', durationDays, durationNights));
+      setCode(generateStyle1TourCode(destination || 'TOUR', durationDays, durationNights));
     }
   }, []);
 
@@ -416,7 +505,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     const validNights = Math.max(0, validDays - 1);
     setDurationDays(validDays);
     setDurationNights(validNights);
-    setCode(generateStyle1TourCode(destination, validDays, validNights));
+    setCode(generateStyle1TourCode(destination || title, validDays, validNights));
 
     // Auto-adjust itinerary days
     const currentItin = [...itineraryDays];
@@ -886,7 +975,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                     required
                     placeholder="Ví dụ: Tour Hà Nội - Du Thuyền Hạ Long 5★ - Ninh Bình Tràng An 4N3Đ"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => handleTitleChange(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '0.85rem 1.1rem',
@@ -909,12 +998,9 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ví dụ: Hà Nội / Hạ Long / Ninh Bình"
+                      placeholder="Ví dụ: Hà Nội / Hạ Long / Sapa..."
                       value={destination}
-                      onChange={(e) => {
-                        setDestination(e.target.value);
-                        setCode(generateStyle1TourCode(e.target.value, durationDays, durationNights));
-                      }}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',
@@ -930,11 +1016,11 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                       <label style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0f172a' }}>
-                        Mã Tour Chuẩn Kiểu 1 (Tour Code)
+                        Mã Tour Tự Động (Tour Code)
                       </label>
                       <button
                         type="button"
-                        onClick={() => setCode(generateStyle1TourCode(destination || 'VIETNAM', durationDays, durationNights))}
+                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR', durationDays, durationNights))}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -1155,11 +1241,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                       min={0}
                       max={30}
                       value={durationNights}
-                      onChange={(e) => {
-                        const n = Number(e.target.value);
-                        setDurationNights(n);
-                        setCode(generateStyle1TourCode(destination, durationDays, n));
-                      }}
+                      onChange={(e) => handleNightsChange(Number(e.target.value))}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',

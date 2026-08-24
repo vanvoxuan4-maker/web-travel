@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate } from '../../types/tour.types';
-import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS } from './AddTourModal';
+import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode } from './AddTourModal';
 
 const getThemeLabel = (t: TourTheme): string => {
   switch (t) {
@@ -379,10 +379,34 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     }
   };
 
+  // Handle Title input change with real-time auto code & destination extraction
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!destination.trim()) {
+      setCode(generateStyle1TourCode(newTitle, durationDays, durationNights));
+    }
+  };
+
+  // Handle Destination input change with real-time auto code update
+  const handleDestinationChange = (newDest: string) => {
+    setDestination(newDest);
+    setCode(generateStyle1TourCode(newDest || title, durationDays, durationNights));
+  };
+
+  // Handle Nights change
+  const handleNightsChange = (newNights: number) => {
+    const validNights = Math.max(0, newNights);
+    setDurationNights(validNights);
+    setCode(generateStyle1TourCode(destination || title, durationDays, validNights));
+  };
+
   // Day quantity adjustment
   const handleDaysChange = (days: number) => {
     const validDays = Math.max(1, days);
+    const validNights = Math.max(0, validDays - 1);
     setDurationDays(validDays);
+    setDurationNights(validNights);
+    setCode(generateStyle1TourCode(destination || title, validDays, validNights));
     const currentItin = [...itineraryDays];
     if (validDays > currentItin.length) {
       for (let i = currentItin.length + 1; i <= validDays; i++) {
@@ -680,7 +704,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                     type="text"
                     required
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => handleTitleChange(e.target.value)}
                     placeholder="Ví dụ: Tour Hà Nội - Du Thuyền Hạ Long 5★ 4N3Đ"
                     style={{
                       width: '100%',
@@ -704,7 +728,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       type="text"
                       required
                       value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',
@@ -718,9 +742,28 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
-                      Mã Tour (Tour Code)
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <label style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0f172a' }}>
+                        Mã Tour Tự Động (Tour Code)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR', durationDays, durationNights))}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '0.76rem',
+                          color: '#047857',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}
+                      >
+                        <i className="fa-solid fa-wand-magic-sparkles"></i> Tự sinh mã
+                      </button>
+                    </div>
                     <input
                       type="text"
                       required
@@ -908,7 +951,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       min={0}
                       max={30}
                       value={durationNights}
-                      onChange={(e) => setDurationNights(Number(e.target.value))}
+                      onChange={(e) => handleNightsChange(Number(e.target.value))}
                       style={{
                         width: '100%',
                         padding: '0.8rem 1rem',
