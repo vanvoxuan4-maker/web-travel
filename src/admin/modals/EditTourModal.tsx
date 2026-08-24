@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate } from '../../types/tour.types';
-import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode } from './AddTourModal';
+import { computeDayOfWeek, computeMonthLabel, HOLIDAY_PRESETS, generateStyle1TourCode, extractSuffixFromCode } from './AddTourModal';
 
 const getThemeLabel = (t: TourTheme): string => {
   switch (t) {
@@ -383,21 +383,22 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     if (!destination.trim()) {
-      setCode(generateStyle1TourCode(newTitle, durationDays, durationNights));
+      const suffix = extractSuffixFromCode(code);
+      setCode(generateStyle1TourCode(newTitle, suffix));
     }
   };
 
   // Handle Destination input change with real-time auto code update
   const handleDestinationChange = (newDest: string) => {
     setDestination(newDest);
-    setCode(generateStyle1TourCode(newDest || title, durationDays, durationNights));
+    const suffix = extractSuffixFromCode(code);
+    setCode(generateStyle1TourCode(newDest || title, suffix));
   };
 
   // Handle Nights change
   const handleNightsChange = (newNights: number) => {
     const validNights = Math.max(0, newNights);
     setDurationNights(validNights);
-    setCode(generateStyle1TourCode(destination || title, durationDays, validNights));
   };
 
   // Day quantity adjustment
@@ -406,7 +407,6 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
     const validNights = Math.max(0, validDays - 1);
     setDurationDays(validDays);
     setDurationNights(validNights);
-    setCode(generateStyle1TourCode(destination || title, validDays, validNights));
     const currentItin = [...itineraryDays];
     if (validDays > currentItin.length) {
       for (let i = currentItin.length + 1; i <= validDays; i++) {
@@ -748,7 +748,7 @@ export const EditTourModal: React.FC<EditTourModalProps> = ({
                       </label>
                       <button
                         type="button"
-                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR', durationDays, durationNights))}
+                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR'))}
                         style={{
                           background: 'none',
                           border: 'none',

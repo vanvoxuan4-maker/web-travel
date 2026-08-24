@@ -146,11 +146,28 @@ const getCleanDestKeyword = (destOrTitle: string): string => {
   return clean || 'TOUR';
 };
 
-export const generateStyle1TourCode = (destOrTitle: string, days: number, nights: number): string => {
+export const generateRandomAlphanumeric = (length = 4): string => {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+export const extractSuffixFromCode = (currentCode: string): string => {
+  if (!currentCode) return generateRandomAlphanumeric(4);
+  const parts = currentCode.split('-');
+  if (parts.length >= 3 && parts[parts.length - 1].length >= 3) {
+    return parts[parts.length - 1];
+  }
+  return generateRandomAlphanumeric(4);
+};
+
+export const generateStyle1TourCode = (destOrTitle: string, customSuffix?: string): string => {
   const keyword = getCleanDestKeyword(destOrTitle);
-  const d = Math.max(1, days || 1);
-  const n = Math.max(0, nights >= 0 ? nights : d - 1);
-  return `WT-${keyword}-${d}N${n}D`;
+  const suffix = customSuffix || generateRandomAlphanumeric(4);
+  return `WT-${keyword}-${suffix}`;
 };
 
 export const AddTourModal: React.FC<AddTourModalProps> = ({
@@ -170,7 +187,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   const [theme, setTheme] = useState<TourTheme>('beach');
   const [durationDays, setDurationDays] = useState(4);
   const [durationNights, setDurationNights] = useState(3);
-  const [code, setCode] = useState(() => generateStyle1TourCode('TOUR', 4, 3));
+  const [code, setCode] = useState(() => generateStyle1TourCode('TOUR'));
 
   // STEP 2: Hotel Standard & Multi-Tier Pricing
   const [tier, setTier] = useState<TourTier>('standard');
@@ -463,7 +480,8 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   // Handle Title input change with real-time auto code & destination extraction
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
-    const newCode = generateStyle1TourCode(destination || newTitle, durationDays, durationNights);
+    const suffix = extractSuffixFromCode(code);
+    const newCode = generateStyle1TourCode(destination || newTitle, suffix);
     setCode(newCode);
 
     // Auto extract destination if empty
@@ -482,20 +500,20 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   // Handle Destination input change with real-time auto code update
   const handleDestinationChange = (newDest: string) => {
     setDestination(newDest);
-    setCode(generateStyle1TourCode(newDest || title, durationDays, durationNights));
+    const suffix = extractSuffixFromCode(code);
+    setCode(generateStyle1TourCode(newDest || title, suffix));
   };
 
   // Handle Nights change
   const handleNightsChange = (newNights: number) => {
     const validNights = Math.max(0, newNights);
     setDurationNights(validNights);
-    setCode(generateStyle1TourCode(destination || title, durationDays, validNights));
   };
 
   // Trigger auto-code on initial open
   useEffect(() => {
     if (!code) {
-      setCode(generateStyle1TourCode(destination || 'TOUR', durationDays, durationNights));
+      setCode(generateStyle1TourCode(destination || 'TOUR'));
     }
   }, []);
 
@@ -505,7 +523,6 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     const validNights = Math.max(0, validDays - 1);
     setDurationDays(validDays);
     setDurationNights(validNights);
-    setCode(generateStyle1TourCode(destination || title, validDays, validNights));
 
     // Auto-adjust itinerary days
     const currentItin = [...itineraryDays];
@@ -581,7 +598,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     if (type === 'beach') {
       setTitle('Tour Nha Trang - Biển Xanh Vịnh Ngọc 4N3Đ (Resort 5 Sao)');
       setDestination('Nha Trang');
-      setCode(generateStyle1TourCode('Nha Trang', 4, 3));
+      setCode(generateStyle1TourCode('Nha Trang'));
       setCategory('domestic');
       setTravelStyle('package');
       setTheme('beach');
@@ -601,7 +618,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     } else if (type === 'mountain') {
       setTitle('Tour Sapa - Fansipan - Bản Cát Cát 3N2Đ (Khách Sạn 4-5 Sao)');
       setDestination('Sapa');
-      setCode(generateStyle1TourCode('Sapa', 3, 2));
+      setCode(generateStyle1TourCode('Sapa'));
       setCategory('domestic');
       setTravelStyle('package');
       setTheme('adventure');
@@ -620,7 +637,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
     } else {
       setTitle('Tour Đà Nẵng - Cố Đô Huế - Phố Cổ Hội An 4N3Đ');
       setDestination('Đà Nẵng');
-      setCode(generateStyle1TourCode('Đà Nẵng', 4, 3));
+      setCode(generateStyle1TourCode('Đà Nẵng'));
       setCategory('domestic');
       setTravelStyle('package');
       setTheme('heritage');
@@ -685,7 +702,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
-      const finalCode = code.trim() || generateStyle1TourCode(destination, durationDays, durationNights);
+      const finalCode = code.trim() || generateStyle1TourCode(destination || title || 'TOUR');
 
       const newTourObj: Tour = {
         id: `tour-${Date.now()}`,
@@ -1020,7 +1037,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                       </label>
                       <button
                         type="button"
-                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR', durationDays, durationNights))}
+                        onClick={() => setCode(generateStyle1TourCode(destination || title || 'TOUR'))}
                         style={{
                           background: 'none',
                           border: 'none',
