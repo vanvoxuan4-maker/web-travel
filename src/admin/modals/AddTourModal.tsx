@@ -555,7 +555,14 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (currentStep < 4) {
+      setCurrentStep((prev) => (prev + 1) as any);
+      return;
+    }
+    if (!title.trim()) {
+      setCurrentStep(1);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -1907,6 +1914,12 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           type="text"
                           value={quickDateInput}
                           onChange={(e) => setQuickDateInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Ngày đi: DD/MM/YYYY (VD: 20/10/2026)"
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 700, outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1918,6 +1931,12 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           type="text"
                           value={quickDateLabel}
                           onChange={(e) => setQuickDateLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Nhãn sự kiện: VD: Lễ 30/4, Cuối Tuần..."
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 600, outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1930,6 +1949,12 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           step={50000}
                           value={quickDatePrice}
                           onChange={(e) => setQuickDatePrice(Math.max(0, Number(e.target.value) || 0))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Giá vé lớn (VNĐ)"
                           style={{ width: '100%', padding: '0.65rem 0.8rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 800, color: '#047857', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
@@ -1943,6 +1968,12 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           max={99}
                           value={quickDateSeats}
                           onChange={(e) => setQuickDateSeats(Math.max(1, Number(e.target.value) || 15))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSingleDate();
+                            }
+                          }}
                           placeholder="Số chỗ"
                           style={{ width: '100%', padding: '0.65rem 0.6rem', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }}
                         />
