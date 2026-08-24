@@ -87,44 +87,6 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
         })}
       </div>
 
-      {/* Holiday / Tet Highlights Bar (if tour has holiday dates) */}
-      {departureList.some(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới'))) && (
-        <div style={{ background: 'linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%)', border: '1.5px solid #fecdd3', borderRadius: '12px', padding: '0.75rem 1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.15rem' }}>🎉</span>
-            <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#9f1239' }}>
-              Tour có lịch khởi hành dịp Đại Lễ 30/4, 2/9, Giáng Sinh &amp; Tết Nguyên Đán:
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
-            {departureList.filter(d => d.label && (d.label.includes('Lễ') || d.label.includes('Tết') || d.label.includes('Quốc Khánh') || d.label.includes('Giáng Sinh') || d.label.includes('Năm Mới'))).map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  if (d.monthLabel) setActiveMonth(d.monthLabel);
-                  onSelectDate(d.date);
-                }}
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  background: selectedDate === d.date ? '#e11d48' : '#ffffff',
-                  color: selectedDate === d.date ? '#ffffff' : '#e11d48',
-                  border: '1px solid #fecdd3',
-                  padding: '0.25rem 0.65rem',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(225, 29, 72, 0.1)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {d.label} ({d.date})
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Departure Rows List */}
       <div className="schedule-rows-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {depsToRender.map(dep => {
