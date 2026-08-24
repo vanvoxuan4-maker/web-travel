@@ -116,6 +116,9 @@ export interface Tour {
   overview?: string;
   esgDesc?: string;
   leiDesc?: string;
+  isAllInclusive?: boolean;
+  weatherNotice?: string;
+  status?: 'published' | 'draft' | 'hidden' | 'weather_suspended';
   isActive?: boolean;
 }
 

@@ -7,6 +7,17 @@ const TOURS_CACHE_KEY = 'webtravel_tours_cache_v2';
 // In-memory cache for fast reactive access
 let cachedTours: Tour[] | null = null;
 
+try {
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem(TOURS_CACHE_KEY);
+    if (local) {
+      cachedTours = JSON.parse(local);
+    }
+  }
+} catch {
+  // ignore
+}
+
 const notifyListeners = (tours: Tour[]) => {
   cachedTours = tours;
   if (typeof window !== 'undefined') {
@@ -106,6 +117,9 @@ export function mapDbTourToTour(row: any): Tour {
       'Trải nghiệm văn hóa & ẩm thực đặc sản bản địa'
     ],
     itinerary: Array.isArray(row.itinerary) ? row.itinerary : [],
+    isAllInclusive: Boolean(row.is_all_inclusive),
+    weatherNotice: row.weather_notice || undefined,
+    status: (row.status as any) || 'published',
     isActive: row.status !== 'hidden' && row.status !== 'deleted'
   };
 }
@@ -141,11 +155,15 @@ export function mapTourToDbTour(tour: Tour): any {
     discount_percent: tour.discountPercent || 0,
     image: tour.image,
     gallery: tour.gallery || [],
+    available_dates: tour.availableDates || [],
+    departure_dates: tour.departureDates || [],
     highlights: tour.highlights || [],
     itinerary: tour.itinerary || [],
     included: tour.inclusionsList || [],
     excluded: tour.exclusionsList || [],
-    status: tour.isActive === false ? 'hidden' : 'published',
+    is_all_inclusive: Boolean(tour.isAllInclusive),
+    weather_notice: tour.weatherNotice || null,
+    status: tour.status || (tour.isActive === false ? 'hidden' : 'published'),
     esg_score: tour.esgScore || '88/100',
     lei_score: tour.leiScore || '85/100'
   };
@@ -155,6 +173,24 @@ export function mapTourToDbTour(tour: Tour): any {
  * Service to fetch and manage tours from Supabase with safe fallback
  */
 export const tourService = {
+  /**
+   * Get cached tours synchronously
+   */
+  getCachedTours(): Tour[] {
+    return cachedTours || TOURS_DATA;
+  },
+
+  /**
+   * Get single tour by ID synchronously from cache or local data
+   */
+  getTourByIdSync(id: string): Tour | undefined {
+    if (cachedTours) {
+      const found = cachedTours.find(t => t.id === id);
+      if (found) return found;
+    }
+    return TOURS_DATA.find(t => t.id === id);
+  },
+
   /**
    * Fetch all tours (from cache -> Supabase -> local fallback)
    */

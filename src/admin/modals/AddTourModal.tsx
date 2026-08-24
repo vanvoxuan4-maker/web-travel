@@ -258,6 +258,16 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   const [quickDatePrice, setQuickDatePrice] = useState<number>(6500000);
   const [quickDateSeats, setQuickDateSeats] = useState<number>(15);
   const [dateFormError, setDateFormError] = useState<string | null>(null);
+
+  // New Enterprise Fields: All-Inclusive, Weather Notice, Status & Gallery
+  const [isAllInclusive, setIsAllInclusive] = useState(false);
+  const [weatherNotice, setWeatherNotice] = useState('');
+  const [status, setStatus] = useState<'published' | 'draft' | 'hidden' | 'weather_suspended'>('published');
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([
+    'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=800&q=80'
+  ]);
+  const [newGalleryInput, setNewGalleryInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Helper: Add Single Date
@@ -621,7 +631,7 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
         },
         gallery: [
           { url: image, title: title.trim() },
-          { url: SAMPLE_IMAGES[0].url, title: 'Phong cảnh hành trình' }
+          ...galleryUrls.map(u => ({ url: u, title: title.trim() }))
         ],
         inclusionsList: inclusions,
         exclusionsList: exclusions,
@@ -640,7 +650,10 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
         highlights: highlightsArr.length > 0 ? highlightsArr : ['Trải nghiệm nghỉ dưỡng đẳng cấp', 'Lịch trình phong phú, ẩm thực đặc sắc'],
         badge: badge.trim() || 'Mới Ra Mắt',
         itinerary: itineraryDays,
-        isActive: true
+        isAllInclusive,
+        weatherNotice: weatherNotice.trim() || undefined,
+        status,
+        isActive: status !== 'hidden'
       };
 
       await onAddTour(newTourObj);
@@ -1154,8 +1167,30 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                   </div>
                 </div>
 
+                {/* Weather Notice & Best Season */}
+                <div style={{ marginBottom: '1.75rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
+                    <i className="fa-solid fa-cloud-sun" style={{ color: '#0284c7', marginRight: '0.35rem' }}></i> Lưu Ý Thời Tiết & Mùa Khởi Hành Đẹp Nhất (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    value={weatherNotice}
+                    onChange={(e) => setWeatherNotice(e.target.value)}
+                    placeholder="Ví dụ: Mùa hoa anh đào từ T3-T4 / Mùa biển êm từ T4-T8 / Tháng 10-12 có thể đổi cano sang tàu cao tốc"
+                    style={{
+                      width: '100%',
+                      padding: '0.8rem 1rem',
+                      borderRadius: '10px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.92rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
                 {/* Cover Image URL & Presets */}
-                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
                     Link Ảnh Bìa Đại Diện (Cover Image URL) *
                   </label>
@@ -1198,6 +1233,80 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Album Gallery Images */}
+                <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.4rem' }}>
+                    <i className="fa-solid fa-images" style={{ color: '#047857', marginRight: '0.35rem' }}></i> Thư Viện Album Ảnh Phụ (Gallery - Tùy chọn)
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <input
+                      type="url"
+                      placeholder="Dán link ảnh Unsplash/CDN để thêm vào album..."
+                      value={newGalleryInput}
+                      onChange={(e) => setNewGalleryInput(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.88rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newGalleryInput.trim()) {
+                          setGalleryUrls([...galleryUrls, newGalleryInput.trim()]);
+                          setNewGalleryInput('');
+                        }
+                      }}
+                      style={{
+                        padding: '0.65rem 1.2rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#047857',
+                        color: '#fff',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + Thêm Ảnh
+                    </button>
+                  </div>
+                  {galleryUrls.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {galleryUrls.map((url, idx) => (
+                        <div key={idx} style={{ position: 'relative', width: '90px', height: '65px', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+                          <img src={url} alt="album" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button
+                            type="button"
+                            onClick={() => setGalleryUrls(galleryUrls.filter((_, i) => i !== idx))}
+                            style={{
+                              position: 'absolute',
+                              top: '3px',
+                              right: '3px',
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              background: 'rgba(239, 68, 68, 0.9)',
+                              color: '#fff',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '0.7rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1485,6 +1594,48 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                           ⚡ Bật Flash Sale 24h
                         </span>
                       </label>
+                    </div>
+                  </div>
+
+                  {/* All-Inclusive & Publish Status Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.2fr', gap: '1.25rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px dashed #fcd34d' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ffffff', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1px solid #fcd34d' }}>
+                      <div>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 850, color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <i className="fa-solid fa-gem" style={{ color: '#d97706' }}></i> Gói All-Inclusive 100%
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#b45309' }}>Trọn gói không phát sinh bất kỳ phí nào</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isAllInclusive}
+                        onChange={(e) => setIsAllInclusive(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#d97706' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#ffffff', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1px solid #fcd34d' }}>
+                      <label style={{ fontSize: '0.84rem', fontWeight: 850, color: '#92400e', whiteSpace: 'nowrap' }}>
+                        Trạng thái tour:
+                      </label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as any)}
+                        style={{
+                          flex: 1,
+                          padding: '0.4rem 0.6rem',
+                          borderRadius: '6px',
+                          border: '1.5px solid #cbd5e1',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          color: status === 'published' ? '#047857' : status === 'draft' ? '#b45309' : '#64748b',
+                          background: status === 'published' ? '#f0fdf4' : status === 'draft' ? '#fefce8' : '#f1f5f9'
+                        }}
+                      >
+                        <option value="published">🟢 Mở Bán Ngay (Published)</option>
+                        <option value="draft">🟡 Lưu Bản Nháp (Draft)</option>
+                        <option value="hidden">⚪ Tạm Ẩn Tour (Hidden)</option>
+                      </select>
                     </div>
                   </div>
                 </div>
