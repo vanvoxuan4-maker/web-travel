@@ -8,6 +8,8 @@ interface FlashDealsSectionProps {
   tours?: Tour[];
   wishlistedTourIds?: string[];
   onToggleWishlist?: (tourId: string) => void;
+  comparedTourIds?: string[];
+  onToggleCompare?: (tourId: string) => void;
   onQuickBook?: (tourId: string) => void;
 }
 
@@ -15,6 +17,8 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
   tours,
   wishlistedTourIds = [],
   onToggleWishlist,
+  comparedTourIds = [],
+  onToggleCompare,
   onQuickBook
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -145,6 +149,8 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
               <div className="tour-carousel-item" key={tour.id}>
                 <TourCard 
                   tour={tour}
+                  isCompared={comparedTourIds.includes(tour.id)}
+                  onToggleCompare={onToggleCompare}
                   isWishlisted={wishlistedTourIds.includes(tour.id)}
                   onToggleWishlist={onToggleWishlist}
                   onQuickBook={onQuickBook}

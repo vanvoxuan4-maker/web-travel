@@ -96,14 +96,22 @@ export function mapDbTourToTour(row: any): Tour {
     starCategory: (row.tier || 'standard') as TourTier,
     leiScore: row.lei_score || '88/100',
     esgScore: row.esg_score || '85/100',
-    hotelSpecs: row.hotel_specs && Object.keys(row.hotel_specs).length > 0 ? row.hotel_specs : {
+    hotelSpecs: row.hotel_specs && typeof row.hotel_specs === 'object' && Object.keys(row.hotel_specs).length > 0 ? {
+      hotelName: row.hotel_specs.hotelName || row.hotel_specs.name || 'Khách sạn / Resort tiêu chuẩn cao cấp',
+      roomType: row.hotel_specs.roomType || 'Phòng Deluxe / Superior (2 khách/phòng)',
+      inclusions: Array.isArray(row.hotel_specs.inclusions)
+        ? row.hotel_specs.inclusions
+        : (Array.isArray(row.hotel_specs.amenities) ? row.hotel_specs.amenities : ['Buffet sáng', 'Wifi miễn phí', 'Tiện ích phòng cao cấp'])
+    } : {
       hotelName: 'Khách sạn / Resort tiêu chuẩn cao cấp',
       roomType: 'Phòng Deluxe / Superior (2 khách/phòng)',
       inclusions: ['Buffet sáng', 'Wifi miễn phí', 'Tiện ích phòng cao cấp']
     },
-    gallery: Array.isArray(row.gallery) && row.gallery.length > 0 ? row.gallery : [
-      { url: row.image, title: row.title }
-    ],
+    gallery: Array.isArray(row.gallery) && row.gallery.length > 0
+      ? row.gallery.map((g: any) => typeof g === 'string' ? { url: g, title: row.title || '' } : { url: g.url || row.image, title: g.title || '' })
+      : [
+        { url: row.image, title: row.title }
+      ],
     inclusionsList: Array.isArray(row.included) && row.included.length > 0 ? row.included : [
       'Xe du lịch đời mới đưa đón suốt hành trình',
       'Khách sạn tiêu chuẩn (2 khách/phòng, có buffet sáng)',
@@ -116,13 +124,23 @@ export function mapDbTourToTour(row: any): Tour {
       'Tiền TIP cho tài xế và hướng dẫn viên',
       'Thuế VAT 8% (nếu yêu cầu xuất hóa đơn)'
     ],
-    refundPolicy: Array.isArray(row.refund_policy) && row.refund_policy.length > 0 ? row.refund_policy : [
-      { condition: 'Hủy trước 7 ngày', fee: 'Hoàn 100% tiền vé' },
-      { condition: 'Hủy trước 3 - 5 ngày', fee: 'Hoàn 50% tiền vé' }
-    ],
-    faqs: Array.isArray(row.faqs) && row.faqs.length > 0 ? row.faqs : [
-      { q: 'Tour bao gồm những bữa ăn nào?', a: 'Đã bao gồm toàn bộ bữa ăn chính theo lịch trình và buffet sáng tại khách sạn.' }
-    ],
+    refundPolicy: Array.isArray(row.refund_policy) && row.refund_policy.length > 0
+      ? row.refund_policy.map((r: any) => ({
+          condition: r.condition || r.period || (r.daysBefore ? `Hủy trước ${r.daysBefore} ngày` : 'Quy định hủy vé'),
+          fee: r.fee || (r.refundPercent !== undefined ? (r.refundPercent === 0 ? 'Không hoàn tiền (0%)' : `Hoàn ${r.refundPercent}% tiền vé`) : (r.note || 'Theo chính sách công ty'))
+        }))
+      : [
+        { condition: 'Hủy trước 7 ngày', fee: 'Hoàn 100% tiền vé' },
+        { condition: 'Hủy trước 3 - 5 ngày', fee: 'Hoàn 50% tiền vé' }
+      ],
+    faqs: Array.isArray(row.faqs) && row.faqs.length > 0
+      ? row.faqs.map((f: any) => ({
+          q: f.q || f.question || 'Câu hỏi thường gặp',
+          a: f.a || f.answer || 'Vui lòng liên hệ hotline để được hỗ trợ chi tiết.'
+        }))
+      : [
+        { q: 'Tour bao gồm những bữa ăn nào?', a: 'Đã bao gồm toàn bộ bữa ăn chính theo lịch trình và buffet sáng tại khách sạn.' }
+      ],
     rating: Number(row.rating) || 5.0,
     reviewsCount: Number(row.reviews_count) || 48,
     badge: row.badge || (row.is_flash_deal ? '🔥 Flash Sale' : 'Nổi Bật'),

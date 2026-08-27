@@ -137,6 +137,8 @@ export const HomePage: React.FC = () => {
         tours={allTours}
         wishlistedTourIds={wishlistedTourIds}
         onToggleWishlist={handleToggleWishlist}
+        comparedTourIds={comparedTourIds}
+        onToggleCompare={handleToggleCompare}
         onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}
       />
 
@@ -145,6 +147,8 @@ export const HomePage: React.FC = () => {
         tours={allTours}
         wishlistedTourIds={wishlistedTourIds}
         onToggleWishlist={handleToggleWishlist}
+        comparedTourIds={comparedTourIds}
+        onToggleCompare={handleToggleCompare}
         onQuickBook={(tourId) => navigate(`/checkout/${tourId}`)}
       />
 
@@ -207,6 +211,18 @@ export const HomePage: React.FC = () => {
             <p>Rất tiếc, không có kết quả phù hợp với bộ lọc của bạn. Hãy thử chọn lại tiêu chí tìm kiếm khác!</p>
           </div>
         )}
+
+        {/* View All In Catalog CTA */}
+        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => navigate('/tours')}
+            style={{ padding: '0.75rem 2rem', fontSize: '0.95rem', borderRadius: '30px' }}
+          >
+            <i className="fa-solid fa-layer-group"></i> Xem Toàn Bộ {allTours.length} Tour &amp; Bộ Lọc Chi Tiết <i className="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
       </section>
 
       {/* Floating Comparison Action Bar */}

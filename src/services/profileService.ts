@@ -43,6 +43,45 @@ export const profileService = {
   },
 
   /**
+   * Update profile info for a user (Self / Customer)
+   */
+  async updateUserProfile(
+    userId: string,
+    updates: {
+      fullName?: string;
+      phone?: string;
+      address?: string;
+      avatarUrl?: string;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+
+    try {
+      const dbPayload: any = {
+        updated_at: new Date().toISOString()
+      };
+      if (updates.fullName !== undefined) dbPayload.full_name = updates.fullName;
+      if (updates.phone !== undefined) dbPayload.phone = updates.phone;
+      if (updates.address !== undefined) dbPayload.address = updates.address;
+      if (updates.avatarUrl !== undefined) dbPayload.avatar_url = updates.avatarUrl;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(dbPayload)
+        .eq('id', userId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to update profile' };
+    }
+  },
+
+  /**
    * Update role for a user (Super Admin operation)
    */
   async updateUserRole(userId: string, newRole: UserRole): Promise<{ success: boolean; error?: string }> {

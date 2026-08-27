@@ -5,7 +5,8 @@ import { tourService } from '../../services/tourService';
 import { Tour, DepartureDate } from '../../types/tour.types';
 import { getDateDetails, deductSeats, getRemainingSeats } from '../../utils/inventoryManager';
 import { formatCurrencyVND, getDayOfWeekVN } from '../../utils/formatters';
-import { bookingService } from '../../services/bookingService';
+import { bookingService, PaymentMethod } from '../../services/bookingService';
+import { couponService } from '../../services/couponService';
 import { useAuth } from '../../auth/useAuth';
 
 export const CheckoutPage: React.FC = () => {
@@ -76,16 +77,38 @@ export const CheckoutPage: React.FC = () => {
   const [addonInsurance, setAddonInsurance] = useState<boolean>(false);
   const [addonPickup, setAddonPickup] = useState<boolean>(false);
   const [payOption, setPayOption] = useState<'full' | 'deposit'>('full');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('vietqr');
+  
+  // Coupon
   const [couponCode, setCouponCode] = useState<string>('');
   const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState<boolean>(false);
   const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
 
-  // Customer form
+  // Customer contact form
   const [customerName, setCustomerName] = useState(user?.fullName || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerAddress, setCustomerAddress] = useState(user?.address || '');
   const [customerNotes, setCustomerNotes] = useState('');
+
+  // Form Validation Errors
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    pax?: string;
+  }>({});
+
+  // Submitting state
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Confirmation state
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [bookingRef, setBookingRef] = useState<string>('');
+  const [isPaidConfirmed, setIsPaidConfirmed] = useState<boolean>(false);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(900); // 15 mins
 
   // Autofill when user profile loads
   useEffect(() => {
@@ -96,11 +119,6 @@ export const CheckoutPage: React.FC = () => {
       if (user.address && !customerAddress) setCustomerAddress(user.address);
     }
   }, [user]);
-
-  // Confirmation state
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [bookingRef, setBookingRef] = useState<string>('');
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(900); // 15 mins
 
   useEffect(() => {
     if (initialDateFromQuery && tour) {
@@ -160,54 +178,140 @@ export const CheckoutPage: React.FC = () => {
   const finalTotal = Math.max(0, rawTotal - couponDiscount);
   const dueAmount = payOption === 'deposit' ? Math.round(finalTotal * 0.5) : finalTotal;
 
-  const handleApplyCoupon = () => {
-    const code = couponCode.trim().toUpperCase();
-    if (code === 'SUMMER2026' || code === 'VIETRAVEL500') {
-      setCouponDiscount(500000);
-      setCouponMsg({ text: 'Áp dụng mã giảm 500.000 ₫ thành công!', success: true });
-    } else if (code === 'VIP1000') {
-      setCouponDiscount(1000000);
-      setCouponMsg({ text: 'Áp dụng mã VIP giảm 1.000.000 ₫ thành công!', success: true });
-    } else {
-      setCouponDiscount(0);
-      setCouponMsg({ text: 'Mã khuyến mãi không hợp lệ hoặc đã hết hạn.', success: false });
+  // Coupon Validation against Database / Fallback
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponMsg({ text: 'Vui lòng nhập mã giảm giá.', success: false });
+      return;
     }
+
+    setIsCheckingCoupon(true);
+    try {
+      const res = await couponService.validateCoupon(couponCode, rawTotal);
+      if (res.valid) {
+        setCouponDiscount(res.discountAmount);
+        setCouponMsg({ text: res.message, success: true });
+      } else {
+        setCouponDiscount(0);
+        setCouponMsg({ text: res.message, success: false });
+      }
+    } catch (err) {
+      setCouponDiscount(0);
+      setCouponMsg({ text: 'Lỗi kiểm tra mã giảm giá. Vui lòng thử lại.', success: false });
+    } finally {
+      setIsCheckingCoupon(false);
+    }
+  };
+
+  // Form Validation
+  const validateForm = (): boolean => {
+    const errors: typeof formErrors = {};
+
+    if (!customerName.trim() || customerName.trim().length < 2) {
+      errors.name = 'Vui lòng nhập họ và tên đầy đủ (tối thiểu 2 ký tự).';
+    }
+
+    const phoneClean = customerPhone.replace(/\s+/g, '');
+    const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
+    if (!phoneClean) {
+      errors.phone = 'Vui lòng nhập số điện thoại liên hệ.';
+    } else if (phoneClean.length < 10 || !phoneRegex.test(phoneClean)) {
+      errors.phone = 'Số điện thoại không hợp lệ (cần 10 chữ số).';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!customerEmail.trim()) {
+      errors.email = 'Vui lòng nhập email nhận vé điện tử.';
+    } else if (!emailRegex.test(customerEmail.trim())) {
+      errors.email = 'Địa chỉ email không đúng định dạng.';
+    }
+
+    if (!customerAddress.trim()) {
+      errors.address = 'Vui lòng nhập địa chỉ liên hệ của bạn.';
+    }
+
+    if (adults <= 0) {
+      errors.pax = 'Cần ít nhất 1 hành khách người lớn.';
+    } else if (bookedPax > maxSeats) {
+      errors.pax = `Số lượng hành khách vượt quá số chỗ còn trống (${maxSeats} chỗ).`;
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleConfirmBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tour) return;
+
+    if (!validateForm()) {
+      // Scroll to first error
+      const firstErrEl = document.querySelector('.form-input-error');
+      if (firstErrEl) {
+        firstErrEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
     if (isSoldOut || isSeatExceeded || bookedPax === 0) return;
 
-    const ref = 'WT-' + Math.floor(100000 + Math.random() * 900000);
-    setBookingRef(ref);
-    deductSeats(tour.id, selectedDate, bookedPax);
+    setIsSubmitting(true);
 
-    // Save to Database (Supabase + LocalStorage)
-    await bookingService.createBooking({
-      bookingCode: ref,
-      userId: user?.id,
-      tourId: tour.id,
-      tourTitle: tour.title,
-      departureDate: selectedDate,
-      customerName: customerName || 'Khách hàng',
-      customerPhone: customerPhone || '0901234567',
-      customerEmail: customerEmail || 'guest@webtravel.vn',
-      customerAddress: customerAddress || '',
-      customerNotes,
-      adultsCount: adults,
-      childrenCount: children,
-      infantsCount: infants,
-      singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
-      totalAmount: dueAmount,
-      couponCode: couponDiscount > 0 ? couponCode : undefined,
-      paymentMethod: 'vietqr',
-      paymentStatus: 'pending',
-      bookingStatus: 'confirmed'
-    });
+    try {
+      // Generate standard booking reference code: WT-YYYYMMDD-XXXXXX
+      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const ref = `WT-${todayStr}-${randHex}`;
+      setBookingRef(ref);
 
-    setIsSuccess(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Deduct seats in inventory manager & Supabase
+      deductSeats(tour.id, selectedDate, bookedPax);
+
+      // Save to Database (Supabase + LocalStorage)
+      const res = await bookingService.createBooking({
+        bookingCode: ref,
+        userId: user?.id,
+        tourId: tour.id,
+        tourTitle: tour.title,
+        tourImage: tour.image,
+        departureDate: selectedDate,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        customerEmail: customerEmail.trim(),
+        customerAddress: customerAddress.trim(),
+        customerNotes: customerNotes.trim(),
+        adultsCount: adults,
+        childrenCount: children,
+        toddlersCount: toddlers,
+        infantsCount: infants,
+        singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
+        totalAmount: dueAmount,
+        couponCode: couponDiscount > 0 ? couponCode.trim().toUpperCase() : undefined,
+        couponDiscount: couponDiscount > 0 ? couponDiscount : 0,
+        paymentMethod: paymentMethod,
+        paymentStatus: 'pending',
+        bookingStatus: 'confirmed'
+      });
+
+      if (res.success) {
+        setIsSuccess(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        alert(res.error || 'Có lỗi xảy ra khi tạo đơn đặt tour. Vui lòng thử lại.');
+      }
+    } catch (err: any) {
+      console.error('Error confirming booking:', err);
+      alert('Không thể hoàn tất đặt tour. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Quick Action for User to confirm transfer
+  const handleMarkPaymentTransferred = async () => {
+    if (!bookingRef) return;
+    setIsPaidConfirmed(true);
+    await bookingService.updatePaymentStatus(bookingRef, 'paid', dueAmount, paymentMethod);
   };
 
   const timerMins = Math.floor(secondsRemaining / 60);
@@ -223,8 +327,8 @@ export const CheckoutPage: React.FC = () => {
           <i className="fa-solid fa-compass" style={{ fontSize: '3.5rem', color: '#9ca3af', marginBottom: '1.25rem' }}></i>
           <h2 style={{ color: '#111827', margin: '0 0 0.5rem', fontSize: '1.75rem' }}>Không tìm thấy tour để thanh toán</h2>
           <p style={{ color: '#64748b', marginBottom: '1.75rem', fontSize: '0.95rem' }}>Hành trình bạn chọn có thể chưa tồn tại hoặc đã kết thúc mở bán.</p>
-          <Link to="/" className="btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.95rem' }}>
-            <i className="fa-solid fa-arrow-left"></i> Khám Phá Tour Khác
+          <Link to="/tours" className="btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.95rem' }}>
+            <i className="fa-solid fa-arrow-left"></i> Khám Phá Danh Mục Tour
           </Link>
         </div>
       </div>
@@ -236,8 +340,10 @@ export const CheckoutPage: React.FC = () => {
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
         
         {/* Breadcrumb Navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <Link to="/" style={{ color: '#64748b', textDecoration: 'none' }}>Trang Chủ</Link>
+          <i className="fa-solid fa-angle-right" style={{ fontSize: '0.75rem' }}></i>
+          <Link to="/tours" style={{ color: '#64748b', textDecoration: 'none' }}>Danh Mục Tour</Link>
           <i className="fa-solid fa-angle-right" style={{ fontSize: '0.75rem' }}></i>
           <Link to={`/tour/${tour.slug || tour.id}`} style={{ color: '#64748b', textDecoration: 'none' }}>{tour.shortTitle || tour.title}</Link>
           <i className="fa-solid fa-angle-right" style={{ fontSize: '0.75rem' }}></i>
@@ -255,13 +361,18 @@ export const CheckoutPage: React.FC = () => {
               Đã Giữ Chỗ &amp; Xác Nhận Đặt Tour Thành Công!
             </h1>
             <p style={{ color: '#64748b', fontSize: '1rem', marginBottom: '2rem' }}>
-              Mã hồ sơ đặt vé: <strong style={{ color: 'var(--accent-forest)', fontSize: '1.15rem' }}>{bookingRef}</strong> • Chuyến đi: <strong>{tour.title}</strong>
+              Mã hồ sơ đơn hàng: <strong style={{ color: 'var(--accent-forest)', fontSize: '1.25rem', letterSpacing: '0.5px' }}>{bookingRef}</strong> • Chuyến đi: <strong>{tour.title}</strong>
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '2rem', textAlign: 'left', marginBottom: '2rem' }}>
               <div>
-                <h3 style={{ margin: '0 0 1rem', color: '#111827', fontSize: '1.15rem', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-                  <i className="fa-solid fa-file-invoice" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Thông Tin Hồ Sơ Đặt Chỗ:
+                <h3 style={{ margin: '0 0 1rem', color: '#111827', fontSize: '1.15rem', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>
+                    <i className="fa-solid fa-file-invoice" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Thông Tin Hồ Sơ Đặt Chỗ:
+                  </span>
+                  <span className={`badge ${isPaidConfirmed ? 'badge-emerald' : 'badge-gold'}`} style={{ fontSize: '0.78rem' }}>
+                    {isPaidConfirmed ? '✅ ĐÃ THANH TOÁN' : '⏳ CHỜ THANH TOÁN'}
+                  </span>
                 </h3>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Người đại diện:</strong> {customerName}</p>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Số điện thoại (Zalo):</strong> {customerPhone}</p>
@@ -269,30 +380,66 @@ export const CheckoutPage: React.FC = () => {
                 {customerAddress && <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Địa chỉ liên hệ:</strong> {customerAddress}</p>}
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Ngày khởi hành:</strong> {selectedDate} ({getDayOfWeekVN(selectedDate)})</p>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}>
-                  <strong>Số lượng khách:</strong> {adults} Người lớn {children > 0 ? `, ${children} Trẻ em` : ''} {toddlers > 0 ? `, ${toddlers} Trẻ nhỏ` : ''} {infants > 0 ? `, ${infants} Em bé` : ''}
+                  <strong>Số lượng khách ({bookedPax + infants} người):</strong> {adults} Người lớn {children > 0 ? `, ${children} Trẻ em` : ''} {toddlers > 0 ? `, ${toddlers} Trẻ nhỏ` : ''} {infants > 0 ? `, ${infants} Em bé` : ''}
                 </p>
+                {couponDiscount > 0 && (
+                  <p style={{ margin: '0.5rem 0', fontSize: '0.92rem', color: '#059669' }}>
+                    <strong>Mã khuyến mãi:</strong> {couponCode.toUpperCase()} (-{formatCurrencyVND(couponDiscount)})
+                  </p>
+                )}
                 <p style={{ margin: '0.75rem 0 0', fontSize: '1rem', borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem' }}>
-                  <strong>Số tiền thanh toán:</strong> <span style={{ color: 'var(--accent-forest)', fontWeight: 800, fontSize: '1.25rem' }}>{formatCurrencyVND(dueAmount)}</span> {payOption === 'deposit' ? '(Đặt cọc giữ chỗ 50%)' : '(100% trọn gói)'}
+                  <strong>Số tiền thanh toán:</strong> <span style={{ color: 'var(--accent-forest)', fontWeight: 800, fontSize: '1.3rem' }}>{formatCurrencyVND(dueAmount)}</span> {payOption === 'deposit' ? '(Đặt cọc giữ chỗ 50%)' : '(100% trọn gói)'}
                 </p>
               </div>
 
-              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <h3 style={{ margin: '0 0 0.75rem', color: '#111827', fontSize: '1.1rem' }}>
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <h3 style={{ margin: '0 0 0.5rem', color: '#111827', fontSize: '1.05rem' }}>
                   <i className="fa-solid fa-qrcode" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Quét Mã VietQR Chuyển Khoản Tự Động
                 </h3>
-                <img src={vietQrUrl} alt="VietQR Thanh Toán" style={{ maxWidth: '210px', borderRadius: '12px', border: '1.5px solid #e2e8f0', boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }} />
-                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.6rem 0 0' }}>
-                  Hệ thống tự động kích hoạt mã vé điện tử ngay khi nhận chuyển khoản
+                <img src={vietQrUrl} alt="VietQR Thanh Toán" style={{ maxWidth: '200px', borderRadius: '10px', border: '1.5px solid #e2e8f0', boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }} />
+                
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.6rem 0 0.85rem' }}>
+                  Nội dung chuyển khoản: <strong style={{ color: '#0f172a' }}>{bookingRef} {customerPhone}</strong>
                 </p>
+
+                {!isPaidConfirmed ? (
+                  <button
+                    type="button"
+                    onClick={handleMarkPaymentTransferred}
+                    style={{
+                      padding: '0.6rem 1.25rem',
+                      borderRadius: '20px',
+                      background: '#ecfdf5',
+                      border: '1.5px solid #059669',
+                      color: '#047857',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <i className="fa-solid fa-check"></i> Tôi Đã Chuyển Khoản Thành Công
+                  </button>
+                ) : (
+                  <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fa-solid fa-circle-check"></i> Đã Ghi Nhận Thanh Toán (Hệ Thống Đang Đối Soát)
+                  </div>
+                )}
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link to={`/tour/${tour.slug || tour.id}`} className="btn-secondary" style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}>
-                <i className="fa-solid fa-arrow-left"></i> Quay Lại Trang Tour
+              <Link to="/profile" className="btn-primary" style={{ padding: '0.8rem 2rem', fontSize: '0.95rem' }}>
+                <i className="fa-solid fa-ticket"></i> Xem Lịch Sử Đặt Tour Của Tôi
               </Link>
-              <Link to="/" className="btn-primary" style={{ padding: '0.8rem 2rem', fontSize: '0.95rem' }}>
-                <i className="fa-solid fa-house"></i> Về Trang Chủ WebTravel
+              <Link to="/tours" className="btn-secondary" style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}>
+                <i className="fa-solid fa-compass"></i> Tiếp Tục Đặt Tour Khác
+              </Link>
+              <Link to="/" className="btn-secondary" style={{ padding: '0.8rem 1.75rem', fontSize: '0.95rem' }}>
+                <i className="fa-solid fa-house"></i> Về Trang Chủ
               </Link>
             </div>
           </div>
@@ -305,7 +452,7 @@ export const CheckoutPage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
                     <span className="badge badge-emerald"><i className="fa-solid fa-shield-halved"></i> Đặt Chỗ Trực Tuyến An Toàn</span>
-                    <span className="badge badge-forest">Mã: {tour.code || 'WT-01'}</span>
+                    <span className="badge badge-forest">Mã Tour: {tour.code || 'WT-01'}</span>
                   </div>
                   <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', color: '#111827', margin: '0.2rem 0 0.4rem' }}>
                     {tour.title}
@@ -342,7 +489,7 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             {/* Main 2-Column Grid */}
-            <form id="smart-booking-form" onSubmit={handleConfirmBooking}>
+            <form id="smart-booking-form" onSubmit={handleConfirmBooking} noValidate>
               <div className="booking-modal-grid">
                 
                 {/* LEFT COLUMN: Step-by-Step Configuration */}
@@ -374,7 +521,7 @@ export const CheckoutPage: React.FC = () => {
                           <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 700, textTransform: 'uppercase' }}>
                             Ngày khởi hành đã chọn:
                           </div>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span>{getDayOfWeekVN(selectedDate)}, {selectedDate}</span>
                             <span style={{ fontSize: '0.95rem', color: 'var(--accent-forest)' }}>({formatCurrencyVND(priceAdultUnit)}/khách)</span>
                             {currentDetails?.label && (
@@ -391,7 +538,7 @@ export const CheckoutPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Expandable Dates Grid (Balanced & Orderly) */}
+                    {/* Expandable Dates Grid */}
                     {showAllDates && (
                       <div 
                         className="booking-dates-grid" 
@@ -434,7 +581,6 @@ export const CheckoutPage: React.FC = () => {
                                 boxShadow: isSelected ? '0 4px 14px rgba(5, 150, 105, 0.15)' : '0 2px 5px rgba(0,0,0,0.02)'
                               }}
                             >
-                              {/* 1. Top Badge / Promotion Tag Slot */}
                               <div style={{ minHeight: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '0.35rem' }}>
                                 {dep.label ? (
                                   <span 
@@ -458,7 +604,6 @@ export const CheckoutPage: React.FC = () => {
                                 )}
                               </div>
 
-                              {/* 2. Middle: Day of Week & Date */}
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', margin: '0.2rem 0' }}>
                                 <span 
                                   style={{ 
@@ -477,7 +622,6 @@ export const CheckoutPage: React.FC = () => {
                                 </span>
                               </div>
 
-                              {/* 3. Middle: Price */}
                               <div 
                                 style={{ 
                                   fontSize: '1.05rem', 
@@ -491,7 +635,6 @@ export const CheckoutPage: React.FC = () => {
                                 {formatCurrencyVND(p)}
                               </div>
 
-                              {/* 4. Bottom: Seat Availability Pill */}
                               <div 
                                 style={{ 
                                   fontSize: '0.74rem', 
@@ -526,12 +669,18 @@ export const CheckoutPage: React.FC = () => {
                         {isSoldOut ? 'Hết chỗ' : `Đã chọn: ${bookedPax}/${maxSeats} chỗ`}
                       </span>
                     </div>
+
+                    {formErrors.pax && (
+                      <div className="form-input-error" style={{ color: '#dc2626', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+                        <i className="fa-solid fa-circle-exclamation"></i> {formErrors.pax}
+                      </div>
+                    )}
                     
                     <div className="passenger-tier-list">
                       {/* Tier 1: Adult */}
                       <div className="passenger-tier-row">
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>Người Lớn (Từ 12 tuổi trở lên)</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>Người Lớn (Từ 12 tuổi trở lên) *</div>
                           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>100% giá tour - Tiêu chuẩn giường riêng đầy đủ</div>
                           <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent-forest)', marginTop: '0.2rem' }}>
                             {formatCurrencyVND(priceAdultUnit)} / người
@@ -748,56 +897,122 @@ export const CheckoutPage: React.FC = () => {
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}><i className="fa-solid fa-user"></i> Họ và Tên *</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
+                          <i className="fa-solid fa-user"></i> Họ và Tên *
+                        </label>
                         <input 
                           type="text" 
                           required 
                           placeholder="Nguyễn Văn A" 
                           value={customerName} 
-                          onChange={(e) => setCustomerName(e.target.value)} 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                          onChange={(e) => {
+                            setCustomerName(e.target.value);
+                            if (formErrors.name) setFormErrors(prev => ({ ...prev, name: undefined }));
+                          }} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            borderRadius: '8px', 
+                            border: formErrors.name ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                            outline: 'none'
+                          }}
                         />
+                        {formErrors.name && (
+                          <div className="form-input-error" style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '0.3rem', fontWeight: 600 }}>
+                            {formErrors.name}
+                          </div>
+                        )}
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}><i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
+                          <i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *
+                        </label>
                         <input 
                           type="tel" 
                           required 
                           placeholder="0901 234 567" 
                           value={customerPhone} 
-                          onChange={(e) => setCustomerPhone(e.target.value)} 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                          onChange={(e) => {
+                            setCustomerPhone(e.target.value);
+                            if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: undefined }));
+                          }} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            borderRadius: '8px', 
+                            border: formErrors.phone ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                            outline: 'none'
+                          }}
                         />
+                        {formErrors.phone && (
+                          <div className="form-input-error" style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '0.3rem', fontWeight: 600 }}>
+                            {formErrors.phone}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}><i className="fa-solid fa-envelope"></i> Email Nhận Vé &amp; Hợp Đồng *</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
+                          <i className="fa-solid fa-envelope"></i> Email Nhận Vé &amp; Hợp Đồng *
+                        </label>
                         <input 
                           type="email" 
                           required 
                           placeholder="khachhang@gmail.com" 
                           value={customerEmail} 
-                          onChange={(e) => setCustomerEmail(e.target.value)} 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                          onChange={(e) => {
+                            setCustomerEmail(e.target.value);
+                            if (formErrors.email) setFormErrors(prev => ({ ...prev, email: undefined }));
+                          }} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            borderRadius: '8px', 
+                            border: formErrors.email ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                            outline: 'none'
+                          }}
                         />
+                        {formErrors.email && (
+                          <div className="form-input-error" style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '0.3rem', fontWeight: 600 }}>
+                            {formErrors.email}
+                          </div>
+                        )}
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}><i className="fa-solid fa-location-dot"></i> Địa Chỉ Liên Hệ *</label>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
+                          <i className="fa-solid fa-location-dot"></i> Địa Chỉ Liên Hệ *
+                        </label>
                         <input 
                           type="text" 
                           required 
                           placeholder="Số nhà, đường, tỉnh/thành phố" 
                           value={customerAddress} 
-                          onChange={(e) => setCustomerAddress(e.target.value)} 
-                          style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                          onChange={(e) => {
+                            setCustomerAddress(e.target.value);
+                            if (formErrors.address) setFormErrors(prev => ({ ...prev, address: undefined }));
+                          }} 
+                          style={{ 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            borderRadius: '8px', 
+                            border: formErrors.address ? '1.5px solid #dc2626' : '1px solid #cbd5e1',
+                            outline: 'none'
+                          }}
                         />
+                        {formErrors.address && (
+                          <div className="form-input-error" style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '0.3rem', fontWeight: 600 }}>
+                            {formErrors.address}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="form-group" style={{ marginTop: '1rem', marginBottom: 0 }}>
-                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}><i className="fa-solid fa-note-sticky"></i> Ghi chú đặc biệt (nếu có):</label>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
+                        <i className="fa-solid fa-note-sticky"></i> Ghi chú đặc biệt (nếu có):
+                      </label>
                       <input 
                         type="text" 
                         placeholder="Ăn chay, phòng tầng cao, kỷ niệm ngày cưới..." 
@@ -805,6 +1020,147 @@ export const CheckoutPage: React.FC = () => {
                         onChange={(e) => setCustomerNotes(e.target.value)} 
                         style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                       />
+                    </div>
+                  </div>
+
+                  {/* STEP 5: Payment Method Selection */}
+                  <div className="booking-form-section">
+                    <h4 className="booking-step-title">
+                      <span className="step-num">5</span> Phương Thức Thanh Toán
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
+                      {/* Method 1: VietQR */}
+                      <label 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '1rem 1.25rem', 
+                          borderRadius: '12px', 
+                          border: paymentMethod === 'vietqr' ? '2px solid #059669' : '1.5px solid #e2e8f0', 
+                          background: paymentMethod === 'vietqr' ? '#f0fdf4' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input 
+                            type="radio" 
+                            name="payment-method" 
+                            checked={paymentMethod === 'vietqr'} 
+                            onChange={() => setPaymentMethod('vietqr')} 
+                          />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>
+                              📱 Chuyển Khoản Ngân Hàng (VietQR) <span className="badge badge-emerald" style={{ fontSize: '0.72rem', marginLeft: '0.3rem' }}>Khuyên dùng</span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              Quét mã QR qua ứng dụng ngân hàng bất kỳ (Miễn phí &amp; Xác nhận tức thì)
+                            </div>
+                          </div>
+                        </div>
+                        <i className="fa-solid fa-qrcode" style={{ fontSize: '1.5rem', color: '#059669' }}></i>
+                      </label>
+
+                      {/* Method 2: Credit Card */}
+                      <label 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '1rem 1.25rem', 
+                          borderRadius: '12px', 
+                          border: paymentMethod === 'credit_card' ? '2px solid #059669' : '1.5px solid #e2e8f0', 
+                          background: paymentMethod === 'credit_card' ? '#f0fdf4' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input 
+                            type="radio" 
+                            name="payment-method" 
+                            checked={paymentMethod === 'credit_card'} 
+                            onChange={() => setPaymentMethod('credit_card')} 
+                          />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>
+                              💳 Thẻ Tín Dụng / Ghi Nợ Quốc Tế (Visa, MasterCard, JCB)
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              Bảo mật SSL 256-bit chuẩn 3D Secure
+                            </div>
+                          </div>
+                        </div>
+                        <i className="fa-solid fa-credit-card" style={{ fontSize: '1.5rem', color: '#2563eb' }}></i>
+                      </label>
+
+                      {/* Method 3: MoMo */}
+                      <label 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '1rem 1.25rem', 
+                          borderRadius: '12px', 
+                          border: paymentMethod === 'momo' ? '2px solid #059669' : '1.5px solid #e2e8f0', 
+                          background: paymentMethod === 'momo' ? '#f0fdf4' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input 
+                            type="radio" 
+                            name="payment-method" 
+                            checked={paymentMethod === 'momo'} 
+                            onChange={() => setPaymentMethod('momo')} 
+                          />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>
+                              👛 Ví Điện Tử MoMo / ZaloPay
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              Thanh toán qua ví điện tử tiện lợi
+                            </div>
+                          </div>
+                        </div>
+                        <i className="fa-solid fa-wallet" style={{ fontSize: '1.5rem', color: '#a21caf' }}></i>
+                      </label>
+
+                      {/* Method 4: Office / Cash */}
+                      <label 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          padding: '1rem 1.25rem', 
+                          borderRadius: '12px', 
+                          border: paymentMethod === 'cash' ? '2px solid #059669' : '1.5px solid #e2e8f0', 
+                          background: paymentMethod === 'cash' ? '#f0fdf4' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input 
+                            type="radio" 
+                            name="payment-method" 
+                            checked={paymentMethod === 'cash'} 
+                            onChange={() => setPaymentMethod('cash')} 
+                          />
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>
+                              🏢 Thanh Toán Trực Tiếp Tại Văn Phòng WebTravel
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              Giữ chỗ trước và đến phòng vé hoàn tất thủ tục
+                            </div>
+                          </div>
+                        </div>
+                        <i className="fa-solid fa-building" style={{ fontSize: '1.5rem', color: '#64748b' }}></i>
+                      </label>
                     </div>
                   </div>
 
@@ -886,10 +1242,11 @@ export const CheckoutPage: React.FC = () => {
                         <button 
                           type="button" 
                           className="btn-secondary" 
+                          disabled={isCheckingCoupon}
                           onClick={handleApplyCoupon}
                           style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', borderRadius: '8px' }}
                         >
-                          Áp Dụng
+                          {isCheckingCoupon ? 'Đang kiểm tra...' : 'Áp Dụng'}
                         </button>
                       </div>
                       {couponMsg && (
@@ -923,7 +1280,7 @@ export const CheckoutPage: React.FC = () => {
                             checked={payOption === 'full'} 
                             onChange={() => setPayOption('full')} 
                           />
-                          <span>Thanh toán 100% (Xác nhận vé ngay)</span>
+                          <span>Thanh toán 100% ({formatCurrencyVND(finalTotal)})</span>
                         </label>
                         <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
                           <input 
@@ -940,11 +1297,25 @@ export const CheckoutPage: React.FC = () => {
                     {/* Submit Button */}
                     <button 
                       type="submit" 
-                      disabled={isSoldOut || isSeatExceeded || bookedPax === 0}
+                      disabled={isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0}
                       className="btn-primary w-full" 
-                      style={{ padding: '1rem', fontSize: '1.05rem', fontWeight: 700, borderRadius: '10px', width: '100%', justifyContent: 'center', boxShadow: '0 10px 25px rgba(5,150,105,0.35)', cursor: (isSoldOut || isSeatExceeded || bookedPax === 0) ? 'not-allowed' : 'pointer' }}
+                      style={{ 
+                        padding: '1rem', 
+                        fontSize: '1.05rem', 
+                        fontWeight: 700, 
+                        borderRadius: '10px', 
+                        width: '100%', 
+                        justifyContent: 'center', 
+                        boxShadow: '0 10px 25px rgba(5,150,105,0.35)', 
+                        cursor: (isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0) ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.7 : 1
+                      }}
                     >
-                      <i className="fa-solid fa-lock"></i> {isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}
+                      {isSubmitting ? (
+                        <span><i className="fa-solid fa-spinner fa-spin"></i> Đang Xử Lý Đặt Chỗ...</span>
+                      ) : (
+                        <span><i className="fa-solid fa-lock"></i> {isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}</span>
+                      )}
                     </button>
 
                     <div style={{ textAlign: 'center', margin: '0.85rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>

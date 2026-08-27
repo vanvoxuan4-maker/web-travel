@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { profileService } from '../services/profileService';
 import { couponService } from '../services/couponService';
 import { tourService } from '../services/tourService';
+import { bookingService } from '../services/bookingService';
 import { AdminTab, BookingRecord, CustomerRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -71,14 +72,35 @@ export const AdminPortal: React.FC = () => {
             customerName: b.customer_name,
             phone: b.customer_phone,
             customerAddress: b.customer_address,
-            tourTitle: b.tour?.title || b.tour_id,
-            departureDate: b.departure_date ? new Date(b.departure_date).toLocaleDateString('vi-VN') : 'Đang xếp lịch',
-            paxCount: (b.adult_count || 1) + (b.child_count || 0) + (b.infant_count || 0),
+            tourTitle: b.tour_title || b.tour?.title || b.tour_id,
+            departureDate: b.departure_date ? (b.departure_date.includes('-') ? new Date(b.departure_date).toLocaleDateString('vi-VN') : b.departure_date) : 'Đang xếp lịch',
+            paxCount: (b.adults_count || b.adult_count || 1) + (b.children_count || b.child_count || 0) + (b.toddlers_count || 0) + (b.infants_count || b.infant_count || 0),
             totalAmount: Number(b.total_amount) || 0,
             status: (b.booking_status as any) || 'pending',
             createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay'
           }));
           setBookings(mappedBookings);
+        } else {
+          // Read from LocalStorage fallback
+          try {
+            const localBookings = JSON.parse(localStorage.getItem('webtravel_local_bookings') || '[]');
+            if (localBookings.length > 0) {
+              setBookings(localBookings.map((b: any) => ({
+                id: b.bookingCode || b.id,
+                customerName: b.customerName,
+                phone: b.customerPhone,
+                customerAddress: b.customerAddress,
+                tourTitle: b.tourTitle || b.tourId,
+                departureDate: b.departureDate,
+                paxCount: (b.adultsCount || 1) + (b.childrenCount || 0) + (b.toddlersCount || 0) + (b.infantsCount || 0),
+                totalAmount: b.totalAmount || 0,
+                status: b.bookingStatus || 'pending',
+                createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'
+              })));
+            }
+          } catch (e) {
+            console.warn('Cannot read local bookings in AdminPortal:', e);
+          }
         }
 
         // 3. Fetch Real Coupons
@@ -150,8 +172,16 @@ export const AdminPortal: React.FC = () => {
   // Handler: Booking status
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled') => {
     try {
+      const paymentStatus = newStatus === 'confirmed' ? 'paid' : newStatus === 'deposit' ? 'partially_paid' : 'pending';
+      await bookingService.updatePaymentStatus(bookingId, paymentStatus);
       if (isSupabaseConfigured && supabase) {
-        await supabase.from('bookings').update({ booking_status: newStatus }).eq('booking_code', bookingId);
+        await supabase
+          .from('bookings')
+          .update({ 
+            booking_status: newStatus,
+            payment_status: paymentStatus
+          })
+          .eq('booking_code', bookingId);
       }
       setBookings(bookings.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)));
       setActionFeedback({ type: 'success', message: `Đã cập nhật trạng thái đơn ${bookingId} ➔ ${newStatus}` });

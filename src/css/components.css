@@ -21,3 +21,6 @@
 
 /* 6. Standalone Tour Detail Page (Hero, Gallery, Schedule, Itinerary, Sidebar) */
 @import url('./modules/tour-detail.css');
+
+/* 7. Tour Catalog Page (/tours) — Sidebar Filter + Grid Layout */
+@import url('./modules/tour-catalog.css');

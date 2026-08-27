@@ -41,17 +41,9 @@ export const TourDetailPage: React.FC = () => {
     }
   }, [id, navigate]);
 
-  const defaultFirstDate = tour?.departureDates?.[0]?.date || tour?.availableDates?.[0] || '12/09/2026';
-  const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(defaultFirstDate);
+  const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(null);
   const [isETicketOpen, setIsETicketOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('section-schedule');
-
-  useEffect(() => {
-    if (tour) {
-      const first = tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '12/09/2026';
-      setSelectedDepartureDate(first);
-    }
-  }, [tour]);
 
   if (!tour) {
     return (
@@ -80,8 +72,13 @@ export const TourDetailPage: React.FC = () => {
   };
 
   const handleOpenBooking = () => {
-    const targetDate = selectedDepartureDate || defaultFirstDate;
-    navigate(`/checkout/${tour.id}?date=${encodeURIComponent(targetDate)}`);
+    if (!selectedDepartureDate) {
+      // Chưa chọn ngày khởi hành -> Cuộn mượt mà tới khu vực Lịch Trình Khởi Hành
+      scrollToSection('section-schedule');
+      return;
+    }
+    // Đã chọn ngày -> Điều hướng sang trang checkout
+    navigate(`/checkout/${tour.id}?date=${encodeURIComponent(selectedDepartureDate)}`);
   };
 
   return (
@@ -258,7 +255,7 @@ export const TourDetailPage: React.FC = () => {
             <div style={{ borderBottom: '1px dashed var(--glass-border)', paddingBottom: '1rem', marginBottom: '1.15rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', fontSize: '0.95rem', color: '#475569', fontWeight: 700 }}>
-                  <span>Giá:</span>
+                  <span>{selectedDepartureDate ? 'Giá vé:' : 'Giá từ:'}</span>
                   <span className="price-big" id="sidebar-price-display" style={{ color: 'var(--accent-forest)', fontSize: '1.85rem', fontWeight: 800, fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums', verticalAlign: 'baseline' }}>
                     {formatCurrencyVND(currentPrice)}
                   </span>
@@ -268,9 +265,22 @@ export const TourDetailPage: React.FC = () => {
                     type="button" 
                     className="badge" 
                     onClick={() => scrollToSection('section-schedule')}
-                    style={{ background: '#ecfdf5', color: 'var(--accent-forest)', fontWeight: 800, fontSize: '0.85rem', padding: '0.4rem 0.85rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem', transition: 'var(--transition-fast)' }}
+                    style={{ 
+                      background: selectedDepartureDate ? '#ecfdf5' : '#f1f5f9', 
+                      color: selectedDepartureDate ? 'var(--accent-forest)' : '#475569', 
+                      fontWeight: 800, 
+                      fontSize: '0.85rem', 
+                      padding: '0.4rem 0.85rem', 
+                      borderRadius: '9999px', 
+                      border: selectedDepartureDate ? '1px solid rgba(5, 150, 105, 0.25)' : '1px solid #cbd5e1', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.35rem', 
+                      transition: 'var(--transition-fast)' 
+                    }}
                   >
-                    <span>{selectedDepartureDate || 'Chưa chọn ngày'} <i className="fa-solid fa-calendar-days" style={{ fontSize: '0.75rem' }}></i></span>
+                    <span>{selectedDepartureDate || 'Chọn ngày khởi hành'} <i className="fa-solid fa-calendar-days" style={{ fontSize: '0.75rem' }}></i></span>
                   </button>
                   {currentDateDetails?.label && (
                     <span 
@@ -311,8 +321,8 @@ export const TourDetailPage: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#64748b' }}><i className="fa-solid fa-user-group" style={{ color: 'var(--accent-emerald)', width: '18px' }}></i> Số chỗ còn:</span>
-                <strong style={{ color: isSoldOut ? '#dc2626' : 'var(--accent-forest)' }}>
-                  {isSoldOut ? 'Hết chỗ' : `Còn ${currentSeats} chỗ`}
+                <strong style={{ color: (selectedDepartureDate && isSoldOut) ? '#dc2626' : 'var(--accent-forest)' }}>
+                  {selectedDepartureDate ? (isSoldOut ? 'Hết chỗ' : `Còn ${currentSeats} chỗ`) : `Còn ${tour.seatsLeft || 15} chỗ`}
                 </strong>
               </div>
 
@@ -330,11 +340,28 @@ export const TourDetailPage: React.FC = () => {
                 type="button"
                 className="btn-primary w-full" 
                 id="btn-open-booking-modal" 
-                disabled={isSoldOut}
+                disabled={Boolean(selectedDepartureDate && isSoldOut)}
                 onClick={handleOpenBooking}
-                style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%) !important', border: 'none !important', color: '#ffffff !important', fontWeight: 800, fontSize: '1.05rem', padding: '0.85rem 1.5rem', borderRadius: 'var(--radius-full)', boxShadow: '0 8px 25px rgba(5, 150, 105, 0.35)', cursor: isSoldOut ? 'not-allowed' : 'pointer', transition: 'all 0.25s ease', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}
+                style={{ 
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%) !important', 
+                  border: 'none !important', 
+                  color: '#ffffff !important', 
+                  fontWeight: 800, 
+                  fontSize: '1.05rem', 
+                  padding: '0.85rem 1.5rem', 
+                  borderRadius: 'var(--radius-full)', 
+                  boxShadow: '0 8px 25px rgba(5, 150, 105, 0.35)', 
+                  cursor: (selectedDepartureDate && isSoldOut) ? 'not-allowed' : 'pointer', 
+                  transition: 'all 0.25s ease', 
+                  width: '100%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '0.6rem' 
+                }}
               >
-                <i className="fa-solid fa-calendar-check"></i> {isSoldOut ? 'Đã Hết Chỗ' : (selectedDepartureDate ? 'Đặt Tour Ngay' : 'Chọn ngày khởi hành')}
+                <i className={selectedDepartureDate ? "fa-solid fa-calendar-check" : "fa-solid fa-calendar-days"}></i> 
+                {selectedDepartureDate ? (isSoldOut ? 'Đã Hết Chỗ' : 'Đặt Tour Ngay') : 'Chọn Ngày Khởi Hành'}
               </button>
 
               <button
@@ -360,7 +387,7 @@ export const TourDetailPage: React.FC = () => {
       {isETicketOpen && (
         <ETicketModal
           tour={tour}
-          departureDate={selectedDepartureDate || defaultFirstDate}
+          departureDate={selectedDepartureDate || tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '12/09/2026'}
           onClose={() => setIsETicketOpen(false)}
         />
       )}

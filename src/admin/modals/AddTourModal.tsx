@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate } from '../../types/tour.types';
+import { Tour, TourTier, ItineraryDay, TravelStyle, TourTheme, DepartureDate, RefundPolicyItem, FAQItem } from '../../types/tour.types';
+import { REFUND_POLICY_PRESETS, DEFAULT_REFUND_POLICY } from '../../data/policyPresets';
+import { FAQ_PRESETS, DEFAULT_FAQS } from '../../data/faqPresets';
 
 const getThemeLabel = (t: TourTheme): string => {
   switch (t) {
@@ -354,6 +356,78 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
   ]);
   const [newGalleryInput, setNewGalleryInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // STEP 4: Cancellation & Refund Policy Presets & Custom List
+  const [selectedPolicyPreset, setSelectedPolicyPreset] = useState<string>('standard');
+  const [refundPolicyList, setRefundPolicyList] = useState<RefundPolicyItem[]>(() => 
+    DEFAULT_REFUND_POLICY.map(r => ({ ...r }))
+  );
+
+  const handleSelectPolicyPreset = (presetId: string) => {
+    setSelectedPolicyPreset(presetId);
+    const found = REFUND_POLICY_PRESETS.find(p => p.id === presetId);
+    if (found) {
+      setRefundPolicyList(found.rules.map(r => ({ ...r })));
+    }
+  };
+
+  const handleAddPolicyRule = () => {
+    setRefundPolicyList([
+      ...refundPolicyList,
+      { condition: 'Hủy trước ... ngày khởi hành', fee: 'Hoàn ...% tiền vé' }
+    ]);
+    setSelectedPolicyPreset('custom');
+  };
+
+  const handleUpdatePolicyRule = (index: number, field: 'condition' | 'fee', value: string) => {
+    const updated = [...refundPolicyList];
+    updated[index][field] = value;
+    setRefundPolicyList(updated);
+    setSelectedPolicyPreset('custom');
+  };
+
+  const handleDeletePolicyRule = (index: number) => {
+    if (refundPolicyList.length <= 1) {
+      alert('Chính sách cần có tối thiểu 1 điều khoản.');
+      return;
+    }
+    setRefundPolicyList(refundPolicyList.filter((_, i) => i !== index));
+    setSelectedPolicyPreset('custom');
+  };
+
+  // STEP 4: Frequently Asked Questions (FAQs) Presets & Custom List
+  const [selectedFaqPreset, setSelectedFaqPreset] = useState<string>('general');
+  const [faqList, setFaqList] = useState<FAQItem[]>(() => 
+    DEFAULT_FAQS.map(f => ({ ...f }))
+  );
+
+  const handleSelectFaqPreset = (presetId: string) => {
+    setSelectedFaqPreset(presetId);
+    const found = FAQ_PRESETS.find(p => p.id === presetId);
+    if (found) {
+      setFaqList(found.faqs.map(f => ({ ...f })));
+    }
+  };
+
+  const handleAddFaqItem = () => {
+    setFaqList([
+      ...faqList,
+      { q: 'Tiêu đề câu hỏi cần giải đáp?', a: 'Nhập nội dung câu trả lời hướng dẫn chi tiết tại đây...' }
+    ]);
+    setSelectedFaqPreset('custom');
+  };
+
+  const handleUpdateFaqItem = (index: number, field: 'q' | 'a', value: string) => {
+    const updated = [...faqList];
+    updated[index][field] = value;
+    setFaqList(updated);
+    setSelectedFaqPreset('custom');
+  };
+
+  const handleDeleteFaqItem = (index: number) => {
+    setFaqList(faqList.filter((_, i) => i !== index));
+    setSelectedFaqPreset('custom');
+  };
 
   // Helper: Add Single Date
   const handleAddSingleDate = () => {
@@ -778,15 +852,8 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
         ],
         inclusionsList: inclusions,
         exclusionsList: exclusions,
-        refundPolicy: [
-          { condition: 'Hủy trước 7 ngày khởi hành', fee: 'Hoàn 100% tiền vé' },
-          { condition: 'Hủy trước 3 - 5 ngày', fee: 'Hoàn 50% tiền vé' },
-          { condition: 'Hủy dưới 24h trước giờ đi', fee: 'Không hoàn tiền' }
-        ],
-        faqs: [
-          { q: 'Tour bao gồm những bữa ăn nào?', a: 'Đã bao gồm toàn bộ bữa ăn chính theo lịch trình và buffet sáng tại khách sạn.' },
-          { q: 'Điểm tập trung xuất phát ở đâu?', a: `Đoàn tập trung tại điểm hẹn ở ${departureFrom} có xe Limousine đón tận nơi.` }
-        ],
+        refundPolicy: refundPolicyList,
+        faqs: faqList,
         rating: 5.0,
         reviewsCount: 1,
         image,
@@ -2667,6 +2734,321 @@ export const AddTourModal: React.FC<AddTourModalProps> = ({
                         lineHeight: 1.45
                       }}
                     />
+                  </div>
+                </div>
+
+                {/* STEP 4.2: Quy Định & Điều Kiện Hoàn Hủy Tour (Policy Presets + Interactive Table) */}
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '1.75rem',
+                    marginBottom: '1.5rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <i className="fa-solid fa-shield-halved" style={{ color: '#047857' }}></i>
+                        <span>Chính Sách &amp; Quy Định Hoàn Hủy Tour (Cancellation Policy)</span>
+                      </h4>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                        Chọn nhanh 1 trong các gói mẫu chuẩn quốc tế hoặc tự do tùy chỉnh các mốc hoàn tiền cho tour này
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddPolicyRule}
+                      style={{
+                        padding: '0.45rem 0.9rem',
+                        background: '#f0fdf4',
+                        color: '#047857',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <i className="fa-solid fa-plus"></i> Thêm Mốc Hoàn Hủy
+                    </button>
+                  </div>
+
+                  {/* 4 Policy Presets Quick Select Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                    {REFUND_POLICY_PRESETS.map((preset) => {
+                      const isSelected = selectedPolicyPreset === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          onClick={() => handleSelectPolicyPreset(preset.id)}
+                          style={{
+                            border: isSelected ? `2px solid ${preset.badgeColor}` : '1.5px solid #e2e8f0',
+                            borderRadius: '12px',
+                            padding: '0.85rem 1rem',
+                            cursor: 'pointer',
+                            background: isSelected ? preset.badgeBg : '#ffffff',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isSelected ? '0 4px 14px rgba(0,0,0,0.06)' : 'none',
+                            position: 'relative'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.86rem', fontWeight: 800, color: isSelected ? preset.badgeColor : '#1e293b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <i className={preset.icon}></i>
+                              {preset.shortName}
+                            </span>
+                            {isSelected && (
+                              <i className="fa-solid fa-circle-check" style={{ color: preset.badgeColor, fontSize: '0.95rem' }}></i>
+                            )}
+                          </div>
+                          <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '4px', background: preset.badgeBg, color: preset.badgeColor, border: `1px solid ${preset.borderColor}`, marginBottom: '0.35rem' }}>
+                            {preset.tag}
+                          </span>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: 1.35 }}>
+                            {preset.description}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Policy Rules Table */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                          <th style={{ padding: '0.65rem 1rem', width: '50%' }}>Thời Điểm Thông Báo Hủy Tour</th>
+                          <th style={{ padding: '0.65rem 1rem', width: '40%' }}>Mức Phí Phạt / Hoàn Tiền Áp Dụng</th>
+                          <th style={{ padding: '0.65rem 1rem', width: '10%', textAlign: 'center' }}>Xóa</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {refundPolicyList.map((rule, rIdx) => (
+                          <tr key={rIdx} style={{ borderBottom: '1px solid #f1f5f9', background: rIdx % 2 === 0 ? '#ffffff' : '#fafafa' }}>
+                            <td style={{ padding: '0.6rem 1rem' }}>
+                              <input
+                                type="text"
+                                value={rule.condition || ''}
+                                onChange={(e) => handleUpdatePolicyRule(rIdx, 'condition', e.target.value)}
+                                placeholder="VD: Hủy trước 7 ngày khởi hành"
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 700,
+                                  color: '#1e293b',
+                                  outline: 'none',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '0.6rem 1rem' }}>
+                              <input
+                                type="text"
+                                value={rule.fee || ''}
+                                onChange={(e) => handleUpdatePolicyRule(rIdx, 'fee', e.target.value)}
+                                placeholder="VD: Hoàn 100% tiền vé"
+                                style={{
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 700,
+                                  color: (rule?.fee || '').includes('100%') && !(rule?.fee || '').includes('Phí') ? '#047857' : '#b91c1c',
+                                  outline: 'none',
+                                  boxSizing: 'border-box'
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePolicyRule(rIdx)}
+                                title="Xóa điều khoản này"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#ef4444',
+                                  cursor: 'pointer',
+                                  fontSize: '0.95rem',
+                                  padding: '0.35rem'
+                                }}
+                              >
+                                <i className="fa-solid fa-trash-can"></i>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* STEP 4.3: Câu Hỏi Thường Gặp (FAQs Management Suite) */}
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: '16px',
+                    padding: '1.75rem',
+                    marginBottom: '1.5rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <i className="fa-solid fa-circle-question" style={{ color: '#047857' }}></i>
+                        <span>Bộ Câu Hỏi Thường Gặp (FAQs Management)</span>
+                      </h4>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                        Nạp nhanh các bộ câu hỏi mẫu phổ biến hoặc tự do bổ sung câu hỏi giải đáp thắc mắc cho tour
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddFaqItem}
+                      style={{
+                        padding: '0.45rem 0.9rem',
+                        background: '#f0fdf4',
+                        color: '#047857',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <i className="fa-solid fa-plus"></i> Thêm Câu Hỏi Mới
+                    </button>
+                  </div>
+
+                  {/* 4 FAQ Presets Quick Select Cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                    {FAQ_PRESETS.map((preset) => {
+                      const isSelected = selectedFaqPreset === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          onClick={() => handleSelectFaqPreset(preset.id)}
+                          style={{
+                            border: isSelected ? `2px solid ${preset.badgeColor}` : '1.5px solid #e2e8f0',
+                            borderRadius: '12px',
+                            padding: '0.85rem 1rem',
+                            cursor: 'pointer',
+                            background: isSelected ? preset.badgeBg : '#ffffff',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isSelected ? '0 4px 14px rgba(0,0,0,0.06)' : 'none'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.86rem', fontWeight: 800, color: isSelected ? preset.badgeColor : '#1e293b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <i className={preset.icon}></i>
+                              {preset.shortName}
+                            </span>
+                            {isSelected && (
+                              <i className="fa-solid fa-circle-check" style={{ color: preset.badgeColor, fontSize: '0.95rem' }}></i>
+                            )}
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', lineHeight: 1.35 }}>
+                            {preset.description}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* FAQ List Accordion/Cards */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    {faqList.map((faq, fIdx) => (
+                      <div
+                        key={fIdx}
+                        style={{
+                          background: '#f8fafc',
+                          border: '1.5px solid #e2e8f0',
+                          borderRadius: '12px',
+                          padding: '1rem',
+                          position: 'relative'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                          <span style={{ background: '#047857', color: '#ffffff', fontWeight: 900, fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '6px', whiteSpace: 'nowrap' }}>
+                            Q{fIdx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={faq.q}
+                            onChange={(e) => handleUpdateFaqItem(fIdx, 'q', e.target.value)}
+                            placeholder="Nhập tiêu đề câu hỏi..."
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.88rem',
+                              fontWeight: 800,
+                              color: '#0f172a',
+                              outline: 'none',
+                              background: '#ffffff'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFaqItem(fIdx)}
+                            title="Xóa câu hỏi này"
+                            style={{
+                              background: '#fee2e2',
+                              border: '1px solid #fecaca',
+                              color: '#dc2626',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              padding: '0.45rem 0.65rem',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            <i className="fa-solid fa-trash-can"></i>
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+                          <span style={{ background: '#3b82f6', color: '#ffffff', fontWeight: 900, fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '6px', whiteSpace: 'nowrap', marginTop: '0.2rem' }}>
+                            Trả Lời
+                          </span>
+                          <textarea
+                            rows={2}
+                            value={faq.a}
+                            onChange={(e) => handleUpdateFaqItem(fIdx, 'a', e.target.value)}
+                            placeholder="Nhập nội dung giải đáp chi tiết cho khách..."
+                            style={{
+                              flex: 1,
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: '8px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.85rem',
+                              lineHeight: 1.45,
+                              color: '#334155',
+                              outline: 'none',
+                              background: '#ffffff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

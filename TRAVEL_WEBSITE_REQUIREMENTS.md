@@ -102,12 +102,16 @@ Hệ thống được thiết kế hoàn chỉnh với 4 phân hệ chính:
 | **User Frontend** | Giao diện Editorial, Bento Grid, Dark/Light Palette (Emerald White) | ✅ Completed |
 | **User Frontend** | Bộ 4 Tool tiện ích (Dự toán Ngân sách, Tự thiết kế tour, Tỷ giá Google, Hành lý Smart) | ✅ Completed |
 | **User Frontend** | Tỷ giá thời gian thực chuẩn Google & Cân đối đối xứng giao diện | ✅ Completed |
-| **User Frontend** | Bộ lọc Hạng Sao (3★ / 4★ / 5★) & Minh bạch Tiêu chuẩn Khách sạn trong Tour Details | 🔄 In Progress |
-| **User Frontend** | Form Đặt tour sinh Mã Xác Nhận & Giỏ hàng / Wishlist (LocalStorage) | ✅ Completed |
-| **Admin Dashboard**| Quản lý Tour, Đơn hàng, CRM & Báo cáo Doanh thu (Kết nối Supabase Cloud) | 📅 Next Phase |
+| **User Frontend** | Bộ lọc Hạng Sao (3★ / 4★ / 5★) & Minh bạch Tiêu chuẩn Khách sạn trong Tour Details | ✅ Completed |
+| **User Frontend** | Form Đặt tour sinh Mã Xác Nhận & Giỏ hàng / Wishlist (LocalStorage + Supabase) | ✅ Completed |
+| **User Frontend** | User Portal (`/profile`): Lịch sử đặt chỗ, Xem Vé E-Ticket, Đổi thông tin | ✅ Completed |
+| **User Frontend** | Trang Danh Mục Tour (`/tours`): Bộ Lọc Đa Chiều Thông Minh, Sắp Xếp, Phân Trang & Grid/List View | ✅ Completed |
+| **Legal & Conversion**| Vé Du Lịch Điện Tử (E-Ticket) với Mã QR Check-in & In Vé / Lưu PDF | ✅ Completed |
+| **Legal & Conversion**| Smart Policy Presets (4 gói chính sách hoàn hủy) & FAQs OTA Suite | ✅ Completed |
+| **Admin Dashboard**| Quản lý Tour, Đơn hàng, CRM & Báo cáo Doanh thu (Kết nối Supabase Cloud) | ✅ Completed |
 | **Advanced** | Multi-currency Google Forex API & World Clocks | ✅ Completed |
-| **Advanced** | AI Travel Assistant Chatbot & Multi-language toggle | 📅 Next Phase |
-| **Legal & Conversion**| Chính sách Hủy hoàn, Xuất PDF, Mã QR E-ticket & Promo Code Engine | 📅 Next Phase |
+| **Advanced** | AI Travel Assistant Chatbot & Multi-language toggle | ✅ Completed |
+| **Advanced & Legal**| Analytics Charts (Recharts), Seasonal Pricing & Promo Code Engine | 📅 Next Phase |
 
 ---
 *Bản thiết kế được lưu tự động tại thư mục dự án:* [`TRAVEL_WEBSITE_REQUIREMENTS.md`](file:///d:/VScode/vscode%20py/webtravel/TRAVEL_WEBSITE_REQUIREMENTS.md)

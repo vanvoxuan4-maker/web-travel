@@ -8,6 +8,8 @@ interface AllInclusiveSectionProps {
   tours?: Tour[];
   wishlistedTourIds?: string[];
   onToggleWishlist?: (tourId: string) => void;
+  comparedTourIds?: string[];
+  onToggleCompare?: (tourId: string) => void;
   onQuickBook?: (tourId: string) => void;
 }
 
@@ -15,6 +17,8 @@ export const AllInclusiveSection: React.FC<AllInclusiveSectionProps> = ({
   tours,
   wishlistedTourIds = [],
   onToggleWishlist,
+  comparedTourIds = [],
+  onToggleCompare,
   onQuickBook
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -112,6 +116,8 @@ export const AllInclusiveSection: React.FC<AllInclusiveSectionProps> = ({
               <div className="tour-carousel-item" key={tour.id}>
                 <TourCard 
                   tour={tour}
+                  isCompared={comparedTourIds.includes(tour.id)}
+                  onToggleCompare={onToggleCompare}
                   isWishlisted={wishlistedTourIds.includes(tour.id)}
                   onToggleWishlist={onToggleWishlist}
                   onQuickBook={onQuickBook}

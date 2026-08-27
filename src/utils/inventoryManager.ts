@@ -1,6 +1,7 @@
 import { TOURS_DATA } from '../data/toursData';
 import { DepartureDate } from '../types/tour.types';
 import { tourService } from '../services/tourService';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 const INVENTORY_STORAGE_KEY = 'webtravel_tours_inventory_v1';
 let inMemoryStore: Record<string, Record<string, number>> | null = null;
@@ -154,6 +155,36 @@ export function deductSeats(tourId: string, date: string, count: number): boolea
   const newCount = Math.max(0, current - count);
   store[tourId][date] = newCount;
   saveInventoryStore(store);
+
+  // Sync with Supabase departure_dates if connected
+  if (isSupabaseConfigured && supabase) {
+    const client = supabase;
+    (async () => {
+      try {
+        const { data, error } = await client
+          .from('departure_dates')
+          .select('available_seats')
+          .eq('tour_id', tourId)
+          .eq('date', date)
+          .single();
+
+        if (!error && data && typeof data.available_seats === 'number') {
+          const updatedSeats = Math.max(0, data.available_seats - count);
+          await client
+            .from('departure_dates')
+            .update({
+              available_seats: updatedSeats,
+              status: updatedSeats <= 0 ? 'sold_out' : updatedSeats <= 5 ? 'few_seats' : 'available'
+            })
+            .eq('tour_id', tourId)
+            .eq('date', date);
+        }
+      } catch (err) {
+        console.warn('Could not sync seats deduction to Supabase:', err);
+      }
+    })();
+  }
+
   return true;
 }
 

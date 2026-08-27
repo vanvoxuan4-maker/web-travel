@@ -40,19 +40,22 @@ export const Navbar: React.FC = () => {
   const handleLookupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!lookupCode.trim()) return;
-    alert(`Đang tra cứu hồ sơ đặt tour mã: ${lookupCode.trim().toUpperCase()}\nTrạng thái: Đã xác nhận giữ chỗ & vé điện tử đang được xử lý.`);
     setIsLookupModalOpen(false);
+    navigate('/profile');
     setLookupCode('');
   };
 
   const handleNavigateDestination = (keyword: string, category?: 'domestic' | 'international') => {
-    const catQuery = category ? `&category=${category}` : '';
-    navigate(`/?keyword=${encodeURIComponent(keyword)}${catQuery}#tours-explorer`);
+    const params = new URLSearchParams();
+    if (keyword) params.set('q', keyword);
+    if (category) params.set('category', category);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    navigate(`/tours${queryString}`);
     setIsMobileMenuOpen(false);
   };
 
   const handleNavigateType = (typeKeyword: string) => {
-    navigate(`/?keyword=${encodeURIComponent(typeKeyword)}#tours-explorer`);
+    navigate(`/tours?q=${encodeURIComponent(typeKeyword)}`);
     setIsMobileMenuOpen(false);
   };
 
@@ -130,16 +133,25 @@ export const Navbar: React.FC = () => {
             
             {/* 1. Danh Mục Tour (Mega Menu 3 Cột: Địa Lý Trong Nước - Quốc Tế - Loại Hình) */}
             <div className="nav-item-dropdown nav-item-mega">
-              <span className="nav-link">
+              <Link 
+                to="/tours" 
+                className="nav-link"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
                 Danh Mục Tour <i className="fa-solid fa-chevron-down dropdown-caret"></i>
-              </span>
+              </Link>
               <div className="mega-dropdown-panel" style={{ width: '820px' }}>
                 <div className="mega-grid">
                   
                   {/* Cột 1: Địa Lý Trong Nước */}
                   <div>
-                    <div className="mega-col-title">
-                      <i className="fa-solid fa-mountain"></i> Tour Trong Nước
+                    <div 
+                      className="mega-col-title"
+                      onClick={() => handleNavigateDestination('', 'domestic')}
+                      style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+                      title="Xem tất cả tour trong nước"
+                    >
+                      <i className="fa-solid fa-mountain"></i> Tour Trong Nước <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.7rem', marginLeft: 'auto' }}></i>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <div className="dropdown-item" onClick={() => handleNavigateDestination('Hạ Long', 'domestic')} style={{ cursor: 'pointer' }}>
@@ -170,8 +182,13 @@ export const Navbar: React.FC = () => {
 
                   {/* Cột 2: Địa Lý Quốc Tế */}
                   <div>
-                    <div className="mega-col-title">
-                      <i className="fa-solid fa-earth-asia"></i> Tour Quốc Tế
+                    <div 
+                      className="mega-col-title"
+                      onClick={() => handleNavigateDestination('', 'international')}
+                      style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+                      title="Xem tất cả tour quốc tế"
+                    >
+                      <i className="fa-solid fa-earth-asia"></i> Tour Quốc Tế <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.7rem', marginLeft: 'auto' }}></i>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <div className="dropdown-item" onClick={() => handleNavigateDestination('Nhật Bản', 'international')} style={{ cursor: 'pointer' }}>
@@ -202,8 +219,13 @@ export const Navbar: React.FC = () => {
 
                   {/* Cột 3: Phân Loại Theo Trải Nghiệm */}
                   <div>
-                    <div className="mega-col-title">
-                      <i className="fa-solid fa-compass"></i> Loại Hình Du Lịch
+                    <div 
+                      className="mega-col-title"
+                      onClick={() => { navigate('/tours'); setIsMobileMenuOpen(false); }}
+                      style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+                      title="Xem danh mục tour"
+                    >
+                      <i className="fa-solid fa-compass"></i> Loại Hình Du Lịch <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.7rem', marginLeft: 'auto' }}></i>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                       <div className="dropdown-item" onClick={() => handleNavigateType('Gia Đình')} style={{ cursor: 'pointer' }}>
@@ -248,7 +270,7 @@ export const Navbar: React.FC = () => {
                     🔥 Cam kết khởi hành đúng lịch 100% • Khách sạn trung tâm tiêu chuẩn
                   </span>
                   <span 
-                    onClick={() => handleNavigateDestination('')}
+                    onClick={() => { navigate('/tours'); setIsMobileMenuOpen(false); }}
                     style={{ color: 'var(--accent-forest)', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                   >
                     Xem tất cả tour đang mở bán <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.75rem' }}></i>
@@ -497,6 +519,26 @@ export const Navbar: React.FC = () => {
                     </div>
 
                     <div style={{ padding: '0.35rem 0' }}>
+                      <Link
+                        to="/profile"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                          padding: '0.55rem 0.8rem',
+                          color: '#047857',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          textDecoration: 'none',
+                          background: '#ecfdf5',
+                          marginBottom: '0.25rem'
+                        }}
+                      >
+                        <i className="fa-solid fa-receipt"></i> Đơn Hàng &amp; Vé Điện Tử
+                      </Link>
+
                       {isAdmin && (
                         <Link
                           to="/admin"
@@ -539,7 +581,7 @@ export const Navbar: React.FC = () => {
                           textAlign: 'left'
                         }}
                       >
-                        <i className="fa-solid fa-receipt" style={{ color: '#059669' }}></i> Tra cứu đơn đặt tour
+                        <i className="fa-solid fa-magnifying-glass" style={{ color: '#059669' }}></i> Tra cứu nhanh mã booking
                       </button>
                     </div>
 
@@ -701,6 +743,75 @@ export const Navbar: React.FC = () => {
 
           </div>
         </div>
+
+        {/* Mobile Navigation Menu Dropdown */}
+        {isMobileMenuOpen && (
+          <div 
+            style={{
+              background: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
+              padding: '1rem 1.5rem 1.5rem',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              maxHeight: 'calc(100vh - 80px)',
+              overflowY: 'auto'
+            }}
+          >
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{ padding: '0.65rem 0.75rem', fontWeight: 700, color: '#1e293b', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', borderRadius: '8px', background: '#f8fafc' }}
+            >
+              <i className="fa-solid fa-house" style={{ color: '#059669' }}></i> Trang Chủ
+            </Link>
+
+            <Link
+              to="/tours"
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{ padding: '0.65rem 0.75rem', fontWeight: 700, color: '#047857', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', borderRadius: '8px', background: '#ecfdf5' }}
+            >
+              <i className="fa-solid fa-compass" style={{ color: '#059669' }}></i> Danh Mục Tour (Tất Cả)
+            </Link>
+
+            <div style={{ padding: '0.4rem 0.75rem', fontSize: '0.78rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Điểm Đến &amp; Loại Hình
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => handleNavigateDestination('', 'domestic')}
+                style={{ textAlign: 'left', padding: '0.5rem 0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}
+              >
+                🇻🇳 Tour Trong Nước
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigateDestination('', 'international')}
+                style={{ textAlign: 'left', padding: '0.5rem 0.75rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 600, color: '#334155', cursor: 'pointer' }}
+              >
+                ✈️ Tour Quốc Tế
+              </button>
+            </div>
+
+            <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '0.5rem', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <div
+                onClick={() => { handleOpenAboutModal('about'); }}
+                style={{ padding: '0.5rem 0.75rem', fontSize: '0.86rem', color: '#475569', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <i className="fa-solid fa-circle-info" style={{ color: '#059669' }}></i> Về Chúng Tôi
+              </div>
+              <div
+                onClick={() => { setIsLookupModalOpen(true); setIsMobileMenuOpen(false); }}
+                style={{ padding: '0.5rem 0.75rem', fontSize: '0.86rem', color: '#475569', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <i className="fa-solid fa-receipt" style={{ color: '#d97706' }}></i> Tra Cứu Booking (WT-xxxx)
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Wishlist Modal */}

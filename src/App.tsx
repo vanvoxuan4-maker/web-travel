@@ -1,7 +1,7 @@
 import React, { useEffect, Component, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './auth';
-import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, AIAssistantModal } from './user';
+import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, ProfilePage, TourCatalogPage, AIAssistantModal } from './user';
 import { AdminPortal } from './admin/AdminPortal';
 
 // === Error Boundary to catch React runtime crashes ===
@@ -125,6 +125,22 @@ const AppContent: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <CheckoutPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tours"
+              element={
+                <ProtectedRoute>
+                  <TourCatalogPage />
                 </ProtectedRoute>
               }
             />
