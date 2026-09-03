@@ -14,6 +14,7 @@ export const CustomBuilder: React.FC = () => {
   const [budgetTier, setBudgetTier] = useState('standard');
   const [submitted, setSubmitted] = useState(false);
   const [sentNotice, setSentNotice] = useState(false);
+  const [honeypotTrap, setHoneypotTrap] = useState('');
 
   const estimatedPrice = days * (budgetTier === 'luxury' ? 2500000 : budgetTier === 'standard' ? 1200000 : 700000);
 
@@ -42,6 +43,10 @@ export const CustomBuilder: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (honeypotTrap) {
+      // Silent rejection for automated bot spam
+      return;
+    }
     setSubmitted(true);
     setSentNotice(false);
   };
@@ -49,6 +54,18 @@ export const CustomBuilder: React.FC = () => {
   return (
     <div className="tool-content-panel" id="tool-panel-builder" style={{ display: 'block' }}>
       <form id="custom-builder-form" onSubmit={handleSubmit}>
+        {/* Anti-bot Honeypot Trap Field */}
+        <input
+          type="text"
+          name="website_verification_code"
+          value={honeypotTrap}
+          onChange={(e) => setHoneypotTrap(e.target.value)}
+          style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+        />
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
           <div className="form-group">
             <label>Điểm Đến Mong Muốn:</label>

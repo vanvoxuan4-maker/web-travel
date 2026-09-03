@@ -1,13 +1,15 @@
 import React, { useEffect, Component, ReactNode } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './auth';
-import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, ProfilePage, TourCatalogPage, AIAssistantModal } from './user';
+import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, ProfilePage, TourCatalogPage, AIAssistantModal, NotFoundPage } from './user';
 import { AdminPortal } from './admin/AdminPortal';
+import { AppLogger } from './utils/logger';
 
-// === Error Boundary to catch React runtime crashes ===
+// === Luxury User-Friendly Error Boundary ===
 interface EBState {
   hasError: boolean;
   error: Error | null;
+  traceId?: string;
 }
 
 class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
@@ -16,26 +18,121 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): EBState {
+    const traceId = AppLogger.generateTraceId('WT-CRASH');
+    return { hasError: true, error, traceId };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[WebTravel] App crash caught by ErrorBoundary:', error, info);
+    AppLogger.error('Màn hình gặp sự cố hiển thị (Caught by ErrorBoundary)', error, {
+      traceId: this.state.traceId,
+      componentStack: info.componentStack
+    });
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', fontFamily: 'monospace', background: '#1e293b', color: '#f87171', minHeight: '100vh' }}>
-          <h2 style={{ color: '#fbbf24' }}>⚠️ Runtime Error – Hệ thống tự phục hồi</h2>
-          <pre style={{ marginTop: '1rem', whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: '#e2e8f0' }}>{this.state.error?.stack}</pre>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: '#059669', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            Thử lại
-          </button>
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+          fontFamily: 'var(--font-body, "Montserrat", sans-serif)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            maxWidth: '520px',
+            background: '#ffffff',
+            padding: '3rem 2.5rem',
+            borderRadius: '24px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.08)'
+          }}>
+            <div style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '50%',
+              background: '#fef2f2',
+              border: '2px solid #fecdd3',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem',
+              color: '#e11d48',
+              fontSize: '2rem'
+            }}>
+              <i className="fa-solid fa-triangle-exclamation" />
+            </div>
+
+            <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.6rem' }}>
+              Đã Xảy Ra Sự Cố Hiển Thị
+            </h2>
+
+            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              Hệ thống đã tự động ghi nhận báo cáo sự cố để khắc phục. Bạn có thể thử tải lại trang hoặc quay về trang chủ.
+            </p>
+
+            <div style={{
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              borderRadius: '10px',
+              padding: '0.65rem 1rem',
+              fontSize: '0.85rem',
+              color: '#334155',
+              marginBottom: '1.75rem',
+              fontFamily: 'monospace'
+            }}>
+              Mã tra cứu sự cố: <strong style={{ color: '#047857' }}>{this.state.traceId || 'WT-ERR'}</strong>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+                style={{
+                  padding: '0.75rem 1.6rem',
+                  background: '#047857',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '9999px',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(4, 120, 87, 0.25)'
+                }}
+              >
+                <i className="fa-solid fa-rotate-right" style={{ marginRight: '0.4rem' }} />
+                Tải lại trang
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.href = '/';
+                }}
+                style={{
+                  padding: '0.75rem 1.6rem',
+                  background: '#f8fafc',
+                  color: '#334155',
+                  border: '1.5px solid #cbd5e1',
+                  borderRadius: '9999px',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <i className="fa-solid fa-house" style={{ marginRight: '0.4rem' }} />
+                Về Trang Chủ
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
@@ -155,8 +252,8 @@ const AppContent: React.FC = () => {
               }
             />
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            {/* Fallback 404 Route */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
         {!isStandalonePage && <Footer />}

@@ -26,10 +26,17 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    tourService.getAllTours().then((data) => {
-      if (isMounted && data) {
-        setAllTours(data);
+
+    // Parallel fetch for ultra-fast homepage loading
+    Promise.all([
+      tourService.getAllTours(),
+      tourService.getAllDestinations()
+    ]).then(([toursData]) => {
+      if (isMounted && toursData && toursData.length > 0) {
+        setAllTours(toursData);
       }
+    }).catch((err) => {
+      console.warn('Failed to load dynamic tours in parallel:', err);
     });
 
     const handleToursUpdated = (e: any) => {
@@ -52,8 +59,6 @@ export const HomePage: React.FC = () => {
     setDeparture,
     category,
     setCategory,
-    starTier,
-    setStarTier,
     filteredTours
   } = useTourFilter(allTours);
 
@@ -89,15 +94,15 @@ export const HomePage: React.FC = () => {
   }, [wishlistedTourIds]);
 
   const handleToggleWishlist = (tourId: string) => {
-    setWishlistedTourIds(prev => 
-      prev.includes(tourId) ? prev.filter(id => id !== tourId) : [...prev, tourId]
+    setWishlistedTourIds((prev) => 
+      prev.includes(tourId) ? prev.filter((id) => id !== tourId) : [...prev, tourId]
     );
   };
 
   const handleToggleCompare = (tourId: string) => {
-    setComparedTourIds(prev => {
+    setComparedTourIds((prev) => {
       if (prev.includes(tourId)) {
-        return prev.filter(id => id !== tourId);
+        return prev.filter((id) => id !== tourId);
       }
       if (prev.length >= 3) {
         alert('Bạn chỉ có thể so sánh tối đa 3 tour cùng một lúc.');
@@ -107,11 +112,11 @@ export const HomePage: React.FC = () => {
     });
   };
 
-  const comparedTours = allTours.filter(t => comparedTourIds.includes(t.id));
+  const comparedTours = allTours.filter((t) => comparedTourIds.includes(t.id));
 
   return (
     <div className="homepage-container">
-      {/* 1. Dynamic Hero Banner Slider Carousel */}
+      {/* 1. Dynamic Hero Banner Slider & Search Island Bar (Vietravel / Traveloka Style) */}
       <HeroSlider
         departure={departure}
         onDepartureChange={setDeparture}
@@ -119,8 +124,6 @@ export const HomePage: React.FC = () => {
         onKeywordChange={setKeyword}
         category={category}
         onCategoryChange={setCategory}
-        starTier={starTier}
-        onStarTierChange={setStarTier}
         onBookDeal={(tourId) => navigate(`/checkout/${tourId}`)}
       />
 

@@ -24,3 +24,6 @@
 
 /* 7. Tour Catalog Page (/tours) — Sidebar Filter + Grid Layout */
 @import url('./modules/tour-catalog.css');
+
+/* 8. E-Commerce Smart Search Bar & Autocomplete Popover */
+@import url('./modules/ecommerce-search.css');

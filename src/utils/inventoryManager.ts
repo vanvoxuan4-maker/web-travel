@@ -189,6 +189,50 @@ export function deductSeats(tourId: string, date: string, count: number): boolea
 }
 
 /**
+ * Restore seats back to inventory when a booking is hard-deleted or cancelled
+ */
+export function restoreSeats(tourId: string, date: string, count: number): boolean {
+  if (!tourId || !date || count <= 0) return false;
+  const store = getInventoryStore();
+  if (!store[tourId]) store[tourId] = {};
+  const current = store[tourId][date] !== undefined ? store[tourId][date] : 5;
+  const newCount = current + count;
+  store[tourId][date] = newCount;
+  saveInventoryStore(store);
+
+  // Sync with Supabase departure_dates if connected
+  if (isSupabaseConfigured && supabase) {
+    const client = supabase;
+    (async () => {
+      try {
+        const { data, error } = await client
+          .from('departure_dates')
+          .select('available_seats')
+          .eq('tour_id', tourId)
+          .eq('date', date)
+          .single();
+
+        if (!error && data && typeof data.available_seats === 'number') {
+          const updatedSeats = data.available_seats + count;
+          await client
+            .from('departure_dates')
+            .update({
+              available_seats: updatedSeats,
+              status: updatedSeats <= 0 ? 'sold_out' : updatedSeats <= 5 ? 'few_seats' : 'available'
+            })
+            .eq('tour_id', tourId)
+            .eq('date', date);
+        }
+      } catch (err) {
+        console.warn('Could not sync seats restoration to Supabase:', err);
+      }
+    })();
+  }
+
+  return true;
+}
+
+/**
  * Reset inventory back to defaults (for testing purposes)
  */
 export function resetInventory(): Record<string, Record<string, number>> {

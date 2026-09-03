@@ -79,3 +79,20 @@ export function getDayOfWeekVN(dateStr: string): string {
   }
   return 'T2';
 }
+
+/**
+ * Remove Vietnamese diacritics/accents for robust search matching
+ * e.g. "Hạ Long" -> "ha long", "Đà Nẵng" -> "da nang"
+ */
+export function removeVietnameseTones(str: string): string {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .trim();
+}
+
+

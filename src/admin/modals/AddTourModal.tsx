@@ -55,7 +55,7 @@ const SAMPLE_IMAGES = [
   { name: '🌴 Vịnh Hạ Long', url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=85' },
   { name: '⛰️ Sapa / Fansipan', url: 'https://images.unsplash.com/photo-1570789210967-2cac24afeb00?auto=format&fit=crop&w=1200&q=85' },
   { name: '🏯 Đà Nẵng / Hội An', url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=85' },
-  { name: '🏖️ Phú Quốc Resort', url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1200&q=85' },
+  { name: '🏖️ Phú Quốc Resort', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=85' },
   { name: '✈️ Bangkok / Thái Lan', url: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=1200&q=85' }
 ];
 

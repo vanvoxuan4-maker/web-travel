@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Tour, TourCategory, TourTier, DepartureDate } from '../../types/tour.types';
 import { formatCurrencyVND } from '../../utils/formatters';
+import { removeVietnameseTones } from '../../utils/formatters';
 import { EditTourModal } from '../modals/EditTourModal';
 import { ManageScheduleModal } from '../modals/ManageScheduleModal';
 import { DeleteTourModal } from '../modals/DeleteTourModal';
@@ -38,27 +39,33 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
   // Filtered Tours List
   const filteredTours = useMemo(() => {
     return tours.filter((t) => {
-      // 1. Keyword search
-      const matchesKeyword =
-        !searchKeyword ||
-        t.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        t.destination.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        t.code.toLowerCase().includes(searchKeyword.toLowerCase());
+      // 1. Keyword search (Hỗ trợ tiếng Việt không dấu)
+      if (searchKeyword.trim()) {
+        const cleanKw = removeVietnameseTones(searchKeyword.toLowerCase().trim());
+        const cleanTitle = removeVietnameseTones((t.title || '').toLowerCase());
+        const cleanDest = removeVietnameseTones((t.destination || '').toLowerCase());
+        const cleanCode = removeVietnameseTones((t.code || '').toLowerCase());
+
+        const matches = cleanTitle.includes(cleanKw) || cleanDest.includes(cleanKw) || cleanCode.includes(cleanKw);
+        if (!matches) return false;
+      }
 
       // 2. Category
-      const matchesCategory = filterCategory === 'all' || t.category === filterCategory;
+      if (filterCategory !== 'all' && t.category !== filterCategory) {
+        return false;
+      }
 
       // 3. Tier
-      const matchesTier = filterTier === 'all' || t.tier === filterTier || t.starCategory === filterTier;
+      if (filterTier !== 'all' && t.tier !== filterTier && t.starCategory !== filterTier) {
+        return false;
+      }
 
       // 4. Status
       const isActive = t.isActive !== false;
-      const matchesStatus =
-        filterStatus === 'all' ||
-        (filterStatus === 'active' && isActive) ||
-        (filterStatus === 'inactive' && !isActive);
+      if (filterStatus === 'active' && !isActive) return false;
+      if (filterStatus === 'inactive' && isActive) return false;
 
-      return matchesKeyword && matchesCategory && matchesTier && matchesStatus;
+      return true;
     });
   }, [tours, searchKeyword, filterCategory, filterTier, filterStatus]);
 
@@ -73,10 +80,10 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
               Kho Tour Lữ Hành &amp; Bảng Giá
             </h3>
             <span
@@ -84,13 +91,13 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                 background: '#ecfdf5',
                 color: '#047857',
                 border: '1px solid #a7f3d0',
-                fontSize: '0.72rem',
+                fontSize: '0.74rem',
                 fontWeight: 800,
-                padding: '0.2rem 0.6rem',
+                padding: '0.2rem 0.65rem',
                 borderRadius: '20px'
               }}
             >
-              {filteredTours.length} / {tours.length} Hành Trình
+              {filteredTours.length} / {tours.length} Tour
             </span>
           </div>
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>
@@ -107,16 +114,16 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
             color: '#ffffff',
             border: 'none',
             borderRadius: '10px',
-            fontSize: '0.86rem',
+            fontSize: '0.88rem',
             fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.4rem',
+            gap: '0.45rem',
             boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
           }}
         >
-          <i className="fa-solid fa-plus"></i> Thêm Tour Mới
+          <i className="fa-solid fa-plus" /> Thêm Tour Mới
         </button>
       </div>
 
@@ -126,7 +133,7 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
           background: '#f8fafc',
           border: '1px solid #e2e8f0',
           borderRadius: '12px',
-          padding: '1rem',
+          padding: '0.85rem 1rem',
           marginBottom: '1.5rem',
           display: 'grid',
           gridTemplateColumns: '2fr 1fr 1fr 1fr',
@@ -138,8 +145,8 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
         <div style={{ position: 'relative' }}>
           <i
             className="fa-solid fa-magnifying-glass"
-            style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.8rem' }}
-          ></i>
+            style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.82rem' }}
+          />
           <input
             type="text"
             placeholder="Tìm theo tên tour, mã tour hoặc điểm đến..."
@@ -147,10 +154,10 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
             onChange={(e) => setSearchKeyword(e.target.value)}
             style={{
               width: '100%',
-              padding: '0.5rem 0.75rem 0.5rem 2.2rem',
+              padding: '0.5rem 0.75rem 0.5rem 2.3rem',
               borderRadius: '8px',
               border: '1px solid #cbd5e1',
-              fontSize: '0.82rem',
+              fontSize: '0.84rem',
               outline: 'none',
               background: '#ffffff',
               boxSizing: 'border-box'
@@ -235,22 +242,20 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
       {/* Tours Table */}
       {filteredTours.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-          <i className="fa-solid fa-map-location-dot" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '0.75rem' }}></i>
+          <i className="fa-solid fa-map-location-dot" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '0.75rem' }} />
           <p style={{ fontWeight: 600 }}>Không tìm thấy tour du lịch nào phù hợp với bộ lọc.</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1.5px solid #f1f5f9', color: '#64748b', fontSize: '0.78rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '0.75rem 1rem' }}>Hình Ảnh</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Thông Tin Tour</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Điểm Đến</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Hạng Sao</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Giá Người Lớn</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Lịch Khởi Hành</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Trạng Thái</th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Thao Tác Quản Trị</th>
+              <tr style={{ borderBottom: '1.5px solid #e2e8f0', color: '#64748b', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '0.85rem 1rem' }}>Tour &amp; Lộ Trình</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Phân Loại</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Giá Người Lớn</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Lịch Khởi Hành</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Trạng Thái</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
@@ -262,107 +267,125 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                   <tr
                     key={t.id}
                     style={{
-                      borderBottom: '1px solid #f8fafc',
+                      borderBottom: '1px solid #f1f5f9',
                       opacity: isActive ? 1 : 0.65,
-                      background: isActive ? 'transparent' : '#f8fafc'
+                      background: isActive ? 'transparent' : '#f8fafc',
+                      transition: 'background 0.15s'
                     }}
                   >
-                    {/* Image */}
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <img
-                        src={t.image}
-                        alt={t.title}
-                        style={{ width: '65px', height: '50px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                      />
+                    {/* Cột 1: Hình Ảnh + Tên Tour + Mã Tour */}
+                    <td style={{ padding: '0.85rem 1rem', maxWidth: '320px' }}>
+                      <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center' }}>
+                        <img
+                          src={t.image}
+                          alt={t.title}
+                          style={{
+                            width: '68px',
+                            height: '52px',
+                            objectFit: 'cover',
+                            borderRadius: '8px',
+                            border: '1px solid #e2e8f0',
+                            flexShrink: 0
+                          }}
+                        />
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: '#0f172a',
+                              lineHeight: 1.35,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={t.title}
+                          >
+                            {t.title}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#047857', fontWeight: 800, background: '#ecfdf5', padding: '0.1rem 0.45rem', borderRadius: '4px', border: '1px solid #a7f3d0' }}>
+                              {t.code}
+                            </span>
+                            <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                              {t.durationDays}N{t.durationNights}Đ • {t.destination}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </td>
 
-                    {/* Title & Code */}
-                    <td style={{ padding: '0.85rem 1rem', maxWidth: '280px' }}>
-                      <div style={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.35 }}>{t.title}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 800, background: '#ecfdf5', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                          {t.code}
+                    {/* Cột 2: Phân Loại & Tiêu Chuẩn */}
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-start' }}>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            background: t.category === 'domestic' ? '#f0fdf4' : '#eff6ff',
+                            color: t.category === 'domestic' ? '#047857' : '#1d4ed8',
+                            border: t.category === 'domestic' ? '1px solid #bbf7d0' : '1px solid #bfdbfe'
+                          }}
+                        >
+                          {t.category === 'domestic' ? '🇻🇳 Trong Nước' : '✈️ Quốc Tế'}
                         </span>
-                        <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                          {t.durationDays}N{t.durationNights}Đ • Đi từ {t.departureFrom || 'Hà Nội / HCM'}
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            background: t.tier === 'luxury' ? '#fef3c7' : '#f8fafc',
+                            color: t.tier === 'luxury' ? '#b45309' : '#475569',
+                            border: '1px solid #e2e8f0'
+                          }}
+                        >
+                          {t.hotelTier || (t.tier === 'luxury' ? '⭐ 5★ Luxury' : t.tier === 'standard' ? '4★ Phổ Thông' : '3★ Tiết Kiệm')}
                         </span>
                       </div>
                     </td>
 
-                    {/* Destination */}
-                    <td style={{ padding: '0.85rem 1rem', color: '#475569', fontWeight: 600 }}>
-                      <div>{t.destination}</div>
-                      <span style={{ fontSize: '0.72rem', color: t.category === 'domestic' ? '#047857' : '#2563eb', fontWeight: 700 }}>
-                        {t.category === 'domestic' ? 'Trong Nước' : 'Quốc Tế'}
-                      </span>
-                    </td>
-
-                    {/* Star Tier */}
+                    {/* Cột 3: Giá Người Lớn */}
                     <td style={{ padding: '0.85rem 1rem' }}>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '6px',
-                          background: t.tier === 'luxury' ? '#fef3c7' : t.tier === 'standard' ? '#ecfdf5' : '#f1f5f9',
-                          color: t.tier === 'luxury' ? '#b45309' : t.tier === 'standard' ? '#047857' : '#475569',
-                          border: t.tier === 'luxury' ? '1px solid #fde68a' : t.tier === 'standard' ? '1px solid #a7f3d0' : '1px solid #cbd5e1'
-                        }}
-                      >
-                        {t.hotelTier || (t.tier === 'luxury' ? 'Resort 5★' : t.tier === 'standard' ? 'Khách Sạn 4★' : 'Khách Sạn 3★')}
-                      </span>
-                    </td>
-
-                    {/* Price Adult */}
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <div style={{ fontWeight: 800, color: '#047857', fontSize: '0.95rem' }}>
+                      <div style={{ fontWeight: 900, color: '#047857', fontSize: '1rem' }}>
                         {formatCurrencyVND(t.priceAdult)}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onOpenEditPrice(t)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          padding: 0,
-                          fontSize: '0.74rem',
-                          color: '#64748b',
-                          textDecoration: 'underline',
-                          cursor: 'pointer',
-                          marginTop: '0.15rem'
-                        }}
-                      >
-                        Đổi giá nhanh
-                      </button>
+                      {t.priceChild && t.priceChild > 0 ? (
+                        <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.15rem' }}>
+                          Trẻ em: {formatCurrencyVND(t.priceChild)}
+                        </div>
+                      ) : null}
                     </td>
 
-                    {/* Departure Dates & Seats Manager */}
+                    {/* Cột 4: Lịch Khởi Hành */}
                     <td style={{ padding: '0.85rem 1rem' }}>
                       <button
                         type="button"
                         onClick={() => setSchedulingTour(t)}
                         style={{
                           padding: '0.35rem 0.75rem',
-                          background: '#eff6ff',
-                          color: '#1d4ed8',
-                          border: '1px solid #bfdbfe',
+                          background: '#f8fafc',
+                          color: '#334155',
+                          border: '1px solid #cbd5e1',
                           borderRadius: '8px',
                           fontSize: '0.78rem',
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.35rem'
+                          gap: '0.35rem',
+                          transition: 'all 0.15s'
                         }}
+                        title="Bấm để xem và quản lý ngày khởi hành"
                       >
-                        <i className="fa-solid fa-calendar-days"></i>
-                        <span>{departureCount} Ngày Khởi Hành</span>
+                        <i className="fa-regular fa-calendar-days" style={{ color: '#047857' }} />
+                        <span>{departureCount} Ngày Đi</span>
                       </button>
                     </td>
 
-                    {/* Active Status Toggle */}
-                    <td style={{ padding: '0.85rem 1rem' }}>
+                    {/* Cột 5: Trạng Thái Toggle */}
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                       <button
                         type="button"
                         onClick={() => onToggleTourActive(t.id, isActive)}
@@ -371,14 +394,16 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                           borderRadius: '20px',
                           border: 'none',
                           fontSize: '0.74rem',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           cursor: 'pointer',
                           background: isActive ? '#ecfdf5' : '#f1f5f9',
                           color: isActive ? '#047857' : '#64748b',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.35rem'
+                          gap: '0.35rem',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                         }}
+                        title={isActive ? 'Bấm để Tạm Ẩn tour' : 'Bấm để Mở Bán lại'}
                       >
                         <span
                           style={{
@@ -388,59 +413,109 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                             background: isActive ? '#10b981' : '#94a3b8'
                           }}
                         />
-                        <span>{isActive ? 'Mở Bán' : 'Tạm Ẩn'}</span>
+                        <span>{isActive ? 'MỞ BÁN' : 'TẠM ẨN'}</span>
                       </button>
                     </td>
 
-                    {/* Actions: Edit Full, Schedule, Delete */}
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {/* Full Edit */}
+                    {/* Cột 6: Thao Tác Gọn Gàng (Icon Action Group) */}
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
+                        
+                        {/* 1. Sửa Toàn Bộ Thông Tin */}
                         <button
                           type="button"
                           onClick={() => setEditingTour(t)}
                           style={{
-                            padding: '0.35rem 0.65rem',
-                            background: '#f1f5f9',
-                            color: '#0f172a',
-                            border: '1px solid #cbd5e1',
+                            width: '32px',
+                            height: '32px',
                             borderRadius: '8px',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
+                            background: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            color: '#047857',
+                            fontSize: '0.85rem',
                             cursor: 'pointer',
-                            display: 'inline-flex',
+                            display: 'flex',
                             alignItems: 'center',
-                            gap: '0.25rem'
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
                           }}
                           title="Chỉnh sửa toàn bộ thông tin tour"
                         >
-                          <i className="fa-solid fa-pen-to-square"></i>
-                          <span>Sửa</span>
+                          <i className="fa-solid fa-pen-to-square" />
                         </button>
 
-                        {/* Delete */}
+                        {/* 2. Quản Lý Lịch Khởi Hành */}
+                        <button
+                          type="button"
+                          onClick={() => setSchedulingTour(t)}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            color: '#2563eb',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Quản lý lịch khởi hành & số chỗ còn nhận"
+                        >
+                          <i className="fa-solid fa-calendar-plus" />
+                        </button>
+
+                        {/* 3. Đổi Giá Nhanh */}
+                        <button
+                          type="button"
+                          onClick={() => onOpenEditPrice(t)}
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: '#fef3c7',
+                            border: '1px solid #fde68a',
+                            color: '#d97706',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
+                          }}
+                          title="Cập nhật nhanh giá người lớn, trẻ em & phụ thu"
+                        >
+                          <i className="fa-solid fa-tags" />
+                        </button>
+
+                        {/* 4. Xóa Tour */}
                         <button
                           type="button"
                           onClick={() => setDeletingTour(t)}
                           style={{
-                            padding: '0.35rem 0.55rem',
-                            background: '#fee2e2',
-                            color: '#b91c1c',
-                            border: '1px solid #fecaca',
+                            width: '32px',
+                            height: '32px',
                             borderRadius: '8px',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
+                            background: '#fee2e2',
+                            border: '1px solid #fecaca',
+                            color: '#dc2626',
+                            fontSize: '0.85rem',
                             cursor: 'pointer',
-                            display: 'inline-flex',
+                            display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: 'all 0.15s'
                           }}
                           title="Xóa tour khỏi hệ thống"
                         >
-                          <i className="fa-solid fa-trash-can"></i>
+                          <i className="fa-solid fa-trash-can" />
                         </button>
+
                       </div>
                     </td>
+
                   </tr>
                 );
               })}
@@ -462,6 +537,7 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
 
       {schedulingTour && (
         <ManageScheduleModal
+          key={schedulingTour.id}
           tour={schedulingTour}
           isOpen={!!schedulingTour}
           onClose={() => setSchedulingTour(null)}

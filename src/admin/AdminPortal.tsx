@@ -5,7 +5,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { profileService } from '../services/profileService';
 import { couponService } from '../services/couponService';
 import { tourService } from '../services/tourService';
-import { bookingService } from '../services/bookingService';
+import { bookingService, getBookingUiStatus } from '../services/bookingService';
 import { AdminTab, BookingRecord, CustomerRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -67,36 +67,105 @@ export const AdminPortal: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (!bookingErr && bookingRows && bookingRows.length > 0) {
-          const mappedBookings: BookingRecord[] = bookingRows.map((b: any) => ({
-            id: b.booking_code || b.id,
-            customerName: b.customer_name,
-            phone: b.customer_phone,
-            customerAddress: b.customer_address,
-            tourTitle: b.tour_title || b.tour?.title || b.tour_id,
-            departureDate: b.departure_date ? (b.departure_date.includes('-') ? new Date(b.departure_date).toLocaleDateString('vi-VN') : b.departure_date) : 'Đang xếp lịch',
-            paxCount: (b.adults_count || b.adult_count || 1) + (b.children_count || b.child_count || 0) + (b.toddlers_count || 0) + (b.infants_count || b.infant_count || 0),
-            totalAmount: Number(b.total_amount) || 0,
-            status: (b.booking_status as any) || 'pending',
-            createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay'
-          }));
+          const mappedBookings: BookingRecord[] = bookingRows.map((b: any) => {
+            const adults = Number(b.adults_count || b.adult_count) || 1;
+            const children = Number(b.children_count || b.child_count) || 0;
+            const toddlers = Number(b.toddlers_count) || 0;
+            const infants = Number(b.infants_count || b.infant_count) || 0;
+            const totalPax = adults + children + toddlers + infants;
+            const totalAmt = Number(b.total_amount) || 0;
+            const uiStatus = getBookingUiStatus({
+              bookingStatus: b.booking_status,
+              paymentStatus: b.payment_status,
+              paidAmount: b.paid_amount,
+              totalAmount: b.total_amount
+            });
+
+            const paidAmt = Number(b.paid_amount) || (uiStatus === 'confirmed' ? totalAmt : uiStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0);
+
+            return {
+              id: b.booking_code || b.id,
+              bookingCode: b.booking_code || b.id,
+              userId: b.user_id,
+              customerName: b.customer_name || 'Khách hàng',
+              phone: b.customer_phone || '',
+              email: b.customer_email || '',
+              customerAddress: b.customer_address || '',
+              customerNotes: b.customer_notes || '',
+              tourId: b.tour_id,
+              tourTitle: b.tour_title || b.tour?.title || b.tour_id,
+              tourImage: b.tour_image,
+              departureDate: b.departure_date ? (b.departure_date.includes('-') ? new Date(b.departure_date).toLocaleDateString('vi-VN') : b.departure_date) : 'Đang xếp lịch',
+              adultsCount: adults,
+              childrenCount: children,
+              toddlersCount: toddlers,
+              infantsCount: infants,
+              singleRoomsCount: b.single_rooms_count || 0,
+              paxCount: totalPax,
+              totalAmount: totalAmt,
+              paidAmount: paidAmt,
+              paymentMethod: b.payment_method || 'vietqr',
+              paymentStatus: b.payment_status || 'pending',
+              bookingStatus: b.booking_status || 'pending',
+              couponCode: b.coupon_code,
+              couponDiscount: b.coupon_discount,
+              status: uiStatus,
+              createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay'
+            };
+          });
           setBookings(mappedBookings);
         } else {
           // Read from LocalStorage fallback
           try {
             const localBookings = JSON.parse(localStorage.getItem('webtravel_local_bookings') || '[]');
             if (localBookings.length > 0) {
-              setBookings(localBookings.map((b: any) => ({
-                id: b.bookingCode || b.id,
-                customerName: b.customerName,
-                phone: b.customerPhone,
-                customerAddress: b.customerAddress,
-                tourTitle: b.tourTitle || b.tourId,
-                departureDate: b.departureDate,
-                paxCount: (b.adultsCount || 1) + (b.childrenCount || 0) + (b.toddlersCount || 0) + (b.infantsCount || 0),
-                totalAmount: b.totalAmount || 0,
-                status: b.bookingStatus || 'pending',
-                createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'
-              })));
+              setBookings(localBookings.map((b: any) => {
+                const adults = Number(b.adultsCount) || 1;
+                const children = Number(b.childrenCount) || 0;
+                const toddlers = Number(b.toddlersCount) || 0;
+                const infants = Number(b.infantsCount) || 0;
+                const totalPax = adults + children + toddlers + infants;
+                const totalAmt = Number(b.totalAmount) || 0;
+
+                const uiStatus = getBookingUiStatus({
+                  bookingStatus: b.bookingStatus,
+                  paymentStatus: b.paymentStatus,
+                  paidAmount: b.paidAmount,
+                  totalAmount: b.totalAmount
+                });
+
+                const paidAmt = Number(b.paidAmount) || (uiStatus === 'confirmed' ? totalAmt : uiStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0);
+
+                return {
+                  id: b.bookingCode || b.id,
+                  bookingCode: b.bookingCode || b.id,
+                  userId: b.userId,
+                  customerName: b.customerName || 'Khách hàng',
+                  phone: b.customerPhone || '',
+                  email: b.customerEmail || '',
+                  customerAddress: b.customerAddress || '',
+                  customerNotes: b.customerNotes || '',
+                  tourId: b.tourId,
+                  tourTitle: b.tourTitle || b.tourId,
+                  tourImage: b.tourImage,
+                  departureDate: b.departureDate || 'Đang xếp lịch',
+                  adultsCount: adults,
+                  childrenCount: children,
+                  toddlersCount: toddlers,
+                  infantsCount: infants,
+                  singleRoomsCount: b.singleRoomsCount || 0,
+                  paxCount: totalPax,
+                  totalAmount: totalAmt,
+                  paidAmount: paidAmt,
+                  paymentMethod: b.paymentMethod || 'vietqr',
+                  paymentStatus: b.paymentStatus || 'pending',
+                  bookingStatus: b.bookingStatus || 'pending',
+                  couponCode: b.couponCode,
+                  couponDiscount: b.couponDiscount,
+                  status: uiStatus,
+                  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'
+                };
+              }));
             }
           } catch (e) {
             console.warn('Cannot read local bookings in AdminPortal:', e);
@@ -173,20 +242,33 @@ export const AdminPortal: React.FC = () => {
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled') => {
     try {
       const paymentStatus = newStatus === 'confirmed' ? 'paid' : newStatus === 'deposit' ? 'partially_paid' : 'pending';
-      await bookingService.updatePaymentStatus(bookingId, paymentStatus);
-      if (isSupabaseConfigured && supabase) {
-        await supabase
-          .from('bookings')
-          .update({ 
-            booking_status: newStatus,
-            payment_status: paymentStatus
-          })
-          .eq('booking_code', bookingId);
-      }
-      setBookings(bookings.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)));
-      setActionFeedback({ type: 'success', message: `Đã cập nhật trạng thái đơn ${bookingId} ➔ ${newStatus}` });
+      const bookingStatus = newStatus === 'confirmed' ? 'confirmed' : newStatus === 'cancelled' ? 'cancelled' : 'pending';
+      
+      const currentBooking = bookings.find(b => b.id === bookingId);
+      const totalAmt = currentBooking ? currentBooking.totalAmount : 0;
+      const paidAmt = newStatus === 'confirmed' ? totalAmt : newStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
+
+      await bookingService.updateBookingAdminStatus(bookingId, newStatus);
+      setBookings(bookings.map((b) => (b.id === bookingId ? { ...b, status: newStatus, paymentStatus, bookingStatus, paidAmount: paidAmt } : b)));
+      const statusLabel = newStatus === 'confirmed' ? 'Đã Thanh Toán 100%' : newStatus === 'deposit' ? 'Đã Cọc 50%' : newStatus === 'pending' ? 'Chờ Duyệt' : 'Đã Hủy';
+      setActionFeedback({ type: 'success', message: `Đã cập nhật trạng thái đơn ${bookingId} ➔ ${statusLabel}` });
     } catch (err: any) {
       setActionFeedback({ type: 'error', message: err?.message || 'Lỗi cập nhật đơn hàng' });
+    }
+  };
+
+  // Handler: Hard Delete Booking
+  const handleDeleteBooking = async (bookingId: string) => {
+    try {
+      const result = await bookingService.deleteBooking(bookingId);
+      if (!result.success) {
+        setActionFeedback({ type: 'error', message: result.error || 'Lỗi xóa đơn hàng' });
+        return;
+      }
+      setBookings((prev) => prev.filter((b) => b.id !== bookingId && b.bookingCode !== bookingId));
+      setActionFeedback({ type: 'success', message: 'Đã xóa cứng vĩnh viễn đơn hàng khỏi hệ thống thành công!' });
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err?.message || 'Lỗi xóa đơn hàng' });
     }
   };
 
@@ -382,6 +464,7 @@ export const AdminPortal: React.FC = () => {
             <BookingsModule
               bookings={filteredBookings}
               onStatusChange={handleStatusChange}
+              onDeleteBooking={handleDeleteBooking}
             />
           )}
 

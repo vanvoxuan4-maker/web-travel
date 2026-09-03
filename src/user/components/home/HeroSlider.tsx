@@ -19,8 +19,8 @@ const SLIDES: SlideData[] = [
     tourId: 'tour-danang-03',
     badge: '✨ DI SẢN MIỀN TRUNG',
     badgeStyle: 'badge-emerald',
-    title: 'Đà Nẵng – Cầu Rồng Rực Rỡ & Bà Nà Hills',
-    offer: 'Chiêm ngưỡng Cầu Rồng phun lửa, ngắm biển Mỹ Khê & phố cổ Hội An – Tặng vé Cáp treo Bà Nà Hills',
+    title: 'Đà Nẵng – Kỳ Quan Cầu Vàng & Bà Nà Hills',
+    offer: 'Check-in Cầu Vàng Bàn Tay Khổng Lồ, ngắm biển Mỹ Khê & phố cổ Hội An – Tặng vé Cáp treo Bà Nà Hills',
     ctaText: 'Khám Phá Tour Đà Nẵng',
     image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1920&q=85',
     targetKeyword: 'Đà Nẵng'
@@ -44,7 +44,7 @@ const SLIDES: SlideData[] = [
     title: 'Thiên Đường Biển Đảo Phú Quốc & Hòn Thơm',
     offer: 'Nghỉ dưỡng Resort 5★ ven biển – Tặng vé cáp treo vượt biển Sun World & Show diễn Sunset Town',
     ctaText: 'Đặt Tour Phú Quốc',
-    image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1920&q=85',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=85',
     targetKeyword: 'Phú Quốc'
   },
   {
@@ -67,10 +67,18 @@ interface HeroSliderProps {
   onKeywordChange: (val: string) => void;
   category: 'all' | 'domestic' | 'international';
   onCategoryChange: (val: 'all' | 'domestic' | 'international') => void;
-  starTier: 'all' | 'budget' | 'standard' | 'luxury';
-  onStarTierChange: (val: 'all' | 'budget' | 'standard' | 'luxury') => void;
   onBookDeal?: (tourId: string) => void;
 }
+
+// Helper: calculate tomorrow's date string (YYYY-MM-DD)
+const getTomorrowDateString = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export const HeroSlider: React.FC<HeroSliderProps> = ({
   departure,
@@ -79,15 +87,38 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
   onKeywordChange,
   category,
   onCategoryChange,
-  starTier,
-  onStarTierChange,
   onBookDeal
 }) => {
   const navigate = useNavigate();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [duration, setDuration] = useState<'all' | '1-3' | '4-6' | '7+'>('all');
+  const [departureDate, setDepartureDate] = useState<string>(getTomorrowDateString);
+  const [showDestDropdown, setShowDestDropdown] = useState(false);
+  const destWrapRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const POPULAR_DESTINATIONS = [
+    'Đà Nẵng - Hội An',
+    'Vịnh Hạ Long',
+    'Phú Quốc',
+    'Sapa - Fansipan',
+    'Đà Lạt',
+    'Nha Trang',
+    'Tokyo (Nhật Bản)',
+    'Seoul (Hàn Quốc)',
+    'Bangkok (Thái Lan)',
+    'Châu Âu 5 Nước'
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (destWrapRef.current && !destWrapRef.current.contains(e.target as Node)) {
+        setShowDestDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isHovered) return;
@@ -109,15 +140,14 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
     setCurrentIdx(prev => (prev + 1) % SLIDES.length);
   };
 
-  // Perform robust search navigation to /tours catalog
+  // Perform search navigation to /tours catalog
   const handlePerformSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const params = new URLSearchParams();
     if (keyword.trim()) params.set('q', keyword.trim());
     if (category !== 'all') params.set('category', category);
     if (departure !== 'all') params.set('departure', departure);
-    if (starTier !== 'all') params.set('tier', starTier);
-    if (duration !== 'all') params.set('duration', duration);
+    if (departureDate) params.set('date', departureDate);
     const queryString = params.toString() ? `?${params.toString()}` : '';
     navigate(`/tours${queryString}`);
   };
@@ -138,40 +168,39 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
               key={s.id}
               className={`hero-bg-slide ${idx === currentIdx ? 'active' : ''}`}
               style={{
-                backgroundImage: `linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(6, 78, 59, 0.65) 65%, rgba(4, 47, 46, 0.88) 100%), url('${s.image}')`
+                backgroundImage: `url(${s.image})`
               }}
+              aria-hidden={idx !== currentIdx}
             />
           ))}
+          <div className="hero-overlay-gradient" />
         </div>
 
-        {/* Carousel Arrow Buttons */}
+        {/* Manual Prev / Next Chevron Navigation */}
         <button 
           type="button" 
-          className="hero-slider-arrow prev" 
-          id="slider-prev" 
-          onClick={handlePrev} 
-          aria-label="Banner trước"
+          className="hero-nav-arrow hero-nav-prev" 
+          onClick={handlePrev}
+          aria-label="Previous Slide"
         >
-          <i className="fa-solid fa-chevron-left"></i>
+          <i className="fa-solid fa-chevron-left" />
         </button>
         <button 
           type="button" 
-          className="hero-slider-arrow next" 
-          id="slider-next" 
-          onClick={handleNext} 
-          aria-label="Banner sau"
+          className="hero-nav-arrow hero-nav-next" 
+          onClick={handleNext}
+          aria-label="Next Slide"
         >
-          <i className="fa-solid fa-chevron-right"></i>
+          <i className="fa-solid fa-chevron-right" />
         </button>
 
-        {/* Content Overlay */}
-        <div className="container hero-content-overlay">
-          <span 
-            className={`hero-promo-badge badge ${slide.badgeStyle}`} 
-            id="hero-slide-badge"
-          >
-            {slide.badge}
-          </span>
+        {/* Hero Content Information */}
+        <div className="hero-content container" id="hero-content-box">
+          <div className="hero-badge-row">
+            <span className={`hero-editorial-badge ${slide.badgeStyle}`} id="hero-slide-badge">
+              {slide.badge}
+            </span>
+          </div>
 
           <h1 className="hero-title hero-title-white" id="hero-slide-title">
             {slide.title}
@@ -192,14 +221,14 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
                 else navigate(`/tours?q=${encodeURIComponent(slide.targetKeyword)}`);
               }}
             >
-              <i className="fa-solid fa-fire"></i> <span>{slide.ctaText}</span>
+              <i className="fa-solid fa-fire" /> <span>{slide.ctaText}</span>
             </button>
             <button
               type="button"
               className="hero-explore-btn"
               onClick={() => navigate('/tours')}
             >
-              <i className="fa-solid fa-compass"></i> Xem Tất Cả Tour
+              <i className="fa-solid fa-compass" /> Xem Tất Cả Tour
             </button>
           </div>
 
@@ -218,128 +247,189 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
         </div>
       </section>
 
-      {/* ── 2. Top Prominent Search Island Bar (Vietravel Style on Homepage) ── */}
+      {/* ── 2. Top Prominent Search Island Bar (Vietravel / OTA Official Style) ── */}
       <section className="homepage-search-section" aria-label="Tìm kiếm tour">
         <div className="container">
           <form className="homepage-search-island" onSubmit={handlePerformSearch}>
-            {/* Category Tabs */}
-            <div className="vt-search-tabs">
-              <button
-                type="button"
-                className={`vt-search-tab ${category === 'all' ? 'active' : ''}`}
-                onClick={() => onCategoryChange('all')}
-              >
-                🌐 Tất Cả Tour
-              </button>
-              <button
-                type="button"
-                className={`vt-search-tab ${category === 'domestic' ? 'active' : ''}`}
-                onClick={() => onCategoryChange('domestic')}
-              >
-                🇻🇳 Tour Trong Nước
-              </button>
-              <button
-                type="button"
-                className={`vt-search-tab ${category === 'international' ? 'active' : ''}`}
-                onClick={() => onCategoryChange('international')}
-              >
-                ✈️ Tour Quốc Tế
-              </button>
-            </div>
-
-            {/* Input Controls Grid (5 Columns) */}
-            <div className="homepage-search-grid">
-              {/* Field 1: Departure */}
-              <div className="home-search-field">
-                <span className="home-field-label">
-                  <i className="fa-solid fa-plane-departure" style={{ color: '#059669' }}></i> Nơi khởi hành
-                </span>
-                <select
-                  id="home-search-departure"
-                  value={departure}
-                  onChange={(e) => onDepartureChange(e.target.value)}
-                  className="home-field-select"
-                >
-                  <option value="all">Tất cả điểm đi</option>
-                  <option value="TP.HCM">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Cần Thơ">Cần Thơ</option>
-                </select>
+            {/* Top Row: Radio Toggles + 3 Pill Fields + Search CTA */}
+            <div className="vt-search-form-row">
+              {/* Radio Group: Trong nước / Nước ngoài */}
+              <div className="vt-radio-group">
+                <label className="vt-radio-label">
+                  <input
+                    type="radio"
+                    name="vt-scope"
+                    className="vt-radio-input"
+                    checked={category === 'domestic' || category === 'all'}
+                    onChange={() => onCategoryChange('domestic')}
+                  />
+                  <span>Trong nước</span>
+                </label>
+                <label className="vt-radio-label">
+                  <input
+                    type="radio"
+                    name="vt-scope"
+                    className="vt-radio-input"
+                    checked={category === 'international'}
+                    onChange={() => onCategoryChange('international')}
+                  />
+                  <span>Nước ngoài</span>
+                </label>
               </div>
 
-              {/* Field 2: Destination Keyword */}
-              <div className="home-search-field home-field-keyword">
-                <span className="home-field-label">
-                  <i className="fa-solid fa-location-dot" style={{ color: '#059669' }}></i> Bạn muốn đi đâu?
-                </span>
-                <div style={{ position: 'relative', width: '100%' }}>
+              {/* Pill 1: Điểm khởi hành */}
+              <div className="vt-pill-field">
+                <div className="vt-pill-icon-wrap">
+                  <i className="fa-solid fa-location-dot" />
+                </div>
+                <div className="vt-pill-content">
+                  <span className="vt-pill-label">Điểm khởi hành</span>
+                  <select
+                    id="vt-search-departure"
+                    value={departure}
+                    onChange={(e) => onDepartureChange(e.target.value)}
+                    className="vt-pill-select"
+                  >
+                    <option value="all">Tất cả</option>
+                    <option value="TP.HCM">TP. Hồ Chí Minh</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="Cần Thơ">Cần Thơ</option>
+                  </select>
+                </div>
+                {departure !== 'all' && (
+                  <button
+                    type="button"
+                    className="vt-pill-clear-btn"
+                    onClick={() => onDepartureChange('all')}
+                    title="Xóa điểm đi"
+                  >
+                    <i className="fa-solid fa-xmark" />
+                  </button>
+                )}
+              </div>
+
+              {/* Pill 2: Điểm đến */}
+              <div className="vt-pill-field" style={{ flex: 1.25 }} ref={destWrapRef}>
+                <div className="vt-pill-icon-wrap">
+                  <i className="fa-solid fa-location-dot" />
+                </div>
+                <div className="vt-pill-content">
+                  <span className="vt-pill-label">Điểm đến</span>
                   <input
                     type="text"
-                    id="home-search-keyword"
-                    placeholder="Hạ Long, Đà Nẵng, Phú Quốc, Tokyo..."
+                    id="vt-search-keyword"
+                    placeholder="Địa điểm bất kỳ..."
                     value={keyword}
-                    onChange={(e) => onKeywordChange(e.target.value)}
-                    className="home-field-input"
+                    onFocus={() => setShowDestDropdown(true)}
+                    onChange={(e) => {
+                      onKeywordChange(e.target.value);
+                      setShowDestDropdown(true);
+                    }}
+                    className="vt-pill-input"
+                    autoComplete="off"
                   />
-                  {keyword && (
-                    <button
-                      type="button"
-                      onClick={() => onKeywordChange('')}
-                      className="home-clear-btn"
-                      aria-label="Xóa từ khóa"
-                    >
-                      <i className="fa-solid fa-xmark" />
-                    </button>
-                  )}
+                </div>
+                {keyword && (
+                  <button
+                    type="button"
+                    className="vt-pill-clear-btn"
+                    onClick={() => {
+                      onKeywordChange('');
+                      setShowDestDropdown(true);
+                    }}
+                    title="Xóa từ khóa"
+                  >
+                    <i className="fa-solid fa-xmark" />
+                  </button>
+                )}
+
+                {/* Quick Autocomplete Destination Popover */}
+                {showDestDropdown && (
+                  <div className="vt-dest-dropdown">
+                    <div className="vt-dest-title">
+                      <i className="fa-solid fa-fire" style={{ color: '#f59e0b' }} />
+                      <span>Điểm đến phổ biến</span>
+                    </div>
+                    <div className="vt-dest-chips">
+                      {POPULAR_DESTINATIONS.filter(d => !keyword || d.toLowerCase().includes(keyword.toLowerCase())).map((dest, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="vt-dest-chip-item"
+                          onClick={() => {
+                            onKeywordChange(dest);
+                            setShowDestDropdown(false);
+                          }}
+                        >
+                          <i className="fa-solid fa-location-pin" style={{ color: '#047857', fontSize: '0.75rem' }} />
+                          <span>{dest}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pill 3: Ngày đi */}
+              <div className="vt-pill-field">
+                <div className="vt-pill-icon-wrap">
+                  <i className="fa-regular fa-calendar-days" />
+                </div>
+                <div className="vt-pill-content">
+                  <span className="vt-pill-label">Ngày đi</span>
+                  <input
+                    type="date"
+                    id="vt-search-date"
+                    className="vt-pill-input"
+                    value={departureDate}
+                    min={getTomorrowDateString()}
+                    onChange={(e) => setDepartureDate(e.target.value)}
+                    style={{ fontWeight: 700, color: '#047857', cursor: 'pointer' }}
+                  />
                 </div>
               </div>
 
-              {/* Field 3: Duration */}
-              <div className="home-search-field">
-                <span className="home-field-label">
-                  <i className="fa-regular fa-clock" style={{ color: '#059669' }}></i> Số ngày đi
-                </span>
-                <select
-                  id="home-search-duration"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value as any)}
-                  className="home-field-select"
-                >
-                  <option value="all">Tất cả thời gian</option>
-                  <option value="1-3">1 - 3 ngày (Ngắn)</option>
-                  <option value="4-6">4 - 6 ngày (Vừa)</option>
-                  <option value="7+">7+ ngày (Dài ngày)</option>
-                </select>
-              </div>
-
-              {/* Field 4: Tier */}
-              <div className="home-search-field">
-                <span className="home-field-label">
-                  <i className="fa-solid fa-crown" style={{ color: '#f59e0b' }}></i> Dòng tour
-                </span>
-                <select
-                  id="home-search-tier"
-                  value={starTier}
-                  onChange={(e) => onStarTierChange(e.target.value as any)}
-                  className="home-field-select"
-                >
-                  <option value="all">Tất cả dòng tour</option>
-                  <option value="luxury">👑 5★ Cao Cấp</option>
-                  <option value="standard">🌟 4★ Tiêu Chuẩn</option>
-                  <option value="budget">🏷️ 3★ Tiết Kiệm</option>
-                </select>
-              </div>
-
-              {/* Field 5: Submit CTA */}
+              {/* Pill 4: Nút Tìm Kiếm CTA */}
               <button
                 type="submit"
-                className="home-search-submit-btn"
-                id="btn-home-search-submit"
+                className="vt-search-cta-btn"
+                id="btn-vt-search-submit"
               >
-                <i className="fa-solid fa-magnifying-glass"></i>
-                <span>Tìm Kiếm Tour</span>
+                <i className="fa-solid fa-magnifying-glass" />
+                <span>Tìm kiếm</span>
               </button>
+            </div>
+
+            {/* Bottom Row: Tìm kiếm nổi bật (Featured Trending Tags) */}
+            <div className="vt-trending-tags-row">
+              <span className="vt-trending-label">Tìm kiếm nổi bật:</span>
+              <div className="vt-tags-scroll-wrap">
+                {[
+                  { label: 'Thưởng Nguyệt Á Đông', query: 'Á Đông', cat: 'international' },
+                  { label: 'TOUR LỄ 2/9', query: 'Lễ 2/9', cat: 'domestic' },
+                  { label: 'TOUR THU ĐÔNG', query: 'Thu Đông', cat: 'all' },
+                  { label: 'TOUR CHÂU ÂU', query: 'Châu Âu', cat: 'international' },
+                  { label: 'TOUR MỸ', query: 'Mỹ', cat: 'international' },
+                  { label: 'TOUR XUYÊN VIỆT', query: 'Xuyên Việt', cat: 'domestic' },
+                  { label: 'TOUR CAO CẤP', query: '5 Sao', cat: 'all' },
+                  { label: 'DU THUYỀN HẠ LONG', query: 'Hạ Long', cat: 'domestic' }
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="vt-featured-chip"
+                    onClick={() => {
+                      onKeywordChange(item.query);
+                      if (item.cat !== 'all') onCategoryChange(item.cat as any);
+                      navigate(`/tours?q=${encodeURIComponent(item.query)}${item.cat !== 'all' ? `&category=${item.cat}` : ''}`);
+                    }}
+                  >
+                    <i className="fa-regular fa-star" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </form>
         </div>
@@ -347,3 +437,5 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({
     </div>
   );
 };
+
+

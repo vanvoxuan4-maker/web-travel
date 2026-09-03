@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { TOURS_DATA } from '../data/toursData';
 import { Tour, TravelStyle, TourTheme } from '../types/tour.types';
+import { removeVietnameseTones } from '../utils/formatters';
 
 export type SortOption = 'default' | 'price-asc' | 'price-desc' | 'rating' | 'duration-asc' | 'newest';
 export type DurationFilter = 'all' | '1-3' | '4-6' | '7+';
@@ -26,13 +27,21 @@ export function useTourFilter(sourceTours?: Tour[]) {
       // Exclude inactive / hidden tours from public filter
       if (tour.isActive === false) return false;
 
-      const matchKeyword = !keyword.trim() ||
-        tour.title.toLowerCase().includes(keyword.toLowerCase().trim()) ||
-        tour.destination.toLowerCase().includes(keyword.toLowerCase().trim()) ||
-        tour.code.toLowerCase().includes(keyword.toLowerCase().trim());
+      // Robust Multi-field Accent-Insensitive Search
+      let matchKeyword = true;
+      if (keyword.trim()) {
+        const rawKw = keyword.trim().toLowerCase();
+        const unaccentedKw = removeVietnameseTones(keyword);
 
+        const rawHaystack = `${tour.title} ${tour.shortTitle || ''} ${tour.destination || ''} ${tour.code || ''} ${tour.type || ''} ${tour.departureFrom || ''} ${(tour.highlights || []).join(' ')}`.toLowerCase();
+        const unaccentedHaystack = removeVietnameseTones(rawHaystack);
+
+        matchKeyword = rawHaystack.includes(rawKw) || unaccentedHaystack.includes(unaccentedKw);
+      }
+
+      // Robust Departure match
       const matchDeparture = departure === 'all' ||
-        tour.departureFrom.toLowerCase().includes(departure.toLowerCase());
+        removeVietnameseTones(tour.departureFrom).includes(removeVietnameseTones(departure));
 
       const matchCategory = category === 'all' || tour.category === category;
 

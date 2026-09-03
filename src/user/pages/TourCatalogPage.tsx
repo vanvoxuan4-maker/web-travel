@@ -52,10 +52,10 @@ const CATALOG_HERO_SLIDES: HeroBannerSlide[] = [
     id: 'danang',
     image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1920&q=85',
     tag: 'Điểm Đến Di Sản Miền Trung',
-    tagIcon: '🌉',
-    title: 'Đà Nẵng – Cầu Rồng Rực Rỡ',
+    tagIcon: '✨',
+    title: 'Đà Nẵng – Kỳ Quan Cầu Vàng',
     highlightText: '& Bà Nà Hills Tuyệt Mỹ',
-    subtitle: 'Chiêm ngưỡng vẻ đẹp lung linh của Cầu Rồng, biển Mỹ Khê và phố cổ Hội An với dịch vụ tour trọn gói 5 sao.',
+    subtitle: 'Check-in Cầu Vàng Bàn Tay Khổng Lồ, ngắm biển Mỹ Khê và phố cổ Hội An với dịch vụ tour trọn gói 5 sao.',
     targetKeyword: 'Đà Nẵng',
     category: 'domestic',
     location: 'Đà Nẵng - Hội An'
@@ -74,7 +74,7 @@ const CATALOG_HERO_SLIDES: HeroBannerSlide[] = [
   },
   {
     id: 'phuquoc',
-    image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1920&q=85',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1920&q=85',
     tag: 'Thiên Đường Nghỉ Dưỡng Biển',
     tagIcon: '🏖️',
     title: 'Phú Quốc – Hoàng Hôn Đảo Ngọc',
@@ -198,11 +198,13 @@ export const TourCatalogPage: React.FC = () => {
   useEffect(() => {
     const q = searchParams.get('q') || searchParams.get('keyword') || '';
     const cat = (searchParams.get('category') as 'all' | 'domestic' | 'international') || 'all';
+    const dep = searchParams.get('departure') || 'all';
     const tier = (searchParams.get('tier') as any) || 'all';
-    if (q) setKeyword(q);
-    if (cat !== 'all') setCategory(cat);
-    if (tier !== 'all') setStarTier(tier);
-  }, [searchParams, setKeyword, setCategory, setStarTier]);
+    setKeyword(q);
+    setCategory(cat);
+    setDeparture(dep);
+    setStarTier(tier);
+  }, [searchParams, setKeyword, setCategory, setDeparture, setStarTier]);
 
   // Wishlist
   const [wishlistedTourIds, setWishlistedTourIds] = useState<string[]>(() => {
@@ -684,50 +686,6 @@ export const TourCatalogPage: React.FC = () => {
             <p className="scenic-hero-sub">
               {CATALOG_HERO_SLIDES[activeHeroIndex].subtitle}
             </p>
-
-            {/* Quick Destination Filter Chips */}
-            <div className="scenic-quick-chips">
-              <span className="quick-chips-label">Điểm đến nổi bật:</span>
-              {CATALOG_HERO_SLIDES.map((slide, index) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  className={`scenic-chip-btn ${index === activeHeroIndex ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveHeroIndex(index);
-                    setKeyword(slide.targetKeyword);
-                    if (slide.category) setCategory(slide.category);
-                  }}
-                >
-                  <span>{slide.tagIcon}</span>
-                  <span>{slide.targetKeyword}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className={`scenic-chip-btn ${keyword === 'Tokyo' ? 'active' : ''}`}
-                onClick={() => {
-                  setKeyword('Tokyo');
-                  setCategory('international');
-                  setSelectedInternationalSubregion('northeast-asia');
-                }}
-              >
-                <span>🌸</span>
-                <span>Tokyo (Nhật Bản)</span>
-              </button>
-              <button
-                type="button"
-                className={`scenic-chip-btn ${keyword === 'Pháp' ? 'active' : ''}`}
-                onClick={() => {
-                  setKeyword('Pháp');
-                  setCategory('international');
-                  setSelectedInternationalSubregion('europe');
-                }}
-              >
-                <span>🗼</span>
-                <span>Châu Âu</span>
-              </button>
-            </div>
           </div>
 
           {/* Slider Controls */}

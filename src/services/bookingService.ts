@@ -1,4 +1,6 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, withTimeout } from '../lib/supabaseClient';
+import { AppLogger } from '../utils/logger';
+import { restoreSeats } from '../utils/inventoryManager';
 
 export type PaymentMethod = 'vietqr' | 'momo' | 'credit_card' | 'paypal' | 'bank_transfer' | 'cash';
 export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'failed' | 'refunded';
@@ -32,6 +34,40 @@ export interface BookingPayload {
   createdAt?: string;
 }
 
+/**
+ * Single source of truth for booking UI status
+ * Synchronized across Admin Portal, Customer Profile, and E-Ticket
+ */
+export function getBookingUiStatus(booking: {
+  bookingStatus?: string;
+  paymentStatus?: string;
+  paidAmount?: number;
+  totalAmount?: number;
+}): 'confirmed' | 'deposit' | 'pending' | 'cancelled' {
+  const bStatus = booking.bookingStatus?.toLowerCase();
+  const pStatus = booking.paymentStatus?.toLowerCase();
+  const paid = Number(booking.paidAmount) || 0;
+  const total = Number(booking.totalAmount) || 0;
+
+  // 1. Cancelled / Refunded / Failed
+  if (bStatus === 'cancelled' || pStatus === 'failed' || pStatus === 'refunded') {
+    return 'cancelled';
+  }
+
+  // 2. Paid 100% (Confirmed)
+  if (pStatus === 'paid' || bStatus === 'completed') {
+    return 'confirmed';
+  }
+
+  // 3. Deposit 50% (Partially Paid)
+  if (pStatus === 'partially_paid' || bStatus === 'deposit' || (paid > 0 && paid < total)) {
+    return 'deposit';
+  }
+
+  // 4. Default: Pending verification / Pending payment
+  return 'pending';
+}
+
 export interface PaymentTransactionRecord {
   id?: string;
   bookingId?: string;
@@ -52,6 +88,14 @@ export interface PaymentTransactionRecord {
 const LOCAL_BOOKINGS_KEY = 'webtravel_local_bookings';
 const LOCAL_TRANSACTIONS_KEY = 'webtravel_local_transactions';
 
+/**
+ * Check if a string is a valid UUID v4 format.
+ * Used to prevent PostgreSQL casting errors when querying by booking_code (TEXT)
+ * vs id (UUID). Passing a non-UUID string to an id.eq filter causes error 22P02.
+ */
+const isUuid = (str: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 export const bookingService = {
   /**
    * Save a new booking to Supabase and fallback/sync to localStorage
@@ -64,42 +108,58 @@ export const bookingService = {
       createdAt: timestamp
     };
 
+    AppLogger.info('Bắt đầu quy trình tạo đơn đặt tour', {
+      action: 'BOOKING_CREATE_START',
+      bookingCode: booking.bookingCode,
+      tourId: booking.tourId,
+      totalAmount: booking.totalAmount,
+      customerPhone: booking.customerPhone
+    });
+
     // 1. If Supabase is configured, insert to Supabase database
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
-          .from('bookings')
-          .insert([
-            {
-              booking_code: booking.bookingCode,
-              user_id: booking.userId || null,
-              tour_id: booking.tourId,
-              tour_title: booking.tourTitle,
-              departure_date: booking.departureDate,
-              customer_name: booking.customerName,
-              customer_phone: booking.customerPhone,
-              customer_email: booking.customerEmail,
-              customer_address: booking.customerAddress || '',
-              customer_notes: booking.customerNotes || '',
-              adults_count: booking.adultsCount,
-              children_count: booking.childrenCount,
-              toddlers_count: booking.toddlersCount || 0,
-              infants_count: booking.infantsCount,
-              single_rooms_count: booking.singleRoomsCount,
-              total_amount: booking.totalAmount,
-              paid_amount: booking.paidAmount || (booking.paymentStatus === 'paid' ? booking.totalAmount : 0),
-              coupon_code: booking.couponCode || null,
-              payment_method: booking.paymentMethod,
-              payment_status: booking.paymentStatus,
-              booking_status: booking.bookingStatus,
-              created_at: timestamp
-            }
-          ])
-          .select()
-          .single();
+        const { data, error }: any = await withTimeout(
+          supabase
+            .from('bookings')
+            .insert([
+              {
+                booking_code: booking.bookingCode,
+                user_id: booking.userId || null,
+                tour_id: booking.tourId,
+                tour_title: booking.tourTitle,
+                departure_date: booking.departureDate,
+                customer_name: booking.customerName,
+                customer_phone: booking.customerPhone,
+                customer_email: booking.customerEmail,
+                customer_address: booking.customerAddress || '',
+                customer_notes: booking.customerNotes || '',
+                adults_count: booking.adultsCount,
+                children_count: booking.childrenCount,
+                toddlers_count: booking.toddlersCount || 0,
+                infants_count: booking.infantsCount,
+                single_rooms_count: booking.singleRoomsCount,
+                total_amount: booking.totalAmount,
+                paid_amount: booking.paidAmount || (booking.paymentStatus === 'paid' ? booking.totalAmount : 0),
+                coupon_code: booking.couponCode || null,
+                payment_method: booking.paymentMethod,
+                payment_status: booking.paymentStatus,
+                booking_status: booking.bookingStatus,
+                created_at: timestamp
+              }
+            ])
+            .select()
+            .single(),
+          8000,
+          'Supabase booking creation timed out after 8s'
+        );
 
         if (error) {
-          console.error('Supabase booking insert error:', error);
+          AppLogger.warn('Supabase booking insert trả về lỗi, chuyển sang lưu LocalStorage', {
+            action: 'BOOKING_CREATE_SUPABASE_FALLBACK',
+            bookingCode: booking.bookingCode,
+            error: error.message
+          });
           this.saveToLocalStorage(payloadWithTime);
           return { success: true, data: payloadWithTime };
         }
@@ -109,9 +169,19 @@ export const bookingService = {
           id: data.id
         };
         this.saveToLocalStorage(savedPayload);
+
+        AppLogger.info('Tạo đơn đặt tour thành công vào Supabase', {
+          action: 'BOOKING_CREATE_SUCCESS',
+          bookingCode: booking.bookingCode,
+          bookingId: data.id
+        });
+
         return { success: true, data: savedPayload };
       } catch (err: any) {
-        console.error('Failed to create booking in Supabase:', err);
+        AppLogger.error('Ngoại lệ khi lưu đơn đặt tour vào Supabase', err, {
+          action: 'BOOKING_CREATE_EXCEPTION',
+          bookingCode: booking.bookingCode
+        });
         this.saveToLocalStorage(payloadWithTime);
         return { success: true, data: payloadWithTime };
       }
@@ -119,6 +189,10 @@ export const bookingService = {
 
     // 2. Fallback to LocalStorage
     this.saveToLocalStorage(payloadWithTime);
+    AppLogger.info('Lưu đơn đặt tour vào LocalStorage (chế độ demo/offline)', {
+      action: 'BOOKING_CREATE_LOCAL_SUCCESS',
+      bookingCode: booking.bookingCode
+    });
     return { success: true, data: payloadWithTime };
   },
 
@@ -228,7 +302,7 @@ export const bookingService = {
                 couponCode: row.coupon_code,
                 paymentMethod: row.payment_method || 'vietqr',
                 paymentStatus: row.payment_status || 'pending',
-                bookingStatus: row.booking_status || 'confirmed',
+                bookingStatus: row.booking_status || 'pending',
                 createdAt: row.created_at
               });
             }
@@ -284,7 +358,9 @@ export const bookingService = {
           .single();
 
         if (bookingData) {
-          const finalAmount = amount || Number(bookingData.total_amount) || 0;
+          const totalAmt = Number(bookingData.total_amount) || 0;
+          const paidAmt = paymentStatus === 'paid' ? totalAmt : paymentStatus === 'partially_paid' ? (amount || Math.round(totalAmt * 0.5)) : 0;
+          const finalAmount = amount || paidAmt || totalAmt;
           const method = paymentMethod || bookingData.payment_method || 'vietqr';
 
           // Update booking
@@ -292,7 +368,7 @@ export const bookingService = {
             .from('bookings')
             .update({
               payment_status: paymentStatus,
-              paid_amount: paymentStatus === 'paid' ? finalAmount : paymentStatus === 'partially_paid' ? Math.round(finalAmount * 0.5) : 0
+              paid_amount: paidAmt
             })
             .eq('booking_code', code);
 
@@ -325,10 +401,12 @@ export const bookingService = {
       const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
       const updated = localBookings.map(b => {
         if (b.bookingCode.toUpperCase() === code) {
+          const totalAmt = Number(b.totalAmount) || 0;
+          const paidAmt = paymentStatus === 'paid' ? totalAmt : paymentStatus === 'partially_paid' ? (amount || Math.round(totalAmt * 0.5)) : 0;
           return {
             ...b,
             paymentStatus,
-            paidAmount: paymentStatus === 'paid' ? b.totalAmount : paymentStatus === 'partially_paid' ? Math.round(b.totalAmount * 0.5) : 0
+            paidAmount: paidAmt
           };
         }
         return b;
@@ -350,6 +428,115 @@ export const bookingService = {
       console.warn('Could not update payment status in localStorage:', e);
     }
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
+        detail: { bookingCode: code, paymentStatus }
+      }));
+    }
+
+    return { success: true };
+  },
+
+  /**
+   * Update full booking and payment status (from Admin or Customer action)
+   * Synchronizes both Supabase and LocalStorage, and dispatches an event
+   */
+  async updateBookingAdminStatus(
+    bookingCode: string,
+    newUiStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled'
+  ): Promise<{ success: boolean; error?: string }> {
+    const code = bookingCode.trim().toUpperCase();
+    const paymentStatus: PaymentStatus = newUiStatus === 'confirmed' ? 'paid' : newUiStatus === 'deposit' ? 'partially_paid' : newUiStatus === 'cancelled' ? 'refunded' : 'pending';
+    const bookingStatus: BookingStatus = newUiStatus === 'confirmed' ? 'confirmed' : newUiStatus === 'cancelled' ? 'cancelled' : 'pending';
+
+    // 1. Update Supabase
+    if (isSupabaseConfigured && supabase) {
+      try {
+        // Fetch booking to get total_amount for calculating paidAmount.
+        // IMPORTANT: Never use .or(`id.eq.${nonUuidString}`) — PostgreSQL will
+        // throw error 22P02 (invalid input syntax for type uuid) and silently
+        // fail, causing the status to appear changed in UI but reset on reload.
+        let fetchQuery = supabase
+          .from('bookings')
+          .select('id, total_amount');
+
+        if (isUuid(code)) {
+          fetchQuery = fetchQuery.or(`booking_code.eq.${code},id.eq.${code}`);
+        } else {
+          fetchQuery = fetchQuery.eq('booking_code', code);
+        }
+
+        const { data: bookingData, error: fetchErr } = await fetchQuery.maybeSingle();
+
+        if (fetchErr) {
+          console.error('Supabase updateBookingAdminStatus fetch error:', fetchErr);
+        }
+
+        const totalAmt = Number(bookingData?.total_amount) || 0;
+        const paidAmt = newUiStatus === 'confirmed' ? totalAmt : newUiStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
+
+        let updateQuery = supabase
+          .from('bookings')
+          .update({
+            booking_status: bookingStatus,
+            payment_status: paymentStatus,
+            paid_amount: paidAmt
+          });
+
+        if (isUuid(code)) {
+          updateQuery = updateQuery.or(`booking_code.eq.${code},id.eq.${code}`);
+        } else {
+          updateQuery = updateQuery.eq('booking_code', code);
+        }
+
+        const { error: updateErr } = await updateQuery;
+
+        if (updateErr) {
+          console.error('Supabase updateBookingAdminStatus update error:', updateErr);
+        } else {
+          AppLogger.info('Cập nhật trạng thái đơn hàng thành công trên Supabase', {
+            action: 'BOOKING_STATUS_UPDATE',
+            bookingCode: code,
+            newUiStatus,
+            bookingStatus,
+            paymentStatus,
+            paidAmt
+          });
+        }
+      } catch (err: any) {
+        console.error('Supabase updateBookingAdminStatus error:', err);
+      }
+    }
+
+    // 2. Update LocalStorage
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const updated = localBookings.map(b => {
+        if (b.bookingCode?.toUpperCase() === code || b.id === bookingCode) {
+          const totalAmt = Number(b.totalAmount) || 0;
+          const paidAmt = newUiStatus === 'confirmed' ? totalAmt : newUiStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
+          return {
+            ...b,
+            bookingStatus,
+            paymentStatus,
+            paidAmount: paidAmt
+          };
+        }
+        return b;
+      });
+      localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(updated));
+      localStorage.setItem('webtravel_last_status_sync', Date.now().toString());
+    } catch (e) {
+      console.warn('LocalStorage updateBookingAdminStatus error:', e);
+    }
+
+    // 3. Dispatch global event for instant reactivity across tabs / pages
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
+        detail: { bookingCode: code, newUiStatus, paymentStatus, bookingStatus }
+      }));
+    }
+
     return { success: true };
   },
 
@@ -366,6 +553,7 @@ export const bookingService = {
           .from('bookings')
           .update({
             booking_status: 'cancelled',
+            payment_status: 'refunded',
             customer_notes: reason ? `[Khách yêu cầu hủy: ${reason}]` : '[Khách yêu cầu hủy]'
           })
           .eq('booking_code', code);
@@ -383,13 +571,23 @@ export const bookingService = {
       const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
       const updated = localBookings.map(b => {
         if (b.bookingCode.toUpperCase() === code) {
-          return { ...b, bookingStatus: 'cancelled' as const };
+          return { 
+            ...b, 
+            bookingStatus: 'cancelled' as const,
+            paymentStatus: 'refunded' as const
+          };
         }
         return b;
       });
       localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(updated));
     } catch (e) {
       console.warn('Failed to update cancel in localStorage:', e);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
+        detail: { bookingCode: code, newUiStatus: 'cancelled', paymentStatus: 'refunded', bookingStatus: 'cancelled' }
+      }));
     }
 
     return { success: true };
@@ -464,5 +662,96 @@ export const bookingService = {
     } catch (e) {
       console.warn('Could not save booking to localStorage:', e);
     }
+  },
+
+  /**
+   * Hard delete a booking permanently from database and local storage
+   */
+  async deleteBooking(bookingIdOrCode: string): Promise<{ success: boolean; error?: string }> {
+    const idOrCode = (bookingIdOrCode || '').trim();
+    if (!idOrCode) return { success: false, error: 'Mã đơn hàng không hợp lệ' };
+
+    // 1. Find the booking to restore seats if needed
+    let bookingToRestore: BookingPayload | null = null;
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      bookingToRestore = localBookings.find(b => 
+        (b.id && b.id === idOrCode) || 
+        b.bookingCode.toUpperCase() === idOrCode.toUpperCase()
+      ) || null;
+    } catch (e) {
+      console.warn('Error reading local bookings for seat restore:', e);
+    }
+
+    // 2. Delete from Supabase
+    if (isSupabaseConfigured && supabase) {
+      try {
+        if (!bookingToRestore) {
+          // Build query safely to avoid 22P02 UUID cast error
+          let seatQuery = supabase
+            .from('bookings')
+            .select('tour_id, departure_date, adults_count, children_count, toddlers_count');
+
+          if (isUuid(idOrCode)) {
+            seatQuery = seatQuery.or(`id.eq.${idOrCode},booking_code.eq.${idOrCode}`);
+          } else {
+            seatQuery = seatQuery.eq('booking_code', idOrCode);
+          }
+
+          const { data } = await seatQuery.maybeSingle();
+          if (data) {
+            const seats = (data.adults_count || 1) + (data.children_count || 0) + (data.toddlers_count || 0);
+            restoreSeats(data.tour_id, data.departure_date, seats);
+          }
+        }
+
+        // Build delete query safely to avoid 22P02 UUID cast error
+        let deleteQuery = supabase.from('bookings').delete();
+
+        if (isUuid(idOrCode)) {
+          deleteQuery = deleteQuery.or(`id.eq.${idOrCode},booking_code.eq.${idOrCode}`);
+        } else {
+          deleteQuery = deleteQuery.eq('booking_code', idOrCode);
+        }
+
+        const { error } = await deleteQuery;
+
+        if (error) {
+          console.warn('Supabase delete booking error:', error);
+        }
+      } catch (err: any) {
+        console.warn('Supabase delete booking exception:', err);
+      }
+    }
+
+    // Restore seats if found locally
+    if (bookingToRestore && bookingToRestore.tourId && bookingToRestore.departureDate) {
+      const totalSeats = (bookingToRestore.adultsCount || 1) + 
+                         (bookingToRestore.childrenCount || 0) + 
+                         (bookingToRestore.toddlersCount || 0);
+      restoreSeats(bookingToRestore.tourId, bookingToRestore.departureDate, totalSeats);
+    }
+
+    // 3. Delete from LocalStorage
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const filtered = localBookings.filter(b => 
+        b.id !== idOrCode && 
+        b.bookingCode.toUpperCase() !== idOrCode.toUpperCase()
+      );
+      localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(filtered));
+      localStorage.setItem('webtravel_last_status_sync', Date.now().toString());
+    } catch (e) {
+      console.warn('LocalStorage delete booking error:', e);
+    }
+
+    // 4. Dispatch real-time update event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
+        detail: { bookingId: idOrCode, action: 'deleted' }
+      }));
+    }
+
+    return { success: true };
   }
 };

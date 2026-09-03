@@ -176,7 +176,7 @@ export const CheckoutPage: React.FC = () => {
 
   const rawTotal = totalAdults + totalChildren + totalToddlers + totalInfants + totalSingle + totalAddons;
   const finalTotal = Math.max(0, rawTotal - couponDiscount);
-  const dueAmount = payOption === 'deposit' ? Math.round(finalTotal * 0.5) : finalTotal;
+  const dueAmount = paymentMethod === 'cash' ? finalTotal : (payOption === 'deposit' ? Math.round(finalTotal * 0.5) : finalTotal);
 
   // Coupon Validation against Database / Fallback
   const handleApplyCoupon = async () => {
@@ -242,7 +242,7 @@ export const CheckoutPage: React.FC = () => {
 
   const handleConfirmBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tour) return;
+    if (!tour || isSubmitting) return;
 
     if (!validateForm()) {
       // Scroll to first error
@@ -285,12 +285,13 @@ export const CheckoutPage: React.FC = () => {
         toddlersCount: toddlers,
         infantsCount: infants,
         singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
-        totalAmount: dueAmount,
+        totalAmount: finalTotal,
+        paidAmount: 0,
         couponCode: couponDiscount > 0 ? couponCode.trim().toUpperCase() : undefined,
         couponDiscount: couponDiscount > 0 ? couponDiscount : 0,
         paymentMethod: paymentMethod,
         paymentStatus: 'pending',
-        bookingStatus: 'confirmed'
+        bookingStatus: 'pending'
       });
 
       if (res.success) {
@@ -311,7 +312,9 @@ export const CheckoutPage: React.FC = () => {
   const handleMarkPaymentTransferred = async () => {
     if (!bookingRef) return;
     setIsPaidConfirmed(true);
-    await bookingService.updatePaymentStatus(bookingRef, 'paid', dueAmount, paymentMethod);
+    // If deposit, mark partially_paid; if full, mark paid
+    const targetStatus = payOption === 'deposit' ? 'partially_paid' : 'paid';
+    await bookingService.updatePaymentStatus(bookingRef, targetStatus, dueAmount, paymentMethod);
   };
 
   const timerMins = Math.floor(secondsRemaining / 60);
@@ -371,7 +374,9 @@ export const CheckoutPage: React.FC = () => {
                     <i className="fa-solid fa-file-invoice" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Thông Tin Hồ Sơ Đặt Chỗ:
                   </span>
                   <span className={`badge ${isPaidConfirmed ? 'badge-emerald' : 'badge-gold'}`} style={{ fontSize: '0.78rem' }}>
-                    {isPaidConfirmed ? '✅ ĐÃ THANH TOÁN' : '⏳ CHỜ THANH TOÁN'}
+                    {isPaidConfirmed
+                      ? '✅ ĐÃ THANH TOÁN'
+                      : (paymentMethod === 'cash' ? '⏳ CHỜ THANH TOÁN TẠI VĂN PHÒNG' : '⏳ CHỜ THANH TOÁN')}
                   </span>
                 </h3>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Người đại diện:</strong> {customerName}</p>
@@ -388,47 +393,102 @@ export const CheckoutPage: React.FC = () => {
                   </p>
                 )}
                 <p style={{ margin: '0.75rem 0 0', fontSize: '1rem', borderTop: '1px dashed #cbd5e1', paddingTop: '0.75rem' }}>
-                  <strong>Số tiền thanh toán:</strong> <span style={{ color: 'var(--accent-forest)', fontWeight: 800, fontSize: '1.3rem' }}>{formatCurrencyVND(dueAmount)}</span> {payOption === 'deposit' ? '(Đặt cọc giữ chỗ 50%)' : '(100% trọn gói)'}
+                  <strong>Số tiền thanh toán:</strong>{' '}
+                  <span style={{ color: 'var(--accent-forest)', fontWeight: 800, fontSize: '1.3rem' }}>
+                    {formatCurrencyVND(dueAmount)}
+                  </span>{' '}
+                  {paymentMethod === 'cash'
+                    ? '(Thanh toán trực tiếp khi đến văn phòng)'
+                    : (payOption === 'deposit' ? '(Đặt cọc giữ chỗ 50%)' : '(100% trọn gói)')}
                 </p>
               </div>
 
-              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h3 style={{ margin: '0 0 0.5rem', color: '#111827', fontSize: '1.05rem' }}>
-                  <i className="fa-solid fa-qrcode" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Quét Mã VietQR Chuyển Khoản Tự Động
-                </h3>
-                <img src={vietQrUrl} alt="VietQR Thanh Toán" style={{ maxWidth: '200px', borderRadius: '10px', border: '1.5px solid #e2e8f0', boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }} />
-                
-                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.6rem 0 0.85rem' }}>
-                  Nội dung chuyển khoản: <strong style={{ color: '#0f172a' }}>{bookingRef} {customerPhone}</strong>
-                </p>
-
-                {!isPaidConfirmed ? (
-                  <button
-                    type="button"
-                    onClick={handleMarkPaymentTransferred}
-                    style={{
-                      padding: '0.6rem 1.25rem',
-                      borderRadius: '20px',
-                      background: '#ecfdf5',
-                      border: '1.5px solid #059669',
-                      color: '#047857',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <i className="fa-solid fa-check"></i> Tôi Đã Chuyển Khoản Thành Công
-                  </button>
-                ) : (
-                  <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <i className="fa-solid fa-circle-check"></i> Đã Ghi Nhận Thanh Toán (Hệ Thống Đang Đối Soát)
+              {paymentMethod === 'cash' ? (
+                <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', background: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.65rem' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>
+                      <i className="fa-solid fa-building-circle-check" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, color: '#111827', fontSize: '1.05rem', fontWeight: 800 }}>
+                        Thông Tin Phòng Vé &amp; Điểm Thu Tiền
+                      </h3>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>WebTravel Tourist Head Office</span>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.88rem' }}>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.8rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.2rem' }}>
+                        <i className="fa-solid fa-location-dot" style={{ color: '#059669', marginRight: '0.35rem' }} />
+                        Trụ sở chính phòng vé:
+                      </strong>
+                      <div style={{ color: '#1e293b', fontWeight: 600 }}>Tầng 5, Tòa nhà WebTravel, 123 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP.HCM</div>
+                    </div>
+
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.8rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.2rem' }}>
+                        <i className="fa-solid fa-clock" style={{ color: '#059669', marginRight: '0.35rem' }} />
+                        Giờ mở cửa đón khách:
+                      </strong>
+                      <div style={{ color: '#1e293b', fontWeight: 600 }}>08:00 – 18:00 (Thứ 2 đến Thứ 7 hàng tuần)</div>
+                    </div>
+
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.8rem', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.2rem' }}>
+                        <i className="fa-solid fa-phone" style={{ color: '#059669', marginRight: '0.35rem' }} />
+                        Hotline hỗ trợ &amp; chỉ đường:
+                      </strong>
+                      <div style={{ color: '#047857', fontWeight: 800, fontSize: '1.05rem' }}>1900 6868 • 0988 123 456</div>
+                    </div>
+
+                    <div style={{ background: '#fffbeb', padding: '0.75rem 0.95rem', borderRadius: '10px', border: '1px solid #fde68a', fontSize: '0.82rem', color: '#92400e', marginTop: '0.25rem' }}>
+                      <div style={{ fontWeight: 700, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <i className="fa-solid fa-triangle-exclamation" /> Hạn chót giữ chỗ tạm:
+                      </div>
+                      <div>Chỗ của quý khách được bảo lưu trong <strong>24 giờ</strong>. Vui lòng mang theo mã <strong>{bookingRef}</strong> hoặc SĐT <strong>{customerPhone}</strong> đến quầy để nhận hợp đồng &amp; vé.</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffffff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ margin: '0 0 0.5rem', color: '#111827', fontSize: '1.05rem' }}>
+                    <i className="fa-solid fa-qrcode" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Quét Mã VietQR Chuyển Khoản Tự Động
+                  </h3>
+                  <img src={vietQrUrl} alt="VietQR Thanh Toán" style={{ maxWidth: '200px', borderRadius: '10px', border: '1.5px solid #e2e8f0', boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }} />
+                  
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.6rem 0 0.85rem' }}>
+                    Nội dung chuyển khoản: <strong style={{ color: '#0f172a' }}>{bookingRef} {customerPhone}</strong>
+                  </p>
+
+                  {!isPaidConfirmed ? (
+                    <button
+                      type="button"
+                      onClick={handleMarkPaymentTransferred}
+                      style={{
+                        padding: '0.6rem 1.25rem',
+                        borderRadius: '20px',
+                        background: '#ecfdf5',
+                        border: '1.5px solid #059669',
+                        color: '#047857',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <i className="fa-solid fa-check"></i> Tôi Đã Chuyển Khoản Thành Công
+                    </button>
+                  ) : (
+                    <div style={{ color: '#059669', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-circle-check"></i> Đã Ghi Nhận Thanh Toán (Hệ Thống Đang Đối Soát)
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -1268,31 +1328,42 @@ export const CheckoutPage: React.FC = () => {
                     </div>
 
                     {/* Payment Type Option (Full vs Deposit) */}
-                    <div style={{ margin: '1.25rem 0 1.5rem', background: '#f0fdf4', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(5,150,105,0.2)' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>
-                        Hình thức thanh toán:
+                    {paymentMethod !== 'cash' ? (
+                      <div style={{ margin: '1.25rem 0 1.5rem', background: '#f0fdf4', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(5,150,105,0.2)' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111827', marginBottom: '0.5rem' }}>
+                          Mức thanh toán trực tuyến:
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.88rem' }}>
+                          <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                            <input 
+                              type="radio" 
+                              name="pay-option" 
+                              checked={payOption === 'full'} 
+                              onChange={() => setPayOption('full')} 
+                            />
+                            <span>Thanh toán 100% ({formatCurrencyVND(finalTotal)})</span>
+                          </label>
+                          <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                            <input 
+                              type="radio" 
+                              name="pay-option" 
+                              checked={payOption === 'deposit'} 
+                              onChange={() => setPayOption('deposit')} 
+                            />
+                            <span>Đặt cọc giữ chỗ 50% ({formatCurrencyVND(finalTotal * 0.5)})</span>
+                          </label>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.88rem' }}>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                          <input 
-                            type="radio" 
-                            name="pay-option" 
-                            checked={payOption === 'full'} 
-                            onChange={() => setPayOption('full')} 
-                          />
-                          <span>Thanh toán 100% ({formatCurrencyVND(finalTotal)})</span>
-                        </label>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                          <input 
-                            type="radio" 
-                            name="pay-option" 
-                            checked={payOption === 'deposit'} 
-                            onChange={() => setPayOption('deposit')} 
-                          />
-                          <span>Đặt cọc giữ chỗ 50% ({formatCurrencyVND(finalTotal * 0.5)})</span>
-                        </label>
+                    ) : (
+                      <div style={{ margin: '1.25rem 0 1.5rem', background: '#eff6ff', padding: '1rem', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e40af', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <i className="fa-solid fa-circle-info" /> Thanh toán trực tiếp tại văn phòng
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: '#1e3a8a', lineHeight: 1.5 }}>
+                          Quý khách được <strong>giữ chỗ miễn phí trong 24 giờ</strong>. Khi đến văn phòng, quý khách có thể chọn đặt cọc 50% hoặc thanh toán 100% bằng tiền mặt hoặc quẹt thẻ POS.
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Submit Button */}
                     <button 

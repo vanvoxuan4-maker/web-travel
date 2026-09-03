@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookingPayload } from '../../../services/bookingService';
+import { BookingPayload, getBookingUiStatus } from '../../../services/bookingService';
 import { formatCurrencyVND } from '../../../utils/formatters';
 import { SimpleQRCode } from '../../../utils/qrCode';
 
@@ -11,25 +11,25 @@ interface ETicketModalProps {
 export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) => {
   const [copied, setCopied] = useState(false);
 
-  // Generate QR Code data
-  const qrData = `WEBTRAVEL-ETICKET:${booking.bookingCode}|TEL:${booking.customerPhone}|TOUR:${booking.tourTitle}|DEPART:${booking.departureDate}`;
-  const qr = new SimpleQRCode(qrData, 'M');
-  const qrSvgUrl = qr.toSVGDataUrl(220, '#047857', '#ffffff');
-
   const handleCopyCode = () => {
     navigator.clipboard.writeText(booking.bookingCode);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handlePrint = () => {
     window.print();
   };
 
+  // Generate QR Code data
+  const qrData = `WEBTRAVEL-ETICKET:${booking.bookingCode}|TEL:${booking.customerPhone}|TOUR:${booking.tourTitle}|DEPART:${booking.departureDate}`;
+  const qr = new SimpleQRCode(qrData, 'M');
+  const qrSvgUrl = qr.toSVGDataUrl(220, '#047857', '#ffffff');
+
   const handleDownloadQr = () => {
     const link = document.createElement('a');
     link.href = qrSvgUrl;
-    link.download = `QRCode_${booking.bookingCode}.svg`;
+    link.download = `QRCode-${booking.bookingCode}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -37,20 +37,23 @@ export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) 
 
   const totalPax = (booking.adultsCount || 0) + (booking.childrenCount || 0) + (booking.infantsCount || 0);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', label: 'ĐÃ XÁC NHẬN GIỮ CHỖ' };
-      case 'completed':
-        return { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', label: 'CHUYẾN ĐI HOÀN TẤT' };
-      case 'cancelled':
-        return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', label: 'ĐÃ HỦY TOUR' };
-      default:
-        return { bg: '#fffbeb', text: '#d97706', border: '#fde68a', label: 'ĐANG CHỜ XÁC NHẬN' };
+  const uiStatus = getBookingUiStatus(booking);
+  const isDeposit = uiStatus === 'deposit';
+
+  const getStatusColor = () => {
+    if (uiStatus === 'cancelled') {
+      return { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', label: 'ĐÃ HỦY TOUR', icon: 'fa-ban' };
     }
+    if (uiStatus === 'deposit') {
+      return { bg: '#fffbeb', text: '#d97706', border: '#fde68a', label: 'ĐÃ CỌC 50%', icon: 'fa-shield-halved' };
+    }
+    if (uiStatus === 'confirmed') {
+      return { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', label: 'ĐÃ XÁC NHẬN (100%)', icon: 'fa-shield-check' };
+    }
+    return { bg: '#fff7ed', text: '#ea580c', border: '#ffedd5', label: 'CHỜ THANH TOÁN (GIỮ CHỖ TẠM)', icon: 'fa-clock' };
   };
 
-  const statusStyle = getStatusColor(booking.bookingStatus);
+  const statusStyle = getStatusColor();
 
   return (
     <div
@@ -61,7 +64,7 @@ export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) 
         right: 0,
         bottom: 0,
         backgroundColor: 'rgba(15, 23, 42, 0.75)',
-        backdropFilter: 'blur(8px)',
+        backdropFilter: 'blur(4px)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
@@ -118,7 +121,9 @@ export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) 
               <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px', color: '#a7f3d0', fontWeight: 700 }}>
                 WebTravel Editorial • Boarding Pass
               </div>
-              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>VÉ DU LỊCH ĐIỆN TỬ (E-TICKET)</h2>
+              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
+                {uiStatus === 'pending' ? 'PHIẾU XÁC NHẬN GIỮ CHỖ (CHỜ THANH TOÁN)' : 'VÉ DU LỊCH ĐIỆN TỬ (E-TICKET)'}
+              </h2>
             </div>
           </div>
 
@@ -207,10 +212,18 @@ export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) 
                 fontWeight: 800
               }}
             >
-              <i className="fa-solid fa-shield-check"></i>
+              <i className={`fa-solid ${statusStyle.icon}`}></i>
               {statusStyle.label}
             </div>
           </div>
+
+          {/* Pending notice banner */}
+          {uiStatus === 'pending' && (
+            <div style={{ padding: '0.85rem 1.25rem', background: '#fff7ed', borderRadius: '12px', border: '1px solid #ffedd5', color: '#c2410c', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '1.1rem', flexShrink: 0 }} />
+              <span>Đơn hàng đang trong thời gian giữ chỗ chờ thanh toán. Vé điện tử chính thức kèm mã QR xuất vé khởi hành sẽ được kích hoạt ngay sau khi hoàn tất đặt cọc hoặc thanh toán 100%.</span>
+            </div>
+          )}
 
           {/* Tour Title Header */}
           <div>
@@ -278,30 +291,61 @@ export const ETicketModal: React.FC<ETicketModalProps> = ({ booking, onClose }) 
 
                 {booking.customerAddress && (
                   <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0', fontSize: '0.82rem', color: '#475569' }}>
-                    <i className="fa-solid fa-location-dot" style={{ color: '#dc2626', marginRight: '0.35rem' }}></i>
-                    <strong>Điểm đón/Địa chỉ: </strong> {booking.customerAddress}
+                    <i className="fa-solid fa-house" style={{ color: '#047857', marginRight: '0.35rem' }}></i>
+                    <strong>Địa chỉ liên hệ: </strong> {booking.customerAddress}
+                  </div>
+                )}
+                <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#64748b' }}>
+                  <i className="fa-solid fa-person-walking-luggage" style={{ color: '#047857', marginRight: '0.35rem' }}></i>
+                  <strong>Điểm tập trung: </strong> Quý khách tự túc di chuyển đến điểm tập trung khởi hành của tour trước giờ khởi hành 2 tiếng.
+                </div>
+                {booking.customerNotes && booking.customerNotes.trim() && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#475569' }}>
+                    <i className="fa-solid fa-note-sticky" style={{ color: '#047857', marginRight: '0.35rem' }}></i>
+                    <strong>Ghi chú / Yêu cầu: </strong> {booking.customerNotes}
                   </div>
                 )}
               </div>
 
-              {/* Payment Summary */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#ecfdf5', padding: '0.85rem 1.25rem', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#065f46', textTransform: 'uppercase', fontWeight: 700 }}>
-                    TỔNG TIỀN VÉ DU LỊCH
+              <div
+                style={{
+                  background: isDeposit ? '#fffbeb' : '#ecfdf5',
+                  padding: '0.85rem 1.25rem',
+                  borderRadius: '12px',
+                  border: `1px solid ${isDeposit ? '#fde68a' : '#a7f3d0'}`
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: isDeposit ? '#92400e' : '#065f46', textTransform: 'uppercase', fontWeight: 700 }}>
+                      TỔNG TIỀN VÉ DU LỊCH
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 900, color: isDeposit ? '#b45309' : '#047857' }}>
+                      {formatCurrencyVND(booking.totalAmount)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#047857' }}>
-                    {formatCurrencyVND(booking.totalAmount)}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.72rem', color: isDeposit ? '#92400e' : '#065f46', textTransform: 'uppercase', fontWeight: 700 }}>
+                      HÌNH THỨC
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: isDeposit ? '#78350f' : '#064e3b' }}>
+                      {booking.paymentMethod === 'vietqr' ? '⚡ Chuyển khoản VietQR' : booking.paymentMethod === 'credit_card' ? '💳 Thẻ Quốc Tế' : '💵 Tiền mặt / Cọc'}
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#065f46', textTransform: 'uppercase', fontWeight: 700 }}>
-                    HÌNH THỨC
+
+                {isDeposit && (
+                  <div style={{ marginTop: '0.65rem', paddingTop: '0.65rem', borderTop: '1px dashed #fcd34d', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <span style={{ color: '#047857', fontWeight: 700 }}>✓ Đã thanh toán cọc 50%: </span>
+                      <strong style={{ color: '#047857', fontSize: '0.92rem' }}>{formatCurrencyVND(booking.paidAmount || Math.round(booking.totalAmount * 0.5))}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#dc2626', fontWeight: 700 }}>Còn lại cần thanh toán: </span>
+                      <strong style={{ color: '#dc2626', fontSize: '0.92rem' }}>{formatCurrencyVND(Math.max(0, booking.totalAmount - (booking.paidAmount || Math.round(booking.totalAmount * 0.5))))}</strong>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#064e3b' }}>
-                    {booking.paymentMethod === 'vietqr' ? '⚡ Chuyển khoản VietQR' : booking.paymentMethod === 'credit_card' ? '💳 Thẻ Quốc Tế' : '💵 Tiền mặt / Cọc'}
-                  </div>
-                </div>
+                )}
               </div>
 
             </div>

@@ -79,6 +79,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
 
   // Booking confirmed state & VietQR
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [bookingRef, setBookingRef] = useState<string>('');
   const [secondsRemaining, setSecondsRemaining] = useState<number>(900); // 15 mins countdown
 
@@ -160,7 +161,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
 
   const handleConfirmBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tour) return;
+    if (!tour || isSubmitting) return;
     if (isSoldOut || isSeatExceeded || bookedPax === 0) return;
 
     if (!isAuthenticated) {
@@ -169,34 +170,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
       return;
     }
 
-    const ref = 'WT-' + Math.floor(100000 + Math.random() * 900000);
-    setBookingRef(ref);
-    deductSeats(tour.id, selectedDate, bookedPax);
+    setIsSubmitting(true);
 
-    // Save to Database (Supabase + LocalStorage)
-    await bookingService.createBooking({
-      bookingCode: ref,
-      userId: user?.id,
-      tourId: tour.id,
-      tourTitle: tour.title,
-      departureDate: selectedDate,
-      customerName: customerName || 'Khách hàng',
-      customerPhone: customerPhone || '0901234567',
-      customerEmail: customerEmail || 'guest@webtravel.vn',
-      customerAddress: customerAddress || '',
-      customerNotes,
-      adultsCount: adults,
-      childrenCount: children,
-      infantsCount: toddlers,
-      singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
-      totalAmount: dueAmount,
-      couponCode: couponDiscount > 0 ? couponCode : undefined,
-      paymentMethod: 'vietqr',
-      paymentStatus: 'pending',
-      bookingStatus: 'confirmed'
-    });
+    try {
+      const ref = 'WT-' + Math.floor(100000 + Math.random() * 900000);
+      setBookingRef(ref);
+      deductSeats(tour.id, selectedDate, bookedPax);
 
-    setIsSuccess(true);
+      // Save to Database (Supabase + LocalStorage)
+      await bookingService.createBooking({
+        bookingCode: ref,
+        userId: user?.id,
+        tourId: tour.id,
+        tourTitle: tour.title,
+        departureDate: selectedDate,
+        customerName: customerName || 'Khách hàng',
+        customerPhone: customerPhone || '0901234567',
+        customerEmail: customerEmail || 'guest@webtravel.vn',
+        customerAddress: customerAddress || '',
+        customerNotes: (customerNotes || '').trim(),
+        adultsCount: adults,
+        childrenCount: children,
+        infantsCount: toddlers,
+        singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
+        totalAmount: finalTotal,
+        paidAmount: 0,
+        couponCode: couponDiscount > 0 ? couponCode : undefined,
+        paymentMethod: 'vietqr',
+        paymentStatus: 'pending',
+        bookingStatus: 'pending'
+      });
+
+      setIsSuccess(true);
+    } catch (err) {
+      console.error('Lỗi khi đặt tour từ Modal:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!tour) return null;

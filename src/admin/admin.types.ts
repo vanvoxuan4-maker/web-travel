@@ -2,13 +2,30 @@ export type AdminTab = 'overview' | 'bookings' | 'tours' | 'customers' | 'coupon
 
 export interface BookingRecord {
   id: string;
+  bookingCode: string;
+  userId?: string;
   customerName: string;
   phone: string;
+  email?: string;
   customerAddress?: string;
+  customerNotes?: string;
+  tourId?: string;
   tourTitle: string;
+  tourImage?: string;
   departureDate: string;
+  adultsCount: number;
+  childrenCount: number;
+  toddlersCount: number;
+  infantsCount: number;
+  singleRoomsCount?: number;
   paxCount: number;
   totalAmount: number;
+  paidAmount: number;
+  paymentMethod: string;
+  paymentStatus: 'pending' | 'partially_paid' | 'paid' | 'failed' | 'refunded';
+  bookingStatus: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded';
+  couponCode?: string;
+  couponDiscount?: number;
   status: 'confirmed' | 'deposit' | 'pending' | 'cancelled';
   createdAt: string;
 }

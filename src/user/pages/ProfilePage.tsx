@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/useAuth';
-import { bookingService, BookingPayload } from '../../services/bookingService';
+import { bookingService, BookingPayload, getBookingUiStatus } from '../../services/bookingService';
 import { profileService } from '../../services/profileService';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { ETicketModal } from '../components/profile/ETicketModal';
+import { QuickPaymentModal } from '../components/profile/QuickPaymentModal';
 import { Link } from 'react-router-dom';
 
 type ProfileTab = 'bookings' | 'settings' | 'loyalty';
@@ -18,6 +19,7 @@ export const ProfilePage: React.FC = () => {
   const [bookings, setBookings] = useState<BookingPayload[]>([]);
   const [isLoadingBookings, setIsLoadingBookings] = useState<boolean>(true);
   const [selectedETicket, setSelectedETicket] = useState<BookingPayload | null>(null);
+  const [paymentModalBooking, setPaymentModalBooking] = useState<BookingPayload | null>(null);
 
   // Cancellation Modal state
   const [cancellingBooking, setCancellingBooking] = useState<BookingPayload | null>(null);
@@ -57,6 +59,20 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     loadUserBookings();
+
+    const handleSync = () => {
+      loadUserBookings();
+    };
+
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('webtravel_booking_updated', handleSync);
+
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('webtravel_booking_updated', handleSync);
+    };
   }, [user]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -110,7 +126,12 @@ export const ProfilePage: React.FC = () => {
   // Filter bookings
   const filteredBookings = bookings.filter((b) => {
     if (bookingFilter === 'all') return true;
-    return b.bookingStatus === bookingFilter;
+    const uiStatus = getBookingUiStatus(b);
+    if (bookingFilter === 'confirmed') return uiStatus === 'confirmed' || uiStatus === 'deposit';
+    if (bookingFilter === 'pending') return uiStatus === 'pending';
+    if (bookingFilter === 'completed') return b.bookingStatus === 'completed';
+    if (bookingFilter === 'cancelled') return uiStatus === 'cancelled';
+    return true;
   });
 
   // Loyalty Tier Calculation
@@ -547,7 +568,8 @@ export const ProfilePage: React.FC = () => {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     {filteredBookings.map((booking) => {
-                      const isCancelled = booking.bookingStatus === 'cancelled';
+                      const uiStatus = getBookingUiStatus(booking);
+                      const isCancelled = uiStatus === 'cancelled';
                       return (
                         <div
                           key={booking.bookingCode}
@@ -574,34 +596,57 @@ export const ProfilePage: React.FC = () => {
                               </span>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <span
-                                style={{
-                                  padding: '0.3rem 0.75rem',
-                                  borderRadius: '20px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 800,
-                                  background: booking.bookingStatus === 'confirmed' ? '#ecfdf5' : isCancelled ? '#fef2f2' : '#fffbeb',
-                                  color: booking.bookingStatus === 'confirmed' ? '#047857' : isCancelled ? '#dc2626' : '#d97706',
-                                  border: `1px solid ${booking.bookingStatus === 'confirmed' ? '#a7f3d0' : isCancelled ? '#fecaca' : '#fde68a'}`
-                                }}
-                              >
-                                {booking.bookingStatus === 'confirmed' ? '✓ ĐÃ XÁC NHẬN' : isCancelled ? '✕ ĐÃ HỦY' : '⏳ CHỜ DUYỆT'}
-                              </span>
+                            <div>
+                              {(() => {
+                                let badge = {
+                                  text: '🔴 CHỜ THANH TOÁN',
+                                  bg: '#fff7ed',
+                                  color: '#ea580c',
+                                  border: '#ffedd5'
+                                };
 
-                              <span
-                                style={{
-                                  padding: '0.3rem 0.75rem',
-                                  borderRadius: '20px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 800,
-                                  background: booking.paymentStatus === 'paid' ? '#eff6ff' : '#f8fafc',
-                                  color: booking.paymentStatus === 'paid' ? '#2563eb' : '#64748b',
-                                  border: '1px solid #e2e8f0'
-                                }}
-                              >
-                                {booking.paymentStatus === 'paid' ? 'ĐÃ THANH TOÁN 100%' : booking.paymentStatus === 'partially_paid' ? 'ĐÃ ĐẶT CỌC' : 'CHỜ THANH TOÁN'}
-                              </span>
+                                if (uiStatus === 'cancelled') {
+                                  badge = {
+                                    text: '✕ ĐÃ HỦY',
+                                    bg: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '#fecaca'
+                                  };
+                                } else if (uiStatus === 'deposit') {
+                                  badge = {
+                                    text: '⚡ ĐÃ CỌC 50%',
+                                    bg: '#fffbeb',
+                                    color: '#d97706',
+                                    border: '#fde68a'
+                                  };
+                                } else if (uiStatus === 'confirmed') {
+                                  badge = {
+                                    text: '✓ ĐÃ XÁC NHẬN',
+                                    bg: '#ecfdf5',
+                                    color: '#047857',
+                                    border: '#a7f3d0'
+                                  };
+                                }
+
+                                return (
+                                  <span
+                                    style={{
+                                      padding: '0.35rem 0.85rem',
+                                      borderRadius: '20px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: 800,
+                                      background: badge.bg,
+                                      color: badge.color,
+                                      border: `1px solid ${badge.border}`,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.35rem'
+                                    }}
+                                  >
+                                    {badge.text}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
 
@@ -613,7 +658,7 @@ export const ProfilePage: React.FC = () => {
                               </h4>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', fontSize: '0.85rem', color: '#475569' }}>
                                 <span>
-                                  <i className="fa-solid fa-calendar-day" style={{ color: '#059669', marginRight: '0.35rem' }}></i>
+                                  <i className="fa-solid fa-calendar-days" style={{ color: '#059669', marginRight: '0.35rem' }}></i>
                                   Khởi hành: <strong>{booking.departureDate}</strong>
                                 </span>
                                 <span>
@@ -622,27 +667,173 @@ export const ProfilePage: React.FC = () => {
                                 </span>
                                 <span>
                                   <i className="fa-solid fa-credit-card" style={{ color: '#059669', marginRight: '0.35rem' }}></i>
-                                  Hình thức: <strong>{booking.paymentMethod.toUpperCase()}</strong>
+                                  Hình thức: <strong>{booking.paymentMethod === 'cash' ? 'TẠI VĂN PHÒNG' : booking.paymentMethod.toUpperCase()}</strong>
                                 </span>
                               </div>
+
+                              {booking.customerNotes && booking.customerNotes.trim() && (
+                                <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#475569', background: '#f8fafc', padding: '0.35rem 0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  <i className="fa-solid fa-note-sticky" style={{ color: '#059669' }} />
+                                  <span><strong>Yêu cầu riêng:</strong> {booking.customerNotes}</span>
+                                </div>
+                              )}
                             </div>
 
+                            {/* Financial breakdown */}
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Tổng thanh toán</div>
-                              <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#047857' }}>
-                                {formatCurrencyVND(booking.totalAmount)}
-                              </div>
+                              {uiStatus === 'deposit' ? (
+                                <div>
+                                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                    Tổng: <strong>{formatCurrencyVND(booking.totalAmount)}</strong>
+                                  </div>
+                                  <div style={{ fontSize: '0.8rem', color: '#047857', fontWeight: 700, marginTop: '0.1rem' }}>
+                                    ✓ Đã cọc 50%: {formatCurrencyVND(booking.paidAmount || Math.round(booking.totalAmount * 0.5))}
+                                  </div>
+                                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#d97706', marginTop: '0.15rem' }}>
+                                    Còn lại: {formatCurrencyVND(booking.totalAmount - (booking.paidAmount || Math.round(booking.totalAmount * 0.5)))}
+                                  </div>
+                                </div>
+                              ) : uiStatus === 'pending' ? (
+                                <div>
+                                  <div style={{ fontSize: '0.75rem', color: '#ea580c', textTransform: 'uppercase', fontWeight: 700 }}>
+                                    Chưa thanh toán
+                                  </div>
+                                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ea580c' }}>
+                                    {formatCurrencyVND(booking.totalAmount)}
+                                  </div>
+                                  <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '0.1rem' }}>
+                                    (Hoặc cọc trước 50%: {formatCurrencyVND(Math.round(booking.totalAmount * 0.5))})
+                                  </div>
+                                </div>
+                              ) : uiStatus === 'cancelled' ? (
+                                <div>
+                                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>
+                                    Đơn đã hủy
+                                  </div>
+                                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#94a3b8', textDecoration: 'line-through' }}>
+                                    {formatCurrencyVND(booking.totalAmount)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div style={{ fontSize: '0.75rem', color: '#047857', textTransform: 'uppercase', fontWeight: 700 }}>
+                                    Đã thanh toán 100%
+                                  </div>
+                                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#047857' }}>
+                                    {formatCurrencyVND(booking.totalAmount)}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          {/* Action Buttons */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '1rem', gap: '0.75rem' }}>
-                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                              Người đặt: <strong>{booking.customerName}</strong> ({booking.customerPhone})
-                            </div>
 
-                            <div style={{ display: 'flex', gap: '0.65rem' }}>
-                              {/* View E-ticket button */}
+                          {/* Action Buttons */}
+                          {/* Row 1: Customer info */}
+                          <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem', fontSize: '0.8rem', color: '#64748b' }}>
+                            Người đặt: <strong>{booking.customerName}</strong> ({booking.customerPhone})
+                          </div>
+
+                          {/* Row 2: Action buttons — always aligned right */}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '0.65rem' }}>
+                            {/* 1. Pending: Thanh Toán Ngay (blue) + Phiếu Giữ Chỗ (gray outline) */}
+                            {uiStatus === 'pending' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setPaymentModalBooking(booking)}
+                                  style={{
+                                    background: '#2563eb',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 1.15rem',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.45rem',
+                                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-qrcode" />
+                                  Thanh Toán Ngay
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedETicket(booking)}
+                                  style={{
+                                    background: '#ffffff',
+                                    color: '#475569',
+                                    border: '1.5px solid #cbd5e1',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 1rem',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.45rem'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-file-invoice" />
+                                  Phiếu Giữ Chỗ
+                                </button>
+                              </>
+                            )}
+
+                            {/* 2. Deposit: Thanh Toán Nốt 50% (orange) + Xem Vé Điện Tử (green outline) */}
+                            {uiStatus === 'deposit' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setPaymentModalBooking(booking)}
+                                  style={{
+                                    background: '#ea580c',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 1.15rem',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.45rem',
+                                    boxShadow: '0 2px 8px rgba(234, 88, 12, 0.25)'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-coins" />
+                                  Thanh Toán Nốt 50%
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedETicket(booking)}
+                                  style={{
+                                    background: '#ffffff',
+                                    color: '#047857',
+                                    border: '1.5px solid #047857',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 1rem',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.45rem'
+                                  }}
+                                >
+                                  <i className="fa-solid fa-qrcode" />
+                                  Xem Vé Điện Tử (E-Ticket)
+                                </button>
+                              </>
+                            )}
+
+                            {/* 3. Confirmed: Xem Vé Điện Tử (green solid) */}
+                            {uiStatus === 'confirmed' && (
                               <button
                                 type="button"
                                 onClick={() => setSelectedETicket(booking)}
@@ -651,41 +842,46 @@ export const ProfilePage: React.FC = () => {
                                   color: '#ffffff',
                                   border: 'none',
                                   borderRadius: '10px',
-                                  padding: '0.6rem 1.15rem',
+                                  padding: '0.6rem 1.25rem',
                                   fontSize: '0.85rem',
-                                  fontWeight: 700,
+                                  fontWeight: 800,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.45rem',
-                                  boxShadow: '0 2px 4px rgba(4, 120, 87, 0.2)'
+                                  boxShadow: '0 2px 6px rgba(4, 120, 87, 0.25)'
                                 }}
                               >
-                                <i className="fa-solid fa-qrcode"></i>
+                                <i className="fa-solid fa-qrcode" />
                                 Xem Vé Điện Tử (E-Ticket)
                               </button>
+                            )}
 
-                              {/* Cancel button if not yet cancelled */}
-                              {!isCancelled && (
-                                <button
-                                  type="button"
-                                  onClick={() => setCancellingBooking(booking)}
-                                  style={{
-                                    background: '#ffffff',
-                                    color: '#ef4444',
-                                    border: '1px solid #fecaca',
-                                    borderRadius: '10px',
-                                    padding: '0.6rem 0.95rem',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 600,
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  Hủy Tour
-                                </button>
-                              )}
-                            </div>
+                            {/* Hủy Tour — red outline, luôn cuối cùng */}
+                            {!isCancelled && (
+                              <button
+                                type="button"
+                                onClick={() => setCancellingBooking(booking)}
+                                style={{
+                                  background: '#ffffff',
+                                  color: '#dc2626',
+                                  border: '1.5px solid #fca5a5',
+                                  borderRadius: '10px',
+                                  padding: '0.6rem 0.95rem',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.4rem'
+                                }}
+                              >
+                                <i className="fa-solid fa-ban" />
+                                Hủy Tour
+                              </button>
+                            )}
                           </div>
+
 
                         </div>
                       );
@@ -811,7 +1007,7 @@ export const ProfilePage: React.FC = () => {
 
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                      Địa Chỉ Nhà / Điểm Đón Mặc Định
+                      Địa Chỉ Thường Trú / Liên Hệ
                     </label>
                     <input
                       type="text"
@@ -992,6 +1188,17 @@ export const ProfilePage: React.FC = () => {
         <ETicketModal
           booking={selectedETicket}
           onClose={() => setSelectedETicket(null)}
+        />
+      )}
+
+      {/* ================= QUICK PAYMENT MODAL ================= */}
+      {paymentModalBooking && (
+        <QuickPaymentModal
+          booking={paymentModalBooking}
+          onClose={() => setPaymentModalBooking(null)}
+          onPaymentSuccess={() => {
+            loadUserBookings();
+          }}
         />
       )}
 

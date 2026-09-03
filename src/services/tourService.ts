@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, withTimeout } from '../lib/supabaseClient';
 import { Tour, TravelStyle, TourTheme, TourTier } from '../types/tour.types';
 import { TOURS_DATA } from '../data/toursData';
 
@@ -62,6 +62,22 @@ export function mapDbTourToTour(row: any): Tour {
   const rawCode = row.code || localMatch?.code || codeFromDates || row.tour_code;
   const finalCode = rawCode || (row.sku ? `WT-${row.sku}` : `WT-${row.id?.replace(/[^\d]/g, '') || '01'}`);
 
+  const DESTINATION_NAMES: Record<string, string> = {
+    'dest-halong': 'Hạ Long',
+    'dest-sapa': 'Sapa',
+    'dest-danang': 'Đà Nẵng',
+    'dest-phuquoc': 'Phú Quốc',
+    'dest-japan': 'Nhật Bản',
+    'dest-korea': 'Hàn Quốc',
+    'dest-thailand': 'Thái Lan',
+    'dest-europe': 'Châu Âu',
+    'dest-cantho': 'Cần Thơ',
+    'dest-dalat': 'Đà Lạt',
+    'dest-nhatrang': 'Nha Trang'
+  };
+
+  const resolvedDest = (row.destination_id && DESTINATION_NAMES[row.destination_id]) || row.destination || row.short_title || row.title || 'Điểm đến nổi tiếng';
+
   return {
     id: row.id,
     slug: row.slug || undefined,
@@ -69,7 +85,7 @@ export function mapDbTourToTour(row: any): Tour {
     sku: `WT${row.id?.replace(/[^\d]/g, '') || '1000'}`,
     title: row.title || '',
     shortTitle: row.short_title || row.title || '',
-    destination: row.destination_id?.replace(/^dest-/, '').toUpperCase() || row.short_title || row.title || 'Điểm đến nổi tiếng',
+    destination: resolvedDest,
     category: row.category || 'domestic',
     travelStyle: (row.travel_style || 'package') as TravelStyle,
     theme: (row.theme || 'beach') as TourTheme,
@@ -246,18 +262,22 @@ export const tourService = {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('tours')
-        .select('*')
-        .neq('status', 'deleted')
-        .order('created_at', { ascending: false });
+      const { data, error } = await withTimeout(
+        supabase
+          .from('tours')
+          .select('*')
+          .neq('status', 'deleted')
+          .order('created_at', { ascending: false }),
+        8000,
+        'Supabase tours query timed out after 8s'
+      );
 
       if (error || !data || data.length === 0) {
         console.warn('Supabase tours fetch returned empty or error, falling back to local dataset:', error?.message);
         return cachedTours || TOURS_DATA;
       }
 
-      const mapped = data.map(row => {
+      const mapped = (data as any[]).map((row: any) => {
         const tour = mapDbTourToTour(row);
         const local = cachedTours?.find(c => c.id === tour.id);
         if (local && local.code && (!row.code || row.code === '')) {
@@ -375,5 +395,30 @@ export const tourService = {
     } catch (err: any) {
       return { success: false, error: err?.message || 'Lỗi xóa tour' };
     }
+  },
+
+  /**
+   * Get all active destinations from Supabase
+   */
+  async getAllDestinations(): Promise<any[]> {
+    if (!isSupabaseConfigured || !supabase) {
+      return [];
+    }
+    try {
+      const { data, error } = await supabase
+        .from('destinations')
+        .select('*')
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .order('is_featured', { ascending: false });
+
+      if (error || !data) {
+        return [];
+      }
+      return data;
+    } catch {
+      return [];
+    }
   }
 };
+

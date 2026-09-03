@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Tour, DepartureDate } from '../../../types/tour.types';
 import { formatCurrencyVND, getDayOfWeekVN } from '../../../utils/formatters';
 import { getRemainingSeats } from '../../../utils/inventoryManager';
@@ -9,33 +9,87 @@ interface ScheduleCalendarProps {
   onSelectDate: (date: string | null) => void;
 }
 
+/**
+ * Helper: dynamically extract Month & Year label and sortKey from any date format (YYYY-MM-DD or DD/MM/YYYY)
+ */
+function parseMonthYearFromDate(dateStr: string): { label: string; sortKey: number } {
+  if (!dateStr || typeof dateStr !== 'string') {
+    return { label: 'Tháng 9 2026', sortKey: 202609 };
+  }
+  try {
+    if (dateStr.includes('-')) {
+      const [yStr, mStr] = dateStr.split('-');
+      const year = parseInt(yStr, 10);
+      const month = parseInt(mStr, 10);
+      if (year && month) {
+        return { label: `Tháng ${month} ${year}`, sortKey: year * 100 + month };
+      }
+    } else if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        if (year && month) {
+          return { label: `Tháng ${month} ${year}`, sortKey: year * 100 + month };
+        }
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return { label: 'Tháng 9 2026', sortKey: 202609 };
+}
+
 export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   tour,
   selectedDate,
   onSelectDate
 }) => {
   const departureList = useMemo<DepartureDate[]>(() => {
-    return tour.departureDates && tour.departureDates.length > 0
+    const raw = tour.departureDates && tour.departureDates.length > 0
       ? tour.departureDates
-      : (tour.availableDates || ['12/09/2026', '19/09/2026', '26/09/2026', '10/10/2026']).map(d => ({
+      : (tour.availableDates || ['15/09/2026', '22/09/2026', '29/09/2026', '05/10/2026']).map(d => ({
           date: d,
-          seats: 5,
+          seats: 12,
           priceAdult: tour.priceAdult,
-          monthLabel: 'Tháng 9 2026',
           label: null
         }));
+
+    return raw.map(dep => {
+      const parsed = parseMonthYearFromDate(dep.date);
+      return {
+        ...dep,
+        monthLabel: parsed.label
+      };
+    });
   }, [tour]);
 
   const uniqueMonths = useMemo(() => {
-    const months = Array.from(new Set(departureList.map(d => d.monthLabel || 'Tháng 9 2026')));
-    return months.length > 0 ? months : ['Tháng 9 2026'];
+    const monthMap = new Map<string, number>();
+    departureList.forEach(d => {
+      const parsed = parseMonthYearFromDate(d.date);
+      monthMap.set(parsed.label, parsed.sortKey);
+    });
+
+    const sortedMonths = Array.from(monthMap.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(entry => entry[0]);
+
+    return sortedMonths.length > 0 ? sortedMonths : ['Tháng 9 2026'];
   }, [departureList]);
 
   const [activeMonth, setActiveMonth] = useState<string>(uniqueMonths[0]);
 
+  // Keep activeMonth in sync if uniqueMonths changes
+  useEffect(() => {
+    if (!uniqueMonths.includes(activeMonth)) {
+      setActiveMonth(uniqueMonths[0] || 'Tháng 9 2026');
+    }
+  }, [uniqueMonths, activeMonth]);
+
+  // Strictly filter departure dates that belong to the active month
   const depsToRender = useMemo(() => {
-    const current = departureList.filter(d => (d.monthLabel || 'Tháng 9 2026') === activeMonth);
-    return current.length > 0 ? current : departureList;
+    return departureList.filter(d => parseMonthYearFromDate(d.date).label === activeMonth);
   }, [departureList, activeMonth]);
 
   return (
@@ -94,12 +148,12 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           const seats = getRemainingSeats(tour.id, dep.date);
           const isSoldOut = seats <= 0;
           const dayOfWeek = dep.dayOfWeek || getDayOfWeekVN(dep.date);
-          const sku = dep.sku || `${tour.sku || 'NDSGN102-059'}-${dep.date.replace(/\//g, '')}VU-D-1`;
+          const sku = dep.sku || `${tour.sku || 'WT1001'}-${dep.date.replace(/[\/-]/g, '')}VU-D-1`;
           const priceAdult = dep.priceAdult || tour.priceAdult;
           const priceChild = dep.priceChild || Math.round(priceAdult * 0.75);
           const priceToddler = dep.priceToddler || Math.round(priceAdult * 0.5);
           const priceInfant = dep.priceInfant || 500000;
-          const singleSurcharge = dep.singleRoomSurcharge || 4950000;
+          const singleSurcharge = dep.singleRoomSurcharge || 1500000;
 
           // Outbound / Inbound dates & times
           const outbound = dep.transport?.outbound || {
@@ -110,7 +164,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
           };
 
           if (isSelected) {
-            /* EXPANDED ROW (Exact 2-Part Balanced Layout with Emerald Green Brand & Contact Info) */
+            /* EXPANDED ROW */
             return (
               <div 
                 key={dep.date} 
@@ -126,6 +180,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 {/* 1. Header Bar */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.25rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+                    {/* Ngày đi màu xanh ngọc bích */}
                     <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-forest, #047857)', background: '#ecfdf5', padding: '0.35rem 1rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)' }}>
                       {dayOfWeek}, {dep.date}
                     </span>
@@ -147,8 +202,9 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                         {dep.label}
                       </span>
                     )}
-                    <span style={{ color: '#334155', fontSize: '0.92rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <i className="fa-solid fa-ticket" style={{ color: '#94a3b8' }}></i> {sku}
+                    {/* In đậm mã tour */}
+                    <span style={{ color: '#1e293b', fontSize: '0.92rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <i className="fa-solid fa-ticket" style={{ color: 'var(--accent-forest, #047857)' }}></i> {sku}
                     </span>
                   </div>
 
@@ -161,91 +217,121 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                       border: 'none',
                       padding: '0.45rem 1.45rem',
                       borderRadius: '9999px',
-                      fontSize: '0.92rem',
+                      fontSize: '0.9rem',
                       fontWeight: 700,
                       cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)',
-                      transition: 'all 0.2s ease'
+                      boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)'
                     }}
                   >
-                    Đang chọn
+                    Đóng
                   </button>
                 </div>
 
-                {/* 2. Part 1: Phương tiện di chuyển */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '1.05rem', color: '#111827', marginBottom: '1.25rem' }}>
-                    Phương tiện di chuyển
-                  </div>
+                {/* 2. Main 2-Part Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '1.5rem' }}>
+                  
+                  {/* LEFT PART: Flight / Transport Schedule Details */}
+                  <div>
+                    <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <i className="fa-solid fa-plane-departure" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Thông tin chuyến bay &amp; Di chuyển
+                    </h4>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '1.5rem', alignItems: 'center' }}>
-                    {/* Chặng Đi */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem' }}>
-                        <span style={{ color: '#475569' }}>Ngày đi: <strong style={{ color: '#111827' }}>{outbound.date || dep.date}</strong></span>
-                        <span style={{ color: '#ea580c', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <i className="fa-solid fa-plane"></i> {outbound.flightNo}
-                        </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                      {/* Outbound Box */}
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            🛫 Chuyến đi • {outbound.date}
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{outbound.airline} ({outbound.flightNo})</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{outbound.time}</div>
+                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{outbound.from} (Khởi hành)</div>
+                          </div>
+                          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+                            <div>2h00m</div>
+                            <i className="fa-solid fa-arrow-right-long" style={{ color: '#cbd5e1', fontSize: '1.1rem' }}></i>
+                            <div>Bay thẳng</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{outbound.arriveTime}</div>
+                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{outbound.to} (Đến nơi)</div>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Flight Times & Timeline Bar */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.15rem', fontWeight: 800, color: '#111827' }}>
-                        <span>{outbound.time}</span>
-                        <span>{outbound.arriveTime}</span>
-                      </div>
-
-                      {/* Dotted Line */}
-                      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', margin: '0.2rem 0' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></div>
-                        <div style={{ flex: 1, borderBottom: '1.5px dashed #cbd5e1', margin: '0 4px' }}></div>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></div>
-                      </div>
-
-                      <div style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-forest, #047857)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                        <i className="fa-solid fa-plane-departure" style={{ fontSize: '0.8rem' }}></i> {outbound.airline}
-                      </div>
-                    </div>
-
-                    {/* Vertical Divider */}
-                    <div style={{ width: '1px', background: '#e2e8f0', height: '100%', minHeight: '90px' }}></div>
-
-                    {/* Chặng Về */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem' }}>
-                        <span style={{ color: '#475569' }}>Ngày về: <strong style={{ color: '#111827' }}>{inbound.date || dep.date}</strong></span>
-                        <span style={{ color: '#ea580c', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <i className="fa-solid fa-plane"></i> {inbound.flightNo}
-                        </span>
-                      </div>
-
-                      {/* Flight Times & Timeline Bar */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.15rem', fontWeight: 800, color: '#111827' }}>
-                        <span>{inbound.time}</span>
-                        <span>{inbound.arriveTime}</span>
-                      </div>
-
-                      {/* Dotted Line */}
-                      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', margin: '0.2rem 0' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></div>
-                        <div style={{ flex: 1, borderBottom: '1.5px dashed #cbd5e1', margin: '0 4px' }}></div>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></div>
-                      </div>
-
-                      <div style={{ textAlign: 'center', fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-forest, #047857)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                        <i className="fa-solid fa-plane-arrival" style={{ fontSize: '0.8rem' }}></i> {inbound.airline}
+                      {/* Inbound Box */}
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            🛬 Chuyến về • {inbound.date}
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{inbound.airline} ({inbound.flightNo})</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{inbound.time}</div>
+                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{inbound.from} (Khởi hành)</div>
+                          </div>
+                          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+                            <div>2h22m</div>
+                            <i className="fa-solid fa-arrow-right-long" style={{ color: '#cbd5e1', fontSize: '1.1rem' }}></i>
+                            <div>Bay thẳng</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{inbound.arriveTime}</div>
+                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{inbound.to} (Đến nơi)</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* RIGHT PART: Gathering Point & Luggage Policy */}
+                  <div>
+                    <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <i className="fa-solid fa-location-dot" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Địa điểm tập trung &amp; Hành lý
+                    </h4>
+
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', height: 'calc(100% - 2.5rem)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+                      <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Điểm đón khách:</span>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#111827', marginTop: '0.2rem' }}>
+                            Cột 12 Ga Đi Trong Nước, Sân Bay Quốc Tế Tân Sơn Nhất / Nội Bài
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.15rem' }}>
+                            (Hướng dẫn viên WebTravel cầm bảng đón trước giờ bay 2 tiếng)
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Tiêu chuẩn hành lý:</span>
+                          <div style={{ fontSize: '0.92rem', color: '#1e293b', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            <div><i className="fa-solid fa-suitcase" style={{ color: 'var(--accent-emerald, #059669)', width: '20px' }}></i> <strong>20kg</strong> Hành lý ký gửi / khách</div>
+                            <div><i className="fa-solid fa-briefcase" style={{ color: 'var(--accent-emerald, #059669)', width: '20px' }}></i> <strong>07kg</strong> Hành lý xách tay tiêu chuẩn</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '1rem', paddingTop: '0.85rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Tình trạng chỗ:</span>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: seats <= 5 ? '#e11d48' : '#047857' }}>
+                          {isSoldOut ? 'Đã hết chỗ' : `Còn ${seats} chỗ trống`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
-                {/* Divider Line */}
-                <div style={{ borderBottom: '1px solid #f1f5f9', margin: '1.5rem 0 1.25rem' }}></div>
-
-                {/* 3. Part 2: Giá chuyến đi */}
-                <div>
-                  <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '1.05rem', color: '#111827', marginBottom: '1.25rem' }}>
-                    Giá chuyến đi
-                  </div>
+                {/* 3. Detailed Price Breakdown Table */}
+                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                  <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fa-solid fa-tags" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Bảng giá tour chi tiết theo từng độ tuổi
+                  </h4>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem 3rem' }}>
                     {/* Left Column (Người lớn, Trẻ em, Trẻ nhỏ) */}
@@ -255,6 +341,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                           <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Người lớn</div>
                           <div style={{ fontSize: '0.82rem', color: '#64748b' }}>(Từ 12 tuổi trở lên)</div>
                         </div>
+                        {/* Giá màu xanh */}
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
                           {formatCurrencyVND(priceAdult)}
                         </div>
@@ -312,7 +399,6 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                     <strong>Tổng đài tư vấn: 1800 646 888 (Miễn phí 24/7).</strong> Tour không hoàn hủy sai tên, trẻ em cần giấy khai sinh bản gốc.
                   </div>
                 </div>
-
               </div>
             );
           } else {
@@ -336,7 +422,8 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 }}
               >
                 <div className="schedule-row-left" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#111827', whiteSpace: 'nowrap' }}>
+                  {/* Ngày đi đổi thành màu xanh ngọc bích */}
+                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--accent-forest, #047857)', whiteSpace: 'nowrap' }}>
                     {dayOfWeek}, {dep.date}
                   </span>
                   {dep.label && (
@@ -358,19 +445,21 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                       {dep.label}
                     </span>
                   )}
-                  <span style={{ color: '#64748b', fontSize: '0.88rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <i className="fa-solid fa-ticket" style={{ color: '#94a3b8' }}></i> {sku}
+                  {/* Mã tour in đậm rõ nét */}
+                  <span style={{ color: '#1e293b', fontSize: '0.9rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <i className="fa-solid fa-ticket" style={{ color: 'var(--accent-forest, #047857)' }}></i> {sku}
                   </span>
                 </div>
 
                 <div className="schedule-row-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
+                  {/* Giá tour đổi thành màu xanh ngọc bích */}
                   <span 
                     className="schedule-compact-price" 
                     style={{ 
                       fontFamily: 'var(--font-body, "Montserrat", sans-serif)', 
                       fontSize: '1.35rem', 
                       fontWeight: 800, 
-                      color: isSoldOut ? '#94a3b8' : '#111827', 
+                      color: isSoldOut ? '#94a3b8' : 'var(--accent-forest, #047857)', 
                       letterSpacing: '-0.01em',
                       fontVariantNumeric: 'lining-nums tabular-nums',
                       whiteSpace: 'nowrap'

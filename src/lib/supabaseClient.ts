@@ -20,3 +20,29 @@ export const supabase = isSupabaseConfigured
       }
     })
   : null;
+
+/**
+ * Bọc Promise bất kỳ bằng thời gian chờ tối đa (Timeout Guard)
+ * Giúp chống treo ứng dụng khi mạng chập chờn hoặc API bị nghẽn
+ * @param promise Tác vụ bất đồng bộ
+ * @param timeoutMs Thời gian chờ tối đa (mặc định 8000ms)
+ * @param errorMessage Thông điệp lỗi khi quá thời gian
+ */
+export async function withTimeout<T>(
+  promise: PromiseLike<T> | Promise<T>,
+  timeoutMs = 8000,
+  errorMessage = 'Yêu cầu kết nối máy chủ quá thời gian chờ (Gateway Timeout)'
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+

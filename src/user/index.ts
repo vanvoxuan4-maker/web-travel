@@ -5,6 +5,7 @@ export * from './pages/CheckoutPage';
 export * from './pages/LoginPage';
 export * from './pages/ProfilePage';
 export * from './pages/TourCatalogPage';
+export * from './pages/NotFoundPage';
 
 // User Layout & Components
 export * from './components/layout/Navbar';
