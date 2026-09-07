@@ -11,6 +11,29 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ==============================================================================
+-- 1.5. XÓA TOÀN BỘ BẢNG CŨ (GIỮ NGUYÊN profiles) - AN TOÀN KHI CHẠY LẠI
+-- ==============================================================================
+-- Xóa theo thứ tự ngược từ phụ thuộc → cha để tránh FK error
+DROP TABLE IF EXISTS public.coupon_usages            CASCADE;
+DROP TABLE IF EXISTS public.payment_transactions     CASCADE;
+DROP TABLE IF EXISTS public.bookings                 CASCADE;
+DROP TABLE IF EXISTS public.departure_dates          CASCADE;
+DROP TABLE IF EXISTS public.tour_variants            CASCADE;
+DROP TABLE IF EXISTS public.tour_images              CASCADE;
+DROP TABLE IF EXISTS public.wishlists               CASCADE;
+DROP TABLE IF EXISTS public.reviews                 CASCADE;
+DROP TABLE IF EXISTS public.notifications           CASCADE;
+DROP TABLE IF EXISTS public.subscribers             CASCADE;
+DROP TABLE IF EXISTS public.blog_posts              CASCADE;
+DROP TABLE IF EXISTS public.contact_inquiries       CASCADE;
+DROP TABLE IF EXISTS public.custom_tour_requests    CASCADE;
+DROP TABLE IF EXISTS public.coupons                 CASCADE;
+DROP TABLE IF EXISTS public.tours                   CASCADE;
+DROP TABLE IF EXISTS public.destinations            CASCADE;
+-- ⚠ KHÔNG xóa bảng profiles — giữ nguyên tài khoản & phân quyền người dùng
+-- DROP TABLE IF EXISTS public.profiles CASCADE;  <-- Bị vô hiệu hóa có chủ đích
+
+-- ==============================================================================
 -- 2. HÀM HỖ TRỢ XÁC THỰC QUYỀN HẠN (SECURITY HELPER FUNCTIONS)
 -- ==============================================================================
 -- NOTE: is_admin() phải được tạo SAU bảng profiles
@@ -149,7 +172,6 @@ CREATE TABLE IF NOT EXISTS public.tours (
     image TEXT NOT NULL,                                                                  -- Ảnh bìa chính
     gallery JSONB DEFAULT '[]'::jsonb,                                                    -- Album ảnh
     available_dates JSONB DEFAULT '[]'::jsonb,                                            -- Mảng ngày mở bán dạng chuỗi
-    departure_dates JSONB DEFAULT '[]'::jsonb,                                            -- Chi tiết từng ngày (ngày, giá, số chỗ)
     hotel_specs JSONB DEFAULT '{}'::jsonb,                                                -- Thông tin khách sạn cam kết
     highlights JSONB DEFAULT '[]'::jsonb,                                                 -- Điểm nhấn tour
     itinerary JSONB DEFAULT '[]'::jsonb,                                                  -- Lịch trình chi tiết từng ngày
@@ -268,6 +290,20 @@ CREATE TABLE IF NOT EXISTS public.coupons (
 );
 
 -- ==============================================================================
+-- 9.5. BẢNG LỊCH SỬ SỬ DỤNG MÃ GIẢM GIÁ (coupon_usages)
+-- Ghi nhận chi tiết ai đã dùng mã nào, trong đơn hàng nào, giảm bao nhiêu
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.coupon_usages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    coupon_code TEXT NOT NULL REFERENCES public.coupons(code) ON DELETE CASCADE,  -- FK đến bảng coupons
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,               -- Người dùng (NULL nếu guest)
+    booking_id UUID,                                                              -- FK sẽ được thêm sau khi tạo bảng bookings (ALTER TABLE bên dưới)
+    discount_applied NUMERIC NOT NULL DEFAULT 0 CHECK (discount_applied >= 0),   -- Số tiền thực tế được giảm
+    used_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (coupon_code, booking_id)                                              -- Mỗi booking chỉ dùng 1 coupon 1 lần
+);
+
+-- ==============================================================================
 -- 10. BẢNG ĐƠN ĐẶT TOUR (bookings)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.bookings (
@@ -343,17 +379,43 @@ CREATE TRIGGER trg_manage_seats
 -- Trigger tự động tăng / hoàn số lượt dùng coupon
 CREATE OR REPLACE FUNCTION public.fn_manage_coupon_usage()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_discount_applied NUMERIC := 0;
+    v_coupon RECORD;
 BEGIN
+    -- === KHI TẠO ĐƠN MỚI CÓ COUPON ===
     IF (TG_OP = 'INSERT' AND NEW.coupon_code IS NOT NULL) THEN
+        -- Tăng used_count trong coupons
         UPDATE public.coupons
         SET used_count = used_count + 1
         WHERE code = NEW.coupon_code;
+
+        -- Tính số tiền giảm thực tế để ghi vào coupon_usages
+        SELECT * INTO v_coupon FROM public.coupons WHERE code = NEW.coupon_code;
+        IF v_coupon IS NOT NULL THEN
+            IF v_coupon.discount_amount > 0 THEN
+                v_discount_applied := v_coupon.discount_amount;
+            ELSIF v_coupon.discount_percent > 0 THEN
+                v_discount_applied := ROUND(NEW.total_amount * v_coupon.discount_percent / 100.0, 0);
+            END IF;
+        END IF;
+
+        -- Ghi log vào coupon_usages
+        INSERT INTO public.coupon_usages (coupon_code, user_id, booking_id, discount_applied)
+        VALUES (NEW.coupon_code, NEW.user_id, NEW.id, v_discount_applied)
+        ON CONFLICT (coupon_code, booking_id) DO NOTHING;
     END IF;
 
+    -- === KHI HỦY ĐƠN (CANCEL) ĐÃ CÓ COUPON ===
     IF (TG_OP = 'UPDATE' AND OLD.booking_status != 'cancelled' AND NEW.booking_status = 'cancelled' AND OLD.coupon_code IS NOT NULL) THEN
+        -- Hoàn lại used_count
         UPDATE public.coupons
         SET used_count = GREATEST(0, used_count - 1)
         WHERE code = OLD.coupon_code;
+
+        -- Xóa log khỏi coupon_usages khi đơn bị hủy
+        DELETE FROM public.coupon_usages
+        WHERE coupon_code = OLD.coupon_code AND booking_id = OLD.id;
     END IF;
 
     RETURN NEW;
@@ -364,6 +426,13 @@ DROP TRIGGER IF EXISTS trg_manage_coupon_usage ON public.bookings;
 CREATE TRIGGER trg_manage_coupon_usage
     AFTER INSERT OR UPDATE OF booking_status ON public.bookings
     FOR EACH ROW EXECUTE PROCEDURE public.fn_manage_coupon_usage();
+
+-- Sau khi có bảng bookings, gắn FK cho coupon_usages.booking_id
+ALTER TABLE public.coupon_usages
+    DROP CONSTRAINT IF EXISTS fk_coupon_usages_booking;
+ALTER TABLE public.coupon_usages
+    ADD CONSTRAINT fk_coupon_usages_booking
+    FOREIGN KEY (booking_id) REFERENCES public.bookings(id) ON DELETE SET NULL;
 
 -- Trigger tích lũy điểm thưởng thành viên (Loyalty Points: 1 điểm mỗi 100.000 VNĐ)
 CREATE OR REPLACE FUNCTION public.fn_manage_loyalty_points()
@@ -645,6 +714,11 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_i
 CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON public.blog_posts(slug);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON public.blog_posts(status, published_at);
 
+-- Indexes cho coupon_usages
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_coupon ON public.coupon_usages(coupon_code);
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_user ON public.coupon_usages(user_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_booking ON public.coupon_usages(booking_id);
+
 -- ==============================================================================
 -- 20. CẤU HÌNH PHÂN QUYỀN ROW LEVEL SECURITY (RLS) CHUẨN BẢO MẬT
 -- ==============================================================================
@@ -655,6 +729,7 @@ ALTER TABLE public.tour_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tour_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.departure_dates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupon_usages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.custom_tour_requests ENABLE ROW LEVEL SECURITY;
@@ -716,6 +791,23 @@ CREATE POLICY "Coupons Public Read Active" ON public.coupons FOR SELECT USING (
 
 DROP POLICY IF EXISTS "Coupons Admin Manage" ON public.coupons;
 CREATE POLICY "Coupons Admin Manage" ON public.coupons FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- 7.5. Coupon Usages
+-- Customer chỉ xem lịch sử dùng coupon của chính mình; Admin/Staff xem tất cả
+DROP POLICY IF EXISTS "Coupon Usages Read Own" ON public.coupon_usages;
+CREATE POLICY "Coupon Usages Read Own" ON public.coupon_usages FOR SELECT USING (
+    (auth.uid() IS NOT NULL AND user_id = auth.uid())
+    OR public.is_admin()
+);
+
+-- Trigger (service_role) tự INSERT; không cho phép client INSERT trực tiếp
+DROP POLICY IF EXISTS "Coupon Usages System Insert" ON public.coupon_usages;
+CREATE POLICY "Coupon Usages System Insert" ON public.coupon_usages FOR INSERT WITH CHECK (
+    public.is_admin()
+);
+
+DROP POLICY IF EXISTS "Coupon Usages Admin Manage" ON public.coupon_usages;
+CREATE POLICY "Coupon Usages Admin Manage" ON public.coupon_usages FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- 8. Bookings
 DROP POLICY IF EXISTS "Bookings Insert Public" ON public.bookings;
@@ -864,7 +956,7 @@ INSERT INTO public.tours (
     id, title, short_title, code, slug, destination_id, category, travel_style, theme, type, tier,
     duration_days, duration_nights, departure_from, price_adult, price_child, price_toddler, price_infant,
     single_room_supplement, original_price, is_flash_deal, discount_percent, is_all_inclusive, seats_left,
-    badge, image, gallery, available_dates, departure_dates, hotel_specs, highlights, itinerary,
+    badge, image, gallery, available_dates, hotel_specs, highlights, itinerary,
     included, excluded, refund_policy, faqs, esg_score, lei_score, rating, reviews_count, weather_notice, status
 ) VALUES
 (
@@ -891,12 +983,6 @@ INSERT INTO public.tours (
         {"url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80", "title": "Bình minh trên biển"}
     ]'::jsonb,
     '["15/09/2026", "22/09/2026", "29/09/2026", "05/10/2026"]'::jsonb,
-    '[
-        {"date": "2026-09-15", "day": "15", "weekday": "Thứ 3", "month": "Tháng 09", "seats": 12, "price": 4590000, "status": "available"},
-        {"date": "2026-09-22", "day": "22", "weekday": "Thứ 3", "month": "Tháng 09", "seats": 8, "price": 4590000, "status": "available"},
-        {"date": "2026-09-29", "day": "29", "weekday": "Thứ 3", "month": "Tháng 09", "seats": 4, "price": 4890000, "status": "few_seats"},
-        {"date": "2026-10-05", "day": "05", "weekday": "Thứ 2", "month": "Tháng 10", "seats": 15, "price": 4590000, "status": "available"}
-    ]'::jsonb,
     '{
         "hotelName": "Du Thuyền 5 Sao Ambassador Signature",
         "roomType": "Deluxe Balcony Cabin (Ban công riêng ngắm vịnh)",
@@ -950,11 +1036,6 @@ INSERT INTO public.tours (
         {"url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", "title": "Đỉnh Fansipan"}
     ]'::jsonb,
     '["18/09/2026", "25/09/2026", "02/10/2026"]'::jsonb,
-    '[
-        {"date": "2026-09-18", "day": "18", "weekday": "Thứ 6", "month": "Tháng 09", "seats": 18, "price": 3890000, "status": "available"},
-        {"date": "2026-09-25", "day": "25", "weekday": "Thứ 6", "month": "Tháng 09", "seats": 10, "price": 3890000, "status": "available"},
-        {"date": "2026-10-02", "day": "02", "weekday": "Thứ 6", "month": "Tháng 10", "seats": 15, "price": 3890000, "status": "available"}
-    ]'::jsonb,
     '{
         "hotelName": "Hotel de la Coupole - MGallery Sapa",
         "roomType": "Classic Room View Thung Lũng Mường Hoa",
@@ -1005,11 +1086,6 @@ INSERT INTO public.tours (
         {"url": "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80", "title": "Núi Phú Sĩ"}
     ]'::jsonb,
     '["10/10/2026", "24/10/2026", "15/11/2026"]'::jsonb,
-    '[
-        {"date": "2026-10-10", "day": "10", "weekday": "Thứ 7", "month": "Tháng 10", "seats": 10, "price": 28900000, "status": "available"},
-        {"date": "2026-10-24", "day": "24", "weekday": "Thứ 7", "month": "Tháng 10", "seats": 6, "price": 28900000, "status": "available"},
-        {"date": "2026-11-15", "day": "15", "weekday": "Chủ Nhật", "month": "Tháng 11", "seats": 12, "price": 29900000, "status": "available"}
-    ]'::jsonb,
     '{
         "hotelName": "Hệ thống khách sạn 4-5 sao trung tâm Tokyo, Kyoto & Onsen Resort Phú Sĩ",
         "roomType": "Twin / Double Standard Room",
@@ -1046,8 +1122,7 @@ ON CONFLICT (id) DO UPDATE SET
     price_adult = EXCLUDED.price_adult,
     status = 'published',
     itinerary = EXCLUDED.itinerary,
-    hotel_specs = EXCLUDED.hotel_specs,
-    departure_dates = EXCLUDED.departure_dates;
+    hotel_specs = EXCLUDED.hotel_specs;
 
 -- 4. Biến Thể Gói Dịch Vụ Mẫu (tour_variants)
 INSERT INTO public.tour_variants (id, tour_id, variant_name, departure_city, hotel_star, flight_included, price_adult, price_child, price_infant, single_room_supplement, is_default, status) VALUES
@@ -1139,4 +1214,6 @@ SELECT 'Departure Dates' AS table_name, count(*) AS total_records FROM public.de
 UNION ALL
 SELECT 'Blog Posts' AS table_name, count(*) AS total_records FROM public.blog_posts
 UNION ALL
-SELECT 'Reviews' AS table_name, count(*) AS total_records FROM public.reviews;
+SELECT 'Reviews' AS table_name, count(*) AS total_records FROM public.reviews
+UNION ALL
+SELECT 'Coupon Usages' AS table_name, count(*) AS total_records FROM public.coupon_usages;

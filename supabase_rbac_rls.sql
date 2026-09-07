@@ -7,6 +7,9 @@
 -- 3. staff       : Nhân viên vận hành (xem, đối soát, duyệt đơn hàng; không sửa/xóa tour)
 -- 4. customer    : Khách hàng (chỉ truy cập và quản lý dữ liệu cá nhân của chính mình)
 -- ==============================================================================
+-- CHÚ Ý: File này cung cấp RLS hạt nhân chi tiết (granular) - chạy SAU supabase_schema.sql
+-- Cover: profiles, bookings, tours, coupons, departure_dates, coupon_usages
+-- ==============================================================================
 
 -- BƯỚC CHUẨN BỊ: Đảm bảo các cột schema cần thiết tồn tại để chống lỗi schema
 ALTER TABLE IF EXISTS public.coupons ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
@@ -240,4 +243,92 @@ USING (
   public.get_current_user_role() = 'super_admin'
 );
 
+-- ==============================================================================
+-- 5. BẢO MẬT BẢNG DEPARTURE_DATES (LỊCH KHỚI HÀNH & TỒN CHỔ)
+-- ==============================================================================
+ALTER TABLE public.departure_dates ENABLE ROW LEVEL SECURITY;
 
+-- 5.1. Xem lịch khởi hành (SELECT)
+-- Mọi người (kể cả khách vãng lai) có thể xem lịch còn sừ dụng;
+-- Staff, Admin, Super Admin xem toàn bộ kể cả sold_out
+DROP POLICY IF EXISTS "departure_dates_select_policy" ON public.departure_dates;
+CREATE POLICY "departure_dates_select_policy"
+ON public.departure_dates FOR SELECT
+TO public
+USING (
+  status IN ('available', 'few_seats', 'sold_out')
+  OR public.get_current_user_role() IN ('staff', 'admin', 'super_admin')
+);
+
+-- 5.2. Thêm lịch khởi hành mới (INSERT)
+-- Chỉ Admin và Super Admin được thêm lịch khởi hành mới
+DROP POLICY IF EXISTS "departure_dates_insert_policy" ON public.departure_dates;
+CREATE POLICY "departure_dates_insert_policy"
+ON public.departure_dates FOR INSERT
+TO authenticated
+WITH CHECK (
+  public.get_current_user_role() IN ('admin', 'super_admin')
+);
+
+-- 5.3. Cập nhật số ghế / trạng thái lịch (UPDATE)
+-- Admin, Super Admin được sửa thủ công;
+-- Trigger nội bộ (SECURITY DEFINER) tự động cập nhật khi có booking mới
+DROP POLICY IF EXISTS "departure_dates_update_policy" ON public.departure_dates;
+CREATE POLICY "departure_dates_update_policy"
+ON public.departure_dates FOR UPDATE
+TO authenticated
+USING (
+  public.get_current_user_role() IN ('admin', 'super_admin')
+)
+WITH CHECK (
+  public.get_current_user_role() IN ('admin', 'super_admin')
+);
+
+-- 5.4. Xóa lịch khởi hành (DELETE)
+-- Chỉ Super Admin mới có quyền xóa lịch đã tạo
+DROP POLICY IF EXISTS "departure_dates_delete_policy" ON public.departure_dates;
+CREATE POLICY "departure_dates_delete_policy"
+ON public.departure_dates FOR DELETE
+TO authenticated
+USING (
+  public.get_current_user_role() = 'super_admin'
+);
+
+
+-- ==============================================================================
+-- 6. BẢO MẬT BẢNG COUPON_USAGES (LỊCH SỬ SẬ DỤNG MÃ GIẢM GIÁ)
+-- ==============================================================================
+ALTER TABLE public.coupon_usages ENABLE ROW LEVEL SECURITY;
+
+-- 6.1. Xem lịch sử dùng coupon (SELECT)
+-- Customer chỉ xem usage của chính mình;
+-- Staff, Admin, Super Admin xem toàn bộ để đối soát khách hàng lạm dụng
+DROP POLICY IF EXISTS "coupon_usages_select_policy" ON public.coupon_usages;
+CREATE POLICY "coupon_usages_select_policy"
+ON public.coupon_usages FOR SELECT
+TO authenticated
+USING (
+  user_id = auth.uid()
+  OR public.get_current_user_role() IN ('staff', 'admin', 'super_admin')
+);
+
+-- 6.2. Ghi log sử dụng coupon (INSERT)
+-- Chỉ hàm nội bộ (SECURITY DEFINER trigger) và Admin mới INSERT được;
+-- Khách hàng không INSERT trực tiếp vào bảng này
+DROP POLICY IF EXISTS "coupon_usages_insert_policy" ON public.coupon_usages;
+CREATE POLICY "coupon_usages_insert_policy"
+ON public.coupon_usages FOR INSERT
+TO authenticated
+WITH CHECK (
+  public.get_current_user_role() IN ('admin', 'super_admin')
+);
+
+-- 6.3. Xóa lịch sử dùng (DELETE)
+-- Chỉ Admin và Super Admin được xóa (thường xảy ra tự động khi hủy đơn)
+DROP POLICY IF EXISTS "coupon_usages_delete_policy" ON public.coupon_usages;
+CREATE POLICY "coupon_usages_delete_policy"
+ON public.coupon_usages FOR DELETE
+TO authenticated
+USING (
+  public.get_current_user_role() IN ('admin', 'super_admin')
+);
