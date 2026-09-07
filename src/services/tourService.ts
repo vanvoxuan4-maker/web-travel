@@ -42,24 +42,45 @@ const notifyListeners = (tours: Tour[]) => {
  * Mapper: Chuyển đổi dữ liệu từ Supabase snake_case sang TypeScript camelCase
  */
 export function mapDbTourToTour(row: any): Tour {
-  const datesArr = Array.isArray(row.available_dates) ? row.available_dates : ['15/09/2026', '22/09/2026', '29/09/2026'];
-  const departureDates = Array.isArray(row.departure_dates) && row.departure_dates.length > 0
-    ? row.departure_dates
-    : datesArr.map((d: string, idx: number) => ({
-        date: d,
-        seats: 15,
-        priceAdult: Number(row.price_adult) || 0,
-        priceChild: Number(row.price_child) || Math.round((Number(row.price_adult) || 0) * 0.75),
-        priceToddler: Number(row.price_toddler) || Math.round((Number(row.price_adult) || 0) * 0.5),
-        priceInfant: Number(row.price_infant) || 500000,
-        singleRoomSurcharge: Number(row.single_room_supplement) || Math.round((Number(row.price_adult) || 0) * 0.35),
-        label: idx === 0 ? 'Chuyến Gần Nhất' : null
-      }));
+  const localMatch = TOURS_DATA.find(t => t.id === row.id || (t.slug && t.slug === row.slug));
 
-  // Resolve authentic tour code without synthesizing from slug
-  const localMatch = cachedTours?.find(t => t.id === row.id);
-  const codeFromDates = Array.isArray(row.departure_dates) && row.departure_dates[0]?.tourCode;
-  const rawCode = row.code || localMatch?.code || codeFromDates || row.tour_code;
+  // Ưu tiên departure_dates từ JOIN bảng riêng (chuẩn sau khi tách bảng)
+  // Nếu không có (offline / fallback data), build từ available_dates JSONB
+  const joinedDates = Array.isArray(row.departure_dates) && row.departure_dates.length > 0
+    ? row.departure_dates.filter((d: any) => d && d.date) // Lọc bỏ null từ JOIN
+    : null;
+
+  const departureDates = joinedDates
+    ? joinedDates.map((d: any) => ({
+        date: d.date,
+        seats: Number(d.available_seats) ?? 20,
+        priceAdult: Number(d.price_adult ?? row.price_adult) || 0,
+        priceChild: Number(d.price_child ?? row.price_child) || Math.round((Number(row.price_adult) || 0) * 0.75),
+        priceToddler: Number(d.price_toddler ?? row.price_toddler) || Math.round((Number(row.price_adult) || 0) * 0.5),
+        priceInfant: Number(d.price_infant ?? row.price_infant) || 500000,
+        singleRoomSurcharge: Number(d.single_room_surcharge ?? row.single_room_supplement) || 0,
+        label: d.label ?? null
+      }))
+    : (Array.isArray(row.available_dates) && row.available_dates.length > 0
+        ? row.available_dates.map((dt: string, idx: number) => ({
+            date: dt,
+            seats: 15,
+            priceAdult: Number(row.price_adult) || 0,
+            priceChild: Math.round((Number(row.price_adult) || 0) * 0.75),
+            priceToddler: Math.round((Number(row.price_adult) || 0) * 0.5),
+            priceInfant: 500000,
+            singleRoomSurcharge: Math.round((Number(row.price_adult) || 0) * 0.35),
+            label: idx === 0 ? 'Chuyến Gần Nhất' : null
+          }))
+        : []);
+
+  // Lấy mảng ngày string từ joinedDates hoặc available_dates JSONB
+  const datesArr = joinedDates
+    ? joinedDates.map((d: any) => d.date as string)
+    : (Array.isArray(row.available_dates) ? row.available_dates : []);
+
+  // Resolve tour code
+  const rawCode = row.code || localMatch?.code;
   const finalCode = rawCode || (row.sku ? `WT-${row.sku}` : `WT-${row.id?.replace(/[^\d]/g, '') || '01'}`);
 
   const DESTINATION_NAMES: Record<string, string> = {
@@ -179,10 +200,9 @@ export function mapDbTourToTour(row: any): Tour {
 export function mapTourToDbTour(tour: Tour): any {
   // Only use valid destination_id if matches foreign key pattern, otherwise null to avoid FK error
   const validDestinationId = (tour.destination && tour.destination.startsWith('dest-')) ? tour.destination : null;
-  const departureDatesWithMeta = (tour.departureDates || []).map(d => ({
-    ...d,
-    tourCode: tour.code
-  }));
+  const dates = (tour.departureDates && tour.departureDates.length > 0)
+    ? tour.departureDates.map(d => d.date)
+    : (tour.availableDates || []);
 
   return {
     id: tour.id,
@@ -212,8 +232,7 @@ export function mapTourToDbTour(tour: Tour): any {
     badge: tour.badge || (tour.isFlashSale ? '🔥 Flash Sale' : 'Nổi Bật'),
     image: tour.image,
     gallery: tour.gallery || [],
-    available_dates: tour.availableDates || [],
-    departure_dates: departureDatesWithMeta,
+    available_dates: dates, // Lưu mảng string ngày để tương thích với các view dùng available_dates
     hotel_specs: tour.hotelSpecs || {},
     highlights: tour.highlights || [],
     itinerary: tour.itinerary || [],
@@ -265,7 +284,13 @@ export const tourService = {
       const { data, error } = await withTimeout(
         supabase
           .from('tours')
-          .select('*')
+          .select(`
+            *,
+            departure_dates (
+              id, date, available_seats, total_seats, status,
+              price_adjustment
+            )
+          `)
           .neq('status', 'deleted')
           .order('created_at', { ascending: false }),
         8000,
@@ -310,7 +335,13 @@ export const tourService = {
     try {
       const { data, error } = await supabase
         .from('tours')
-        .select('*')
+        .select(`
+          *,
+          departure_dates (
+            id, date, available_seats, total_seats, status,
+            price_adjustment
+          )
+        `)
         .or(`id.eq.${idOrSlug},slug.eq.${idOrSlug}`)
         .limit(1)
         .maybeSingle();
@@ -345,6 +376,23 @@ export const tourService = {
         console.error('Error creating tour in Supabase:', error);
         return { success: false, error: error.message };
       }
+
+      // Sync departure_dates table
+      if (tour.departureDates && tour.departureDates.length > 0) {
+        const rows = tour.departureDates.map(d => ({
+          tour_id: tour.id,
+          date: d.date,
+          available_seats: d.seats ?? 20,
+          total_seats: Math.max(d.seats ?? 20, 20),
+          status: (d.seats <= 0) ? 'sold_out' : (d.seats <= 5 ? 'few_seats' : 'available'),
+          price_adjustment: (d.priceAdult && tour.priceAdult) ? (d.priceAdult - tour.priceAdult) : 0
+        }));
+        const { error: datesErr } = await supabase.from('departure_dates').insert(rows);
+        if (datesErr) {
+          console.warn('Error inserting departure dates into Supabase:', datesErr);
+        }
+      }
+
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Lỗi thêm tour' };
@@ -369,6 +417,24 @@ export const tourService = {
         console.error('Error updating tour in Supabase:', error);
         return { success: false, error: error.message };
       }
+
+      // Sync departure_dates table: delete old dates for this tour and re-insert
+      if (tour.departureDates && tour.departureDates.length > 0) {
+        await supabase.from('departure_dates').delete().eq('tour_id', tour.id);
+        const rows = tour.departureDates.map(d => ({
+          tour_id: tour.id,
+          date: d.date,
+          available_seats: d.seats ?? 20,
+          total_seats: Math.max(d.seats ?? 20, 20),
+          status: (d.seats <= 0) ? 'sold_out' : (d.seats <= 5 ? 'few_seats' : 'available'),
+          price_adjustment: (d.priceAdult && tour.priceAdult) ? (d.priceAdult - tour.priceAdult) : 0
+        }));
+        const { error: datesErr } = await supabase.from('departure_dates').insert(rows);
+        if (datesErr) {
+          console.warn('Error updating departure dates in Supabase:', datesErr);
+        }
+      }
+
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Lỗi cập nhật tour' };

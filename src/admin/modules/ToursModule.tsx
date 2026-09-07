@@ -5,6 +5,8 @@ import { removeVietnameseTones } from '../../utils/formatters';
 import { EditTourModal } from '../modals/EditTourModal';
 import { ManageScheduleModal } from '../modals/ManageScheduleModal';
 import { DeleteTourModal } from '../modals/DeleteTourModal';
+import { PermissionGate } from '../../auth';
+import { getTotalSeatsLeft } from '../../utils/inventoryManager';
 
 interface ToursModuleProps {
   tours: Tour[];
@@ -105,26 +107,28 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenAddTour}
-          style={{
-            padding: '0.65rem 1.25rem',
-            background: '#047857',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.45rem',
-            boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
-          }}
-        >
-          <i className="fa-solid fa-plus" /> Thêm Tour Mới
-        </button>
+        <PermissionGate permission="tour:create">
+          <button
+            type="button"
+            onClick={onOpenAddTour}
+            style={{
+              padding: '0.65rem 1.25rem',
+              background: '#047857',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+            }}
+          >
+            <i className="fa-solid fa-plus" /> Thêm Tour Mới
+          </button>
+        </PermissionGate>
       </div>
 
       {/* Filter & Search Bar */}
@@ -254,6 +258,7 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                 <th style={{ padding: '0.85rem 1rem' }}>Phân Loại</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Giá Người Lớn</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Lịch Khởi Hành</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Tồn Chỗ / Vé Còn</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Trạng Thái</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Thao Tác</th>
               </tr>
@@ -384,37 +389,149 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                       </button>
                     </td>
 
-                    {/* Cột 5: Trạng Thái Toggle */}
+                    {/* Cột 5: Tồn Chỗ / Inventory Allotment */}
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {(() => {
+                        const totalSeats = getTotalSeatsLeft(t);
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
+                            {totalSeats === 0 ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#fee2e2',
+                                  color: '#b91c1c',
+                                  border: '1px solid #fca5a5'
+                                }}
+                              >
+                                🔥 Cháy Vé (0)
+                              </span>
+                            ) : totalSeats <= 5 ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#fef3c7',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a'
+                                }}
+                              >
+                                ⚠️ Sắp Hết ({totalSeats})
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#ecfdf5',
+                                  color: '#047857',
+                                  border: '1px solid #a7f3d0'
+                                }}
+                              >
+                                🟢 Còn {totalSeats} chỗ
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSchedulingTour(t)}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#047857',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                padding: 0
+                              }}
+                              title="Bấm để xem và sửa số chỗ từng ngày khởi hành"
+                            >
+                              ⚡ Sửa tồn chỗ
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </td>
+
+                    {/* Cột 6: Trạng Thái Toggle */}
                     <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => onToggleTourActive(t.id, isActive)}
-                        style={{
-                          padding: '0.25rem 0.65rem',
-                          borderRadius: '20px',
-                          border: 'none',
-                          fontSize: '0.74rem',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          background: isActive ? '#ecfdf5' : '#f1f5f9',
-                          color: isActive ? '#047857' : '#64748b',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                        }}
-                        title={isActive ? 'Bấm để Tạm Ẩn tour' : 'Bấm để Mở Bán lại'}
+                      <PermissionGate
+                        permission="tour:toggle_active"
+                        fallback={
+                          <span
+                            style={{
+                              padding: '0.25rem 0.65rem',
+                              borderRadius: '20px',
+                              fontSize: '0.74rem',
+                              fontWeight: 800,
+                              background: isActive ? '#ecfdf5' : '#f1f5f9',
+                              color: isActive ? '#047857' : '#64748b',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              opacity: 0.85
+                            }}
+                            title="Chỉ Quản trị viên mới có quyền mở/tắt bán tour"
+                          >
+                            <span
+                              style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: isActive ? '#10b981' : '#94a3b8'
+                              }}
+                            />
+                            <span>{isActive ? 'MỞ BÁN' : 'TẠM ẨN'}</span>
+                          </span>
+                        }
                       >
-                        <span
+                        <button
+                          type="button"
+                          onClick={() => onToggleTourActive(t.id, isActive)}
                           style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            background: isActive ? '#10b981' : '#94a3b8'
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '20px',
+                            border: 'none',
+                            fontSize: '0.74rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            background: isActive ? '#ecfdf5' : '#f1f5f9',
+                            color: isActive ? '#047857' : '#64748b',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                           }}
-                        />
-                        <span>{isActive ? 'MỞ BÁN' : 'TẠM ẨN'}</span>
-                      </button>
+                          title={isActive ? 'Bấm để Tạm Ẩn tour' : 'Bấm để Mở Bán lại'}
+                        >
+                          <span
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: isActive ? '#10b981' : '#94a3b8'
+                            }}
+                          />
+                          <span>{isActive ? 'MỞ BÁN' : 'TẠM ẨN'}</span>
+                        </button>
+                      </PermissionGate>
                     </td>
 
                     {/* Cột 6: Thao Tác Gọn Gàng (Icon Action Group) */}
@@ -422,96 +539,104 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
                         
                         {/* 1. Sửa Toàn Bộ Thông Tin */}
-                        <button
-                          type="button"
-                          onClick={() => setEditingTour(t)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: '#f0fdf4',
-                            border: '1px solid #bbf7d0',
-                            color: '#047857',
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          title="Chỉnh sửa toàn bộ thông tin tour"
-                        >
-                          <i className="fa-solid fa-pen-to-square" />
-                        </button>
+                        <PermissionGate permission="tour:edit">
+                          <button
+                            type="button"
+                            onClick={() => setEditingTour(t)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              color: '#047857',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s'
+                            }}
+                            title="Chỉnh sửa toàn bộ thông tin tour"
+                          >
+                            <i className="fa-solid fa-pen-to-square" />
+                          </button>
+                        </PermissionGate>
 
                         {/* 2. Quản Lý Lịch Khởi Hành */}
-                        <button
-                          type="button"
-                          onClick={() => setSchedulingTour(t)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: '#eff6ff',
-                            border: '1px solid #bfdbfe',
-                            color: '#2563eb',
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          title="Quản lý lịch khởi hành & số chỗ còn nhận"
-                        >
-                          <i className="fa-solid fa-calendar-plus" />
-                        </button>
+                        <PermissionGate permission="tour:manage_schedule">
+                          <button
+                            type="button"
+                            onClick={() => setSchedulingTour(t)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              color: '#2563eb',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s'
+                            }}
+                            title="Quản lý lịch khởi hành & số chỗ còn nhận"
+                          >
+                            <i className="fa-solid fa-calendar-plus" />
+                          </button>
+                        </PermissionGate>
 
                         {/* 3. Đổi Giá Nhanh */}
-                        <button
-                          type="button"
-                          onClick={() => onOpenEditPrice(t)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: '#fef3c7',
-                            border: '1px solid #fde68a',
-                            color: '#d97706',
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          title="Cập nhật nhanh giá người lớn, trẻ em & phụ thu"
-                        >
-                          <i className="fa-solid fa-tags" />
-                        </button>
+                        <PermissionGate permission="tour:edit_price">
+                          <button
+                            type="button"
+                            onClick={() => onOpenEditPrice(t)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: '#fef3c7',
+                              border: '1px solid #fde68a',
+                              color: '#d97706',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s'
+                            }}
+                            title="Cập nhật nhanh giá người lớn, trẻ em & phụ thu"
+                          >
+                            <i className="fa-solid fa-tags" />
+                          </button>
+                        </PermissionGate>
 
-                        {/* 4. Xóa Tour */}
-                        <button
-                          type="button"
-                          onClick={() => setDeletingTour(t)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            background: '#fee2e2',
-                            border: '1px solid #fecaca',
-                            color: '#dc2626',
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                          }}
-                          title="Xóa tour khỏi hệ thống"
-                        >
-                          <i className="fa-solid fa-trash-can" />
-                        </button>
+                        {/* 4. Xóa Tour (Chỉ Super Admin) */}
+                        <PermissionGate permission="tour:delete">
+                          <button
+                            type="button"
+                            onClick={() => setDeletingTour(t)}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: '#fee2e2',
+                              border: '1px solid #fecaca',
+                              color: '#dc2626',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s'
+                            }}
+                            title="Xóa tour khỏi hệ thống (Chỉ Super Admin)"
+                          >
+                            <i className="fa-solid fa-trash-can" />
+                          </button>
+                        </PermissionGate>
 
                       </div>
                     </td>

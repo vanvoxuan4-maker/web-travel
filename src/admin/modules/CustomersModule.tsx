@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CustomerRecord } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
+import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
+import { exportCustomersToCSV } from '../../utils/exportUtils';
 
 interface CustomersModuleProps {
   customers: CustomerRecord[];
@@ -21,8 +23,17 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     targetRole: 'admin' | 'super_admin';
   } | null>(null);
 
+  // Filter only actual customers (exclude staff / admins who now have their own tab)
+  const pureCustomers = useMemo(() => {
+    return customers.filter((c) => c.role === 'customer');
+  }, [customers]);
+
   const handleRoleSelect = (customer: CustomerRecord, newRole: UserRole) => {
     if (newRole === customer.role) return;
+
+    if (!canAssignRole(currentUser?.role, newRole)) {
+      return;
+    }
 
     if (newRole === 'admin' || newRole === 'super_admin') {
       // High-security operation: open verification modal with re-auth
@@ -51,11 +62,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
         boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
-              Danh Sách Khách Hàng &amp; Nhân Sự (4 Cấp Độ Quyền)
+              Danh Sách Khách Hàng Thành Viên
             </h3>
             <span
               style={{
@@ -69,19 +80,40 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                 whiteSpace: 'nowrap'
               }}
             >
-              ● Dữ Liệu Thời Gian Thực ({customers.length} Tài khoản)
+              ● Dữ Liệu Khách Hàng ({pureCustomers.length} Tài khoản)
             </span>
           </div>
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-            Phân quyền đa cấp độ: 👑 Super Admin &gt; 🛡️ Quản Trị Viên &gt; 🧑‍💼 Nhân Viên &gt; 👤 Khách Hàng
+            Quản lý thông tin khách hàng, điểm tích lũy thưởng và nâng cấp tài khoản lên nhân sự
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => exportCustomersToCSV(pureCustomers)}
+          style={{
+            padding: '0.55rem 1.15rem',
+            borderRadius: '10px',
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            color: '#334155',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            transition: 'all 0.2s'
+          }}
+        >
+          <i className="fa-solid fa-file-csv" style={{ color: '#047857' }} /> Xuất Danh Sách Khách Hàng (CSV)
+        </button>
       </div>
 
-      {customers.length === 0 ? (
+      {pureCustomers.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
           <i className="fa-solid fa-users" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }}></i>
-          <p>Chưa có tài khoản nào trong hệ thống.</p>
+          <p>Chưa có tài khoản khách hàng nào trong hệ thống.</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -99,12 +131,10 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => {
+              {pureCustomers.map((c) => {
                 const isCurrentSelf =
                   c.id === currentUser?.id ||
                   c.email.toLowerCase() === currentUser?.email.toLowerCase();
-
-                const isTargetSuperAdmin = c.role === 'super_admin';
 
                 return (
                   <tr
@@ -180,7 +210,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
                     {/* Role Badges (4 Levels) */}
                     <td style={{ padding: '0.9rem 1rem', whiteSpace: 'nowrap' }}>
-                      {c.role === 'super_admin' || isCurrentSelf ? (
+                      {c.role === 'super_admin' ? (
                         <span
                           style={{
                             display: 'inline-flex',
@@ -280,7 +310,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
                     {/* Actions: Role Selector & Lock */}
                     <td style={{ padding: '0.9rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {isCurrentSelf ? (
+                      {currentUser?.role === 'staff' ? (
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          Chỉ xem
+                        </span>
+                      ) : isCurrentSelf ? (
                         <span
                           style={{
                             fontSize: '0.76rem',
@@ -297,25 +331,26 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                         >
                           <i className="fa-solid fa-shield-halved"></i> Được bảo vệ
                         </span>
-                      ) : isTargetSuperAdmin && !currentUserIsSuperAdmin ? (
+                      ) : (c.role === 'admin' || c.role === 'super_admin') && !currentUserIsSuperAdmin ? (
                         <span
                           style={{
                             fontSize: '0.76rem',
                             fontWeight: 700,
-                            color: '#92400e',
-                            background: '#fef3c7',
+                            color: c.role === 'super_admin' ? '#92400e' : '#047857',
+                            background: c.role === 'super_admin' ? '#fef3c7' : '#ecfdf5',
                             padding: '0.3rem 0.75rem',
                             borderRadius: '8px',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.35rem'
+                            gap: '0.35rem',
+                            border: '1px solid ' + (c.role === 'super_admin' ? '#fde68a' : '#a7f3d0')
                           }}
                         >
-                          <i className="fa-solid fa-lock"></i> Super Admin
+                          <i className="fa-solid fa-lock"></i> {c.role === 'super_admin' ? 'Super Admin' : 'Quản Trị Viên'}
                         </span>
                       ) : (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {/* 4-Tier Role Selector Dropdown */}
+                          {/* Role Selector Dropdown (Filtered by actor authority) */}
                           <select
                             value={c.role}
                             onChange={(e) => handleRoleSelect(c, e.target.value as UserRole)}
@@ -347,26 +382,33 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           >
                             <option value="customer">👤 Khách Hàng</option>
                             <option value="staff">🧑‍💼 Nhân Viên</option>
-                            <option value="admin">🛡️ Quản Trị Viên</option>
+                            {currentUserIsSuperAdmin && (
+                              <>
+                                <option value="admin">🛡️ Quản Trị Viên</option>
+                                <option value="super_admin">👑 Super Admin</option>
+                              </>
+                            )}
                           </select>
 
-                          {/* Toggle Lock / Unlock */}
-                          <button
-                            type="button"
-                            onClick={() => onToggleStatus(c.id, c.status)}
-                            style={{
-                              padding: '0.35rem 0.65rem',
-                              background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
-                              color: c.status === 'active' ? '#b91c1c' : '#047857',
-                              border: '1px solid ' + (c.status === 'active' ? '#fecaca' : '#a7f3d0'),
-                              borderRadius: '8px',
-                              fontSize: '0.76rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {c.status === 'active' ? 'Khóa' : 'Mở Khóa'}
-                          </button>
+                          {/* Toggle Lock / Unlock (Admin / Super Admin only) */}
+                          {hasPermission(currentUser?.role, 'customer:ban') && (
+                            <button
+                              type="button"
+                              onClick={() => onToggleStatus(c.id, c.status)}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
+                                color: c.status === 'active' ? '#b91c1c' : '#047857',
+                                border: '1px solid ' + (c.status === 'active' ? '#fecaca' : '#a7f3d0'),
+                                borderRadius: '8px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {c.status === 'active' ? 'Khóa' : 'Mở Khóa'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

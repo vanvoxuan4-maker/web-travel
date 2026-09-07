@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdminTab } from '../admin.types';
+import { PermissionGate } from '../../auth';
 
 interface AdminTopbarProps {
   activeTab: AdminTab;
@@ -29,7 +30,9 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
       case 'tours':
         return { breadcrumb: 'Kho Tour Lữ Hành', title: 'Quản Lý Sản Phẩm & Lịch Trình' };
       case 'customers':
-        return { breadcrumb: 'Khách Hàng & Nhân Sự', title: 'Hồ Sơ Khách Hàng & Phân Quyền Nhân Sự' };
+        return { breadcrumb: 'Khách Hàng Thành Viên', title: 'Hồ Sơ Khách Hàng & Điểm Thưởng' };
+      case 'staff':
+        return { breadcrumb: 'Đội Ngũ Nhân Sự', title: 'Quản Lý Cán Bộ & Phân Quyền Vận Hành' };
       case 'coupons':
         return { breadcrumb: 'Mã Khuyến Mãi', title: 'Cấu Hình Mã Khuyến Mãi' };
     }
@@ -110,49 +113,53 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
 
         {/* Quick Add Buttons */}
         {activeTab === 'tours' && (
-          <button
-            type="button"
-            onClick={onOpenAddTour}
-            style={{
-              padding: '0.55rem 1rem',
-              background: '#047857',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
-            }}
-          >
-            <i className="fa-solid fa-plus"></i> Thêm Tour Mới
-          </button>
+          <PermissionGate permission="tour:create">
+            <button
+              type="button"
+              onClick={onOpenAddTour}
+              style={{
+                padding: '0.55rem 1rem',
+                background: '#047857',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+              }}
+            >
+              <i className="fa-solid fa-plus"></i> Thêm Tour Mới
+            </button>
+          </PermissionGate>
         )}
 
         {activeTab === 'coupons' && (
-          <button
-            type="button"
-            onClick={onOpenAddCoupon}
-            style={{
-              padding: '0.55rem 1rem',
-              background: '#047857',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
-            }}
-          >
-            <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
-          </button>
+          <PermissionGate permission="coupon:create">
+            <button
+              type="button"
+              onClick={onOpenAddCoupon}
+              style={{
+                padding: '0.55rem 1rem',
+                background: '#047857',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+              }}
+            >
+              <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
+            </button>
+          </PermissionGate>
         )}
       </div>
     </header>
