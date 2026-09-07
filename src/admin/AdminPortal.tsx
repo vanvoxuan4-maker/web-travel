@@ -307,7 +307,7 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  // Handler: Add Tour
+  // Handler: Add Tour (Permission guarded)
   const handleAddTour = async (newTour: Tour) => {
     if (!hasPermission(user?.role, 'tour:create')) {
       setActionFeedback({ type: 'error', message: 'Bạn không có quyền thêm tour mới.' });
