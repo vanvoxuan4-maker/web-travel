@@ -183,7 +183,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
                     {/* Role Badges (4 Levels) */}
                     <td style={{ padding: '0.9rem 1rem', whiteSpace: 'nowrap' }}>
-                      {c.role === 'super_admin' || isCurrentSelf ? (
+                      {c.role === 'super_admin' ? (
                         <span
                           style={{
                             display: 'inline-flex',
