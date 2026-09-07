@@ -6,6 +6,7 @@ import { EditTourModal } from '../modals/EditTourModal';
 import { ManageScheduleModal } from '../modals/ManageScheduleModal';
 import { DeleteTourModal } from '../modals/DeleteTourModal';
 import { PermissionGate } from '../../auth';
+import { getTotalSeatsLeft } from '../../utils/inventoryManager';
 
 interface ToursModuleProps {
   tours: Tour[];
@@ -257,6 +258,7 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                 <th style={{ padding: '0.85rem 1rem' }}>Phân Loại</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Giá Người Lớn</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Lịch Khởi Hành</th>
+                <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Tồn Chỗ / Vé Còn</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Trạng Thái</th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Thao Tác</th>
               </tr>
@@ -387,7 +389,88 @@ export const ToursModule: React.FC<ToursModuleProps> = ({
                       </button>
                     </td>
 
-                    {/* Cột 5: Trạng Thái Toggle */}
+                    {/* Cột 5: Tồn Chỗ / Inventory Allotment */}
+                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {(() => {
+                        const totalSeats = getTotalSeatsLeft(t);
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem' }}>
+                            {totalSeats === 0 ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#fee2e2',
+                                  color: '#b91c1c',
+                                  border: '1px solid #fca5a5'
+                                }}
+                              >
+                                🔥 Cháy Vé (0)
+                              </span>
+                            ) : totalSeats <= 5 ? (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#fef3c7',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a'
+                                }}
+                              >
+                                ⚠️ Sắp Hết ({totalSeats})
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '20px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 800,
+                                  background: '#ecfdf5',
+                                  color: '#047857',
+                                  border: '1px solid #a7f3d0'
+                                }}
+                              >
+                                🟢 Còn {totalSeats} chỗ
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSchedulingTour(t)}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#047857',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                padding: 0
+                              }}
+                              title="Bấm để xem và sửa số chỗ từng ngày khởi hành"
+                            >
+                              ⚡ Sửa tồn chỗ
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </td>
+
+                    {/* Cột 6: Trạng Thái Toggle */}
                     <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
                       <PermissionGate
                         permission="tour:toggle_active"

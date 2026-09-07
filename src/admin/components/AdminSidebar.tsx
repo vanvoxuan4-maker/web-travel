@@ -9,6 +9,7 @@ interface AdminSidebarProps {
   bookingsCount: number;
   toursCount: number;
   customersCount: number;
+  staffCount?: number;
   pendingBookingsCount: number;
 }
 
@@ -18,6 +19,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   bookingsCount,
   toursCount,
   customersCount,
+  staffCount = 0,
   pendingBookingsCount
 }) => {
   const navigate = useNavigate();
@@ -206,7 +208,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </span>
           </button>
 
-          {/* 4. Khách Hàng & Nhân Sự */}
+          {/* 4. Khách Hàng Thành Viên */}
           <button
             type="button"
             onClick={() => setActiveTab('customers')}
@@ -229,10 +231,40 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <i className="fa-solid fa-users" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Khách Hàng & Nhân Sự</span>
+              <span>Khách Hàng</span>
             </div>
             <span style={{ background: '#34d399', color: '#064e3b', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
               {customersCount}
+            </span>
+          </button>
+
+          {/* 5. Đội Ngũ Nhân Sự */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('staff')}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.75rem 0.9rem',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'staff' ? '#059669' : 'transparent',
+              color: activeTab === 'staff' ? '#ffffff' : '#d1fae5',
+              fontWeight: activeTab === 'staff' ? 700 : 500,
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <i className="fa-solid fa-id-badge" style={{ width: '18px', textAlign: 'center' }}></i>
+              <span>Đội Ngũ Nhân Sự</span>
+            </div>
+            <span style={{ background: '#60a5fa', color: '#1e3a8a', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+              {staffCount}
             </span>
           </button>
 

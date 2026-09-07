@@ -6,6 +6,7 @@ import { DeleteBookingModal } from '../modals/DeleteBookingModal';
 import { ETicketModal } from '../../user/components/profile/ETicketModal';
 import { BookingPayload } from '../../services/bookingService';
 import { PermissionGate } from '../../auth';
+import { exportBookingsToCSV } from '../../utils/exportUtils';
 
 interface BookingsModuleProps {
   bookings: BookingRecord[];
@@ -130,34 +131,7 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
 
   // Export CSV Helper
   const handleExportCSV = () => {
-    if (filteredBookings.length === 0) {
-      alert('Không có dữ liệu để xuất file!');
-      return;
-    }
-
-    const headers = ['Mã Đơn', 'Khách Hàng', 'Số Điện Thoại', 'Email', 'Tour', 'Ngày Khởi Hành', 'Số Khách', 'Tổng Tiền (VNĐ)', 'Đã Thu (VNĐ)', 'Trạng Thái', 'Ngày Tạo'];
-    const rows = filteredBookings.map((b) => [
-      `"${b.bookingCode || b.id}"`,
-      `"${b.customerName}"`,
-      `"${b.phone}"`,
-      `"${b.email || ''}"`,
-      `"${b.tourTitle.replace(/"/g, '""')}"`,
-      `"${b.departureDate}"`,
-      b.paxCount,
-      b.totalAmount,
-      b.paidAmount || (b.status === 'confirmed' ? b.totalAmount : b.status === 'deposit' ? Math.round(b.totalAmount * 0.5) : 0),
-      `"${b.status === 'confirmed' ? 'Đã thanh toán 100%' : b.status === 'deposit' ? 'Đã cọc 50%' : b.status === 'pending' ? 'Chờ thanh toán' : 'Đã hủy'}"`,
-      `"${b.createdAt}"`
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,﻿' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `WebTravel_DonDatTour_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportBookingsToCSV(filteredBookings);
   };
 
   return (

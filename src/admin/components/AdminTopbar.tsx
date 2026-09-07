@@ -30,7 +30,9 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
       case 'tours':
         return { breadcrumb: 'Kho Tour Lữ Hành', title: 'Quản Lý Sản Phẩm & Lịch Trình' };
       case 'customers':
-        return { breadcrumb: 'Khách Hàng & Nhân Sự', title: 'Hồ Sơ Khách Hàng & Phân Quyền Nhân Sự' };
+        return { breadcrumb: 'Khách Hàng Thành Viên', title: 'Hồ Sơ Khách Hàng & Điểm Thưởng' };
+      case 'staff':
+        return { breadcrumb: 'Đội Ngũ Nhân Sự', title: 'Quản Lý Cán Bộ & Phân Quyền Vận Hành' };
       case 'coupons':
         return { breadcrumb: 'Mã Khuyến Mãi', title: 'Cấu Hình Mã Khuyến Mãi' };
     }

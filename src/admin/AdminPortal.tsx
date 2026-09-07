@@ -6,7 +6,7 @@ import { profileService } from '../services/profileService';
 import { couponService } from '../services/couponService';
 import { tourService } from '../services/tourService';
 import { bookingService, getBookingUiStatus } from '../services/bookingService';
-import { AdminTab, BookingRecord, CustomerRecord, CouponRecord, ActionFeedback } from './admin.types';
+import { AdminTab, BookingRecord, CustomerRecord, StaffRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
 import { useAuth, hasPermission, canAssignRole } from '../auth';
 import { AdminSidebar } from './components/AdminSidebar';
@@ -15,6 +15,7 @@ import { OverviewModule } from './modules/OverviewModule';
 import { BookingsModule } from './modules/BookingsModule';
 import { ToursModule } from './modules/ToursModule';
 import { CustomersModule } from './modules/CustomersModule';
+import { StaffModule } from './modules/StaffModule';
 import { CouponsModule } from './modules/CouponsModule';
 import { EditPriceModal } from './modals/EditPriceModal';
 import { AddTourModal } from './modals/AddTourModal';
@@ -429,11 +430,23 @@ export const AdminPortal: React.FC = () => {
       b.tourTitle.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredCustomers = customers.filter(
+  const pureCustomers = customers.filter((c) => c.role === 'customer');
+  const staffMembers = customers.filter((c) => c.role !== 'customer') as StaffRecord[];
+
+  const filteredCustomers = pureCustomers.filter(
     (c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.phone.includes(searchQuery)
+  );
+
+  const filteredStaff = staffMembers.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.phone.includes(searchQuery) ||
+      (s.employeeCode && s.employeeCode.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (s.department && s.department.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const pendingCount = bookings.filter((b) => b.status === 'pending').length;
@@ -457,7 +470,8 @@ export const AdminPortal: React.FC = () => {
         setActiveTab={setActiveTab}
         bookingsCount={bookings.length}
         toursCount={tours.length}
-        customersCount={customers.length}
+        customersCount={pureCustomers.length}
+        staffCount={staffMembers.length}
         pendingBookingsCount={pendingCount}
       />
 
@@ -529,6 +543,14 @@ export const AdminPortal: React.FC = () => {
           {activeTab === 'customers' && (
             <CustomersModule
               customers={filteredCustomers}
+              onRoleChange={handleRoleChange}
+              onToggleStatus={handleToggleCustomerStatus}
+            />
+          )}
+
+          {activeTab === 'staff' && (
+            <StaffModule
+              staff={filteredStaff}
               onRoleChange={handleRoleChange}
               onToggleStatus={handleToggleCustomerStatus}
             />

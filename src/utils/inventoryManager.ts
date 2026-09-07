@@ -242,3 +242,79 @@ export function resetInventory(): Record<string, Record<string, number>> {
   }
   return getInventoryStore();
 }
+
+/**
+ * Sync explicit seat allotment directly to Supabase
+ */
+export async function syncSeatsToSupabase(tourId: string, date: string, seats: number): Promise<boolean> {
+  const store = getInventoryStore();
+  if (!store[tourId]) store[tourId] = {};
+  store[tourId][date] = Math.max(0, seats);
+  saveInventoryStore(store);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('departure_dates')
+        .select('id')
+        .eq('tour_id', tourId)
+        .eq('date', date)
+        .maybeSingle();
+
+      if (!error && data) {
+        await supabase
+          .from('departure_dates')
+          .update({
+            available_seats: Math.max(0, seats),
+            status: seats <= 0 ? 'sold_out' : seats <= 5 ? 'few_seats' : 'available'
+          })
+          .eq('id', data.id);
+      }
+      return true;
+    } catch (err) {
+      console.warn('Could not sync seats allotment to Supabase:', err);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Fetch real-time available seats from Supabase, with local fallback
+ */
+export async function fetchSeatsFromSupabase(tourId: string, date: string): Promise<number> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('departure_dates')
+        .select('available_seats')
+        .eq('tour_id', tourId)
+        .eq('date', date)
+        .maybeSingle();
+
+      if (!error && data && typeof data.available_seats === 'number') {
+        const store = getInventoryStore();
+        if (!store[tourId]) store[tourId] = {};
+        store[tourId][date] = data.available_seats;
+        saveInventoryStore(store);
+        return data.available_seats;
+      }
+    } catch (err) {
+      console.warn('Could not fetch seats from Supabase:', err);
+    }
+  }
+
+  return getRemainingSeats(tourId, date);
+}
+
+/**
+ * Calculate total available seats left for a tour across all departures
+ */
+export function getTotalSeatsLeft(tour: any): number {
+  if (!tour) return 0;
+  if (Array.isArray(tour.departureDates) && tour.departureDates.length > 0) {
+    return tour.departureDates.reduce((sum: number, d: any) => sum + (Number(d.seats) || 0), 0);
+  }
+  return Number(tour.seatsLeft) || 15;
+}

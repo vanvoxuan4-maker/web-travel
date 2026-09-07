@@ -1,4 +1,4 @@
-export type AdminTab = 'overview' | 'bookings' | 'tours' | 'customers' | 'coupons';
+export type AdminTab = 'overview' | 'bookings' | 'tours' | 'customers' | 'staff' | 'coupons';
 
 export interface BookingRecord {
   id: string;
@@ -40,6 +40,11 @@ export interface CustomerRecord {
   role: 'super_admin' | 'admin' | 'staff' | 'customer';
   status: 'active' | 'banned' | 'deleted';
   joinedDate: string;
+}
+
+export interface StaffRecord extends CustomerRecord {
+  department?: string;
+  employeeCode?: string;
 }
 
 export interface CouponRecord {

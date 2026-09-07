@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   'customer:promote_staff': ['admin', 'super_admin'],
   'customer:promote_admin': ['super_admin'],
   'customer:promote_super_admin': ['super_admin'],
+  'staff:view': ['staff', 'admin', 'super_admin'],
+  'staff:manage': ['admin', 'super_admin'],
 
   // Promotions & Coupons
   'coupon:view': ['staff', 'admin', 'super_admin'],

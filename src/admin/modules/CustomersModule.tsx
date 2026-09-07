@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CustomerRecord } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
+import { exportCustomersToCSV } from '../../utils/exportUtils';
 
 interface CustomersModuleProps {
   customers: CustomerRecord[];
@@ -21,6 +22,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     customer: CustomerRecord;
     targetRole: 'admin' | 'super_admin';
   } | null>(null);
+
+  // Filter only actual customers (exclude staff / admins who now have their own tab)
+  const pureCustomers = useMemo(() => {
+    return customers.filter((c) => c.role === 'customer');
+  }, [customers]);
 
   const handleRoleSelect = (customer: CustomerRecord, newRole: UserRole) => {
     if (newRole === customer.role) return;
@@ -56,11 +62,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
         boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
-              Danh Sách Khách Hàng &amp; Nhân Sự (4 Cấp Độ Quyền)
+              Danh Sách Khách Hàng Thành Viên
             </h3>
             <span
               style={{
@@ -74,19 +80,40 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                 whiteSpace: 'nowrap'
               }}
             >
-              ● Dữ Liệu Thời Gian Thực ({customers.length} Tài khoản)
+              ● Dữ Liệu Khách Hàng ({pureCustomers.length} Tài khoản)
             </span>
           </div>
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-            Phân quyền đa cấp độ: 👑 Super Admin &gt; 🛡️ Quản Trị Viên &gt; 🧑‍💼 Nhân Viên &gt; 👤 Khách Hàng
+            Quản lý thông tin khách hàng, điểm tích lũy thưởng và nâng cấp tài khoản lên nhân sự
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => exportCustomersToCSV(pureCustomers)}
+          style={{
+            padding: '0.55rem 1.15rem',
+            borderRadius: '10px',
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            color: '#334155',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            transition: 'all 0.2s'
+          }}
+        >
+          <i className="fa-solid fa-file-csv" style={{ color: '#047857' }} /> Xuất Danh Sách Khách Hàng (CSV)
+        </button>
       </div>
 
-      {customers.length === 0 ? (
+      {pureCustomers.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
           <i className="fa-solid fa-users" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.5rem' }}></i>
-          <p>Chưa có tài khoản nào trong hệ thống.</p>
+          <p>Chưa có tài khoản khách hàng nào trong hệ thống.</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -104,7 +131,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => {
+              {pureCustomers.map((c) => {
                 const isCurrentSelf =
                   c.id === currentUser?.id ||
                   c.email.toLowerCase() === currentUser?.email.toLowerCase();
