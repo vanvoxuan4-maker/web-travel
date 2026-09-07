@@ -240,40 +240,4 @@ USING (
   public.get_current_user_role() = 'super_admin'
 );
 
--- ==============================================================================
--- 5. SPRINT 1: TỒN CHỖ TOUR & ALLOTMENT TỰ ĐỘNG (INVENTORY ALLOTMENT)
--- ==============================================================================
-ALTER TABLE public.tours ADD COLUMN IF NOT EXISTS total_seats INTEGER DEFAULT 25;
-ALTER TABLE public.tours ADD COLUMN IF NOT EXISTS booked_seats INTEGER DEFAULT 0;
-
--- Bảng departure_dates quản lý tồn chỗ theo từng ngày khởi hành
-CREATE TABLE IF NOT EXISTS public.departure_dates (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tour_id TEXT NOT NULL,
-  date TEXT NOT NULL,
-  available_seats INTEGER DEFAULT 15,
-  price_adult NUMERIC DEFAULT 0,
-  status TEXT DEFAULT 'available', -- 'available', 'few_seats', 'sold_out'
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT departure_dates_unique UNIQUE (tour_id, date)
-);
-
-ALTER TABLE public.departure_dates ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "departure_dates_select_policy" ON public.departure_dates;
-CREATE POLICY "departure_dates_select_policy"
-ON public.departure_dates FOR SELECT
-TO authenticated, anon
-USING (true);
-
-DROP POLICY IF EXISTS "departure_dates_manage_policy" ON public.departure_dates;
-CREATE POLICY "departure_dates_manage_policy"
-ON public.departure_dates FOR ALL
-TO authenticated
-USING (
-  public.get_current_user_role() IN ('admin', 'super_admin')
-)
-WITH CHECK (
-  public.get_current_user_role() IN ('admin', 'super_admin')
-);
 
