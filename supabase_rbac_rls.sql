@@ -8,6 +8,10 @@
 -- 4. customer    : Khách hàng (chỉ truy cập và quản lý dữ liệu cá nhân của chính mình)
 -- ==============================================================================
 
+-- BƯỚC CHUẨN BỊ: Đảm bảo các cột schema cần thiết tồn tại để chống lỗi schema
+ALTER TABLE IF EXISTS public.coupons ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE IF EXISTS public.tours ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'published';
+
 -- 0. HÀM HELPER LẤY VAI TRÒ (ROLE) CỦA USER ĐANG ĐĂNG NHẬP
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_current_user_role()
@@ -142,14 +146,14 @@ USING (
 ALTER TABLE public.tours ENABLE ROW LEVEL SECURITY;
 
 -- 3.1. Xem danh sách tour (SELECT)
--- Mọi người (kể cả khách vãng lai) có thể xem các tour đang mở bán (is_active = true)
+-- Mọi người (kể cả khách vãng lai) có thể xem các tour đang mở bán (status = 'published' hoặc khác 'hidden', 'deleted')
 -- Staff, Admin, Super Admin có thể xem toàn bộ tour kể cả tour tạm ẩn
 DROP POLICY IF EXISTS "tours_select_policy" ON public.tours;
 CREATE POLICY "tours_select_policy"
 ON public.tours FOR SELECT
 TO public
 USING (
-  is_active = true
+  status NOT IN ('hidden', 'deleted')
   OR public.get_current_user_role() IN ('staff', 'admin', 'super_admin')
 );
 
