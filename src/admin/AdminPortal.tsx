@@ -8,6 +8,7 @@ import { tourService } from '../services/tourService';
 import { bookingService, getBookingUiStatus } from '../services/bookingService';
 import { AdminTab, BookingRecord, CustomerRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
+import { useAuth, hasPermission, canAssignRole } from '../auth';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AdminTopbar } from './components/AdminTopbar';
 import { OverviewModule } from './modules/OverviewModule';
@@ -20,6 +21,7 @@ import { AddTourModal } from './modals/AddTourModal';
 import { AddCouponModal } from './modals/AddCouponModal';
 
 export const AdminPortal: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
@@ -213,6 +215,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Customer Role (Staff, Admin, Customer)
   const handleRoleChange = async (customerId: string, newRole: UserRole) => {
+    if (!canAssignRole(user?.role, newRole)) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền phân quyền vai trò này.' });
+      return;
+    }
     const result = await profileService.updateUserRole(customerId, newRole);
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật vai trò' });
@@ -225,6 +231,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Customer Ban/Unban
   const handleToggleCustomerStatus = async (customerId: string, currentStatus: 'active' | 'banned' | 'deleted') => {
+    if (!hasPermission(user?.role, 'customer:ban')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền khóa hoặc mở khóa tài khoản thành viên.' });
+      return;
+    }
     const newStatus = currentStatus === 'active' ? 'banned' : 'active';
     const result = await profileService.updateUserStatus(customerId, newStatus);
     if (!result.success) {
@@ -240,6 +250,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Booking status
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled') => {
+    if (!hasPermission(user?.role, 'booking:approve')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền duyệt hoặc cập nhật đơn hàng.' });
+      return;
+    }
     try {
       const paymentStatus = newStatus === 'confirmed' ? 'paid' : newStatus === 'deposit' ? 'partially_paid' : 'pending';
       const bookingStatus = newStatus === 'confirmed' ? 'confirmed' : newStatus === 'cancelled' ? 'cancelled' : 'pending';
@@ -259,6 +273,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Hard Delete Booking
   const handleDeleteBooking = async (bookingId: string) => {
+    if (!hasPermission(user?.role, 'booking:delete')) {
+      setActionFeedback({ type: 'error', message: 'Chỉ Quản Trị Viên mới có quyền xóa đơn hàng này.' });
+      return;
+    }
     try {
       const result = await bookingService.deleteBooking(bookingId);
       if (!result.success) {
@@ -274,6 +292,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Save Price
   const handleSavePrice = async (tourId: string, newPrice: number) => {
+    if (!hasPermission(user?.role, 'tour:edit_price')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền chỉnh sửa giá tour.' });
+      return;
+    }
     try {
       if (isSupabaseConfigured && supabase) {
         await supabase.from('tours').update({ price_adult: newPrice }).eq('id', tourId);
@@ -287,6 +309,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Add Tour
   const handleAddTour = async (newTour: Tour) => {
+    if (!hasPermission(user?.role, 'tour:create')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền thêm tour mới.' });
+      return;
+    }
     const result = await tourService.createTour(newTour);
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi thêm tour vào database' });
@@ -298,6 +324,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Full Save / Edit Tour
   const handleSaveTour = async (updatedTour: Tour) => {
+    if (!hasPermission(user?.role, 'tour:edit')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền chỉnh sửa tour.' });
+      return;
+    }
     const result = await tourService.updateTour(updatedTour);
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật tour' });
@@ -309,6 +339,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Update Schedule Dates & Capacity
   const handleUpdateSchedule = async (tourId: string, updatedDates: DepartureDate[]) => {
+    if (!hasPermission(user?.role, 'tour:manage_schedule')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền cập nhật lịch khởi hành.' });
+      return;
+    }
     const datesStr = updatedDates.map((d) => d.date);
     const totalSeats = updatedDates.reduce((sum, d) => sum + (d.seats || 0), 0);
     const targetTour = tours.find((t) => t.id === tourId);
@@ -333,6 +367,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Toggle Active / Inactive
   const handleToggleTourActive = async (tourId: string, currentStatus: boolean) => {
+    if (!hasPermission(user?.role, 'tour:toggle_active')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền mở hoặc tạm dừng bán tour.' });
+      return;
+    }
     const newStatus = !currentStatus;
     const targetTour = tours.find((t) => t.id === tourId);
     if (targetTour) {
@@ -349,8 +387,12 @@ export const AdminPortal: React.FC = () => {
     });
   };
 
-  // Handler: Delete Tour
+  // Handler: Delete Tour (Super Admin only)
   const handleDeleteTour = async (tourId: string) => {
+    if (!hasPermission(user?.role, 'tour:delete')) {
+      setActionFeedback({ type: 'error', message: 'Chỉ Super Admin mới có quyền xóa tour khỏi hệ thống!' });
+      return;
+    }
     const result = await tourService.deleteTour(tourId);
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi xóa tour' });
@@ -362,6 +404,10 @@ export const AdminPortal: React.FC = () => {
 
   // Handler: Add Coupon
   const handleAddCoupon = async (newCoupon: CouponRecord) => {
+    if (!hasPermission(user?.role, 'coupon:create')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền tạo voucher mới.' });
+      return;
+    }
     const result = await couponService.createCoupon({
       code: newCoupon.code,
       discount_amount: newCoupon.discountType === 'fixed' ? newCoupon.value : 0,

@@ -5,6 +5,7 @@ import { BookingDetailModal } from '../modals/BookingDetailModal';
 import { DeleteBookingModal } from '../modals/DeleteBookingModal';
 import { ETicketModal } from '../../user/components/profile/ETicketModal';
 import { BookingPayload } from '../../services/bookingService';
+import { PermissionGate } from '../../auth';
 
 interface BookingsModuleProps {
   bookings: BookingRecord[];
@@ -543,27 +544,29 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
 
                         {/* Xóa Cứng Vĩnh Viễn */}
                         {onDeleteBooking && (
-                          <button
-                            type="button"
-                            onClick={() => setBookingToDelete(b)}
-                            style={{
-                              padding: '0.35rem 0.55rem',
-                              borderRadius: '8px',
-                              background: '#fef2f2',
-                              border: '1px solid #fecaca',
-                              color: '#dc2626',
-                              fontSize: '0.8rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.15s ease'
-                            }}
-                            title="Xóa cứng vĩnh viễn đơn hàng này"
-                          >
-                            <i className="fa-solid fa-trash-can" />
-                          </button>
+                          <PermissionGate permission="booking:delete">
+                            <button
+                              type="button"
+                              onClick={() => setBookingToDelete(b)}
+                              style={{
+                                padding: '0.35rem 0.55rem',
+                                borderRadius: '8px',
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                color: '#dc2626',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title="Xóa cứng vĩnh viễn đơn hàng này"
+                            >
+                              <i className="fa-solid fa-trash-can" />
+                            </button>
+                          </PermissionGate>
                         )}
                       </div>
                     </td>

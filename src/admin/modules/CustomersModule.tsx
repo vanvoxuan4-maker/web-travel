@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CustomerRecord } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
+import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
 
 interface CustomersModuleProps {
@@ -23,6 +24,10 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
   const handleRoleSelect = (customer: CustomerRecord, newRole: UserRole) => {
     if (newRole === customer.role) return;
+
+    if (!canAssignRole(currentUser?.role, newRole)) {
+      return;
+    }
 
     if (newRole === 'admin' || newRole === 'super_admin') {
       // High-security operation: open verification modal with re-auth
@@ -103,8 +108,6 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                 const isCurrentSelf =
                   c.id === currentUser?.id ||
                   c.email.toLowerCase() === currentUser?.email.toLowerCase();
-
-                const isTargetSuperAdmin = c.role === 'super_admin';
 
                 return (
                   <tr
@@ -280,7 +283,11 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
                     {/* Actions: Role Selector & Lock */}
                     <td style={{ padding: '0.9rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {isCurrentSelf ? (
+                      {currentUser?.role === 'staff' ? (
+                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          Chỉ xem
+                        </span>
+                      ) : isCurrentSelf ? (
                         <span
                           style={{
                             fontSize: '0.76rem',
@@ -297,25 +304,26 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                         >
                           <i className="fa-solid fa-shield-halved"></i> Được bảo vệ
                         </span>
-                      ) : isTargetSuperAdmin && !currentUserIsSuperAdmin ? (
+                      ) : (c.role === 'admin' || c.role === 'super_admin') && !currentUserIsSuperAdmin ? (
                         <span
                           style={{
                             fontSize: '0.76rem',
                             fontWeight: 700,
-                            color: '#92400e',
-                            background: '#fef3c7',
+                            color: c.role === 'super_admin' ? '#92400e' : '#047857',
+                            background: c.role === 'super_admin' ? '#fef3c7' : '#ecfdf5',
                             padding: '0.3rem 0.75rem',
                             borderRadius: '8px',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.35rem'
+                            gap: '0.35rem',
+                            border: '1px solid ' + (c.role === 'super_admin' ? '#fde68a' : '#a7f3d0')
                           }}
                         >
-                          <i className="fa-solid fa-lock"></i> Super Admin
+                          <i className="fa-solid fa-lock"></i> {c.role === 'super_admin' ? 'Super Admin' : 'Quản Trị Viên'}
                         </span>
                       ) : (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {/* 4-Tier Role Selector Dropdown */}
+                          {/* Role Selector Dropdown (Filtered by actor authority) */}
                           <select
                             value={c.role}
                             onChange={(e) => handleRoleSelect(c, e.target.value as UserRole)}
@@ -347,26 +355,33 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           >
                             <option value="customer">👤 Khách Hàng</option>
                             <option value="staff">🧑‍💼 Nhân Viên</option>
-                            <option value="admin">🛡️ Quản Trị Viên</option>
+                            {currentUserIsSuperAdmin && (
+                              <>
+                                <option value="admin">🛡️ Quản Trị Viên</option>
+                                <option value="super_admin">👑 Super Admin</option>
+                              </>
+                            )}
                           </select>
 
-                          {/* Toggle Lock / Unlock */}
-                          <button
-                            type="button"
-                            onClick={() => onToggleStatus(c.id, c.status)}
-                            style={{
-                              padding: '0.35rem 0.65rem',
-                              background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
-                              color: c.status === 'active' ? '#b91c1c' : '#047857',
-                              border: '1px solid ' + (c.status === 'active' ? '#fecaca' : '#a7f3d0'),
-                              borderRadius: '8px',
-                              fontSize: '0.76rem',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {c.status === 'active' ? 'Khóa' : 'Mở Khóa'}
-                          </button>
+                          {/* Toggle Lock / Unlock (Admin / Super Admin only) */}
+                          {hasPermission(currentUser?.role, 'customer:ban') && (
+                            <button
+                              type="button"
+                              onClick={() => onToggleStatus(c.id, c.status)}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
+                                color: c.status === 'active' ? '#b91c1c' : '#047857',
+                                border: '1px solid ' + (c.status === 'active' ? '#fecaca' : '#a7f3d0'),
+                                borderRadius: '8px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {c.status === 'active' ? 'Khóa' : 'Mở Khóa'}
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

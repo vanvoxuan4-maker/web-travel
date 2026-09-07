@@ -242,11 +242,11 @@ const AppContent: React.FC = () => {
               }
             />
 
-            {/* Standalone Enterprise Admin Portal (Admin Guard) */}
+            {/* Standalone Enterprise Admin Portal (Admin / Staff Guard) */}
             <Route
               path="/admin"
               element={
-                <ProtectedRoute requireAdmin={true}>
+                <ProtectedRoute requiredPermission="admin:access">
                   <AdminPortal />
                 </ProtectedRoute>
               }

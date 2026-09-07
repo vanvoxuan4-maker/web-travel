@@ -1,6 +1,7 @@
 import React from 'react';
 import { CouponRecord } from '../admin.types';
 import { formatCurrencyVND } from '../../utils/formatters';
+import { PermissionGate } from '../../auth';
 
 interface CouponsModuleProps {
   coupons: CouponRecord[];
@@ -30,26 +31,28 @@ export const CouponsModule: React.FC<CouponsModuleProps> = ({
             Tạo mã giảm giá kích cầu khách đặt tour VietQR
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenAddCoupon}
-          style={{
-            padding: '0.6rem 1.25rem',
-            background: '#047857',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
-          }}
-        >
-          <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
-        </button>
+        <PermissionGate permission="coupon:create">
+          <button
+            type="button"
+            onClick={onOpenAddCoupon}
+            style={{
+              padding: '0.6rem 1.25rem',
+              background: '#047857',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+            }}
+          >
+            <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
+          </button>
+        </PermissionGate>
       </div>
 
       <div style={{ overflowX: 'auto' }}>

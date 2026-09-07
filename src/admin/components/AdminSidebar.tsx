@@ -106,10 +106,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
               <span>
                 {user?.role === 'super_admin'
-                  ? '👑 Super Admin'
+                  ? '👑 Tổng Quản Trị'
                   : user?.role === 'admin'
                   ? '🛡️ Quản Trị Viên'
-                  : '🧑‍💼 Nhân Viên'}
+                  : '🧑‍💼 Nhân Viên Vận Hành'}
               </span>
             </div>
           </div>
