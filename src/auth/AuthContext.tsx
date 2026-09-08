@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserProfile, UserRole } from './auth.types';
+import { translateAuthError } from '../utils/formValidation';
 
 export interface AuthContextType {
   user: UserProfile | null;
@@ -211,7 +212,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: translateAuthError(error.message) };
       }
 
       let authenticatedProfile: UserProfile | null = null;
@@ -290,7 +291,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (authError) {
-        return { success: false, error: authError.message };
+        return { success: false, error: translateAuthError(authError.message) };
       }
 
       if (authData.user) {

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TOURS_DATA } from '../../../data/toursData';
 import { DepartureDate } from '../../../types/tour.types';
-import { getDateDetails, deductSeats, getRemainingSeats } from '../../../utils/inventoryManager';
+import { getDateDetails, deductSeats, restoreSeats, getRemainingSeats } from '../../../utils/inventoryManager';
 import { formatCurrencyVND, getDayOfWeekVN } from '../../../utils/formatters';
 import { useAuth } from '../../../auth/useAuth';
 import { bookingService } from '../../../services/bookingService';
+import { couponService } from '../../../services/couponService';
+import { sanitizePhone, validatePhone, validateEmail } from '../../../utils/formValidation';
 
 interface BookingModalProps {
   tourId: string | null;
@@ -58,6 +60,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
   const [payOption, setPayOption] = useState<'full' | 'deposit'>('full');
   const [couponCode, setCouponCode] = useState<string>('');
   const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState<boolean>(false);
   const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
 
   // Customer details
@@ -66,6 +69,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerAddress, setCustomerAddress] = useState(user?.address || '');
   const [customerNotes, setCustomerNotes] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  const phoneValidation = validatePhone(customerPhone);
 
   // Autofill from user profile
   useEffect(() => {
@@ -80,6 +86,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
   // Booking confirmed state & VietQR
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingRef, setBookingRef] = useState<string>('');
   const [secondsRemaining, setSecondsRemaining] = useState<number>(900); // 15 mins countdown
 
@@ -145,17 +152,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
   const finalTotal = Math.max(0, rawTotal - couponDiscount);
   const dueAmount = payOption === 'deposit' ? Math.round(finalTotal * 0.5) : finalTotal;
 
-  const handleApplyCoupon = () => {
-    const code = couponCode.trim().toUpperCase();
-    if (code === 'SUMMER2026' || code === 'VIETRAVEL500') {
-      setCouponDiscount(500000);
-      setCouponMsg({ text: 'Áp dụng mã giảm 500.000 ₫ thành công!', success: true });
-    } else if (code === 'VIP1000') {
-      setCouponDiscount(1000000);
-      setCouponMsg({ text: 'Áp dụng mã VIP giảm 1.000.000 ₫ thành công!', success: true });
-    } else {
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponMsg({ text: 'Vui lòng nhập mã giảm giá.', success: false });
+      return;
+    }
+
+    setIsCheckingCoupon(true);
+    try {
+      const res = await couponService.validateCoupon(couponCode, rawTotal, user?.id);
+      if (res.valid) {
+        setCouponDiscount(res.discountAmount);
+        setCouponMsg({ text: res.message, success: true });
+      } else {
+        setCouponDiscount(0);
+        setCouponMsg({ text: res.message, success: false });
+      }
+    } catch (err) {
       setCouponDiscount(0);
-      setCouponMsg({ text: 'Mã khuyến mãi không hợp lệ hoặc đã hết hạn.', success: false });
+      setCouponMsg({ text: 'Lỗi kiểm tra mã giảm giá. Vui lòng thử lại.', success: false });
+    } finally {
+      setIsCheckingCoupon(false);
     }
   };
 
@@ -170,19 +187,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
       return;
     }
 
+    setPhoneTouched(true);
+    const phoneCheck = validatePhone(customerPhone);
+    if (!phoneCheck.isValid) {
+      alert(phoneCheck.error || 'Vui lòng nhập số điện thoại hợp lệ.');
+      return;
+    }
+
+    const emailCheck = validateEmail(customerEmail);
+    if (!emailCheck.isValid) {
+      alert(emailCheck.error || 'Vui lòng nhập email hợp lệ.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setBookingError(null);
+    let seatsDeducted = false;
 
     try {
-      const ref = 'WT-' + Math.floor(100000 + Math.random() * 900000);
+      // Standardize booking reference code: WT-YYYYMMDD-XXXXXX
+      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const ref = `WT-${todayStr}-${randHex}`;
       setBookingRef(ref);
-      deductSeats(tour.id, selectedDate, bookedPax);
 
       // Save to Database (Supabase + LocalStorage)
-      await bookingService.createBooking({
+      const res = await bookingService.createBooking({
         bookingCode: ref,
         userId: user?.id,
         tourId: tour.id,
         tourTitle: tour.title,
+        tourImage: tour.image,
         departureDate: selectedDate,
         customerName: customerName || 'Khách hàng',
         customerPhone: customerPhone || '0901234567',
@@ -191,19 +226,32 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
         customerNotes: (customerNotes || '').trim(),
         adultsCount: adults,
         childrenCount: children,
-        infantsCount: toddlers,
+        toddlersCount: toddlers,
+        infantsCount: infants,
         singleRoomsCount: singleRoomChoice === 'yes' ? 1 : 0,
         totalAmount: finalTotal,
         paidAmount: 0,
         couponCode: couponDiscount > 0 ? couponCode : undefined,
+        couponDiscount: couponDiscount > 0 ? couponDiscount : 0,
         paymentMethod: 'vietqr',
         paymentStatus: 'pending',
         bookingStatus: 'pending'
       });
 
-      setIsSuccess(true);
+      if (res.success) {
+        // Only deduct seats when booking was successfully saved
+        deductSeats(tour.id, selectedDate, bookedPax);
+        seatsDeducted = true;
+        setIsSuccess(true);
+      } else {
+        setBookingError(res.error || 'Không thể tạo đơn đặt tour. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+      }
     } catch (err) {
       console.error('Lỗi khi đặt tour từ Modal:', err);
+      if (seatsDeducted) {
+        restoreSeats(tour.id, selectedDate, bookedPax);
+      }
+      setBookingError('Đã xảy ra sự cố khi tạo đơn đặt tour. Vui lòng thử lại sau.');
     } finally {
       setIsSubmitting(false);
     }
@@ -703,14 +751,46 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                         />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label><i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                          <label style={{ margin: 0 }}><i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *</label>
+                          {customerPhone.length > 0 && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: phoneValidation.isValid ? '#059669' : '#dc2626' }}>
+                              {customerPhone.length}/10 số
+                            </span>
+                          )}
+                        </div>
                         <input 
                           type="tel" 
                           required 
-                          placeholder="0901 234 567" 
+                          placeholder="0901234567" 
                           value={customerPhone} 
-                          onChange={(e) => setCustomerPhone(e.target.value)} 
+                          maxLength={10}
+                          onChange={(e) => {
+                            setCustomerPhone(sanitizePhone(e.target.value));
+                            setPhoneTouched(true);
+                          }}
+                          onBlur={() => setPhoneTouched(true)}
+                          style={{
+                            borderColor: phoneTouched && customerPhone.length > 0
+                              ? phoneValidation.isValid ? '#10b981' : '#ef4444'
+                              : undefined,
+                            background: phoneTouched && customerPhone.length > 0 && !phoneValidation.isValid ? '#fef2f2' : undefined
+                          }}
                         />
+                        {phoneTouched && customerPhone.length > 0 && (
+                          <div style={{
+                            fontSize: '0.74rem',
+                            marginTop: '0.3rem',
+                            color: phoneValidation.isValid ? '#059669' : '#dc2626',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}>
+                            <i className={`fa-solid ${phoneValidation.isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+                            <span>{phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -806,9 +886,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                         </div>
                       )}
                       {couponDiscount > 0 && (
-                        <div className="breakdown-row discount-row">
-                          <span className="label"><i className="fa-solid fa-tag"></i> Mã giảm giá:</span>
-                          <span className="val">-{formatCurrencyVND(couponDiscount)}</span>
+                        <div className="breakdown-row" style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.45rem', marginTop: '0.45rem' }}>
+                          <span className="label" style={{ color: '#475569', fontWeight: 600 }}>Tổng tiền tạm tính:</span>
+                          <span className="val" style={{ color: '#475569', fontWeight: 600 }}>{formatCurrencyVND(rawTotal)}</span>
+                        </div>
+                      )}
+                      {couponDiscount > 0 && (
+                        <div className="breakdown-row discount-row" style={{ color: '#047857', fontWeight: 700 }}>
+                          <span className="label"><i className="fa-solid fa-tag"></i> Mã giảm giá ({couponCode.toUpperCase()}):</span>
+                          <span className="val" style={{ fontWeight: 800 }}>-{formatCurrencyVND(couponDiscount)}</span>
                         </div>
                       )}
                     </div>
@@ -827,9 +913,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                           type="button" 
                           className="btn-secondary" 
                           onClick={handleApplyCoupon}
-                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap' }}
+                          disabled={isCheckingCoupon}
+                          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', opacity: isCheckingCoupon ? 0.7 : 1 }}
                         >
-                          Áp Dụng
+                          {isCheckingCoupon ? 'Đang kiểm...' : 'Áp Dụng'}
                         </button>
                       </div>
                       {couponMsg && (
@@ -841,12 +928,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
 
                     {/* Total Price Summary Box */}
                     <div className="final-total-wrap">
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>TỔNG THANH TOÁN:</div>
-                      <div className="final-price-num" style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--accent-forest)', margin: '0.2rem 0' }}>
-                        {formatCurrencyVND(finalTotal)}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>TỔNG THANH TOÁN:</div>
+                        {couponDiscount > 0 && (
+                          <span style={{ background: '#ecfdf5', color: '#047857', fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                            <i className="fa-solid fa-gift"></i> Tiết kiệm {formatCurrencyVND(couponDiscount)}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', margin: '0.2rem 0' }}>
+                        <div className="final-price-num" style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--accent-forest)' }}>
+                          {formatCurrencyVND(finalTotal)}
+                        </div>
+                        {couponDiscount > 0 && (
+                          <div style={{ fontSize: '1.1rem', color: '#94a3b8', textDecoration: 'line-through', fontWeight: 600 }}>
+                            {formatCurrencyVND(rawTotal)}
+                          </div>
+                        )}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--accent-forest)', fontWeight: 600 }}>
-                        <i className="fa-solid fa-circle-check"></i> Đã bao gồm 100% Thuế VAT & Phí tham quan
+                        <i className="fa-solid fa-circle-check"></i> Đã bao gồm 100% Thuế VAT &amp; Phí tham quan
                       </div>
                     </div>
 
@@ -877,14 +978,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                       </div>
                     </div>
 
+                    {/* Error message if booking creation fails */}
+                    {bookingError && (
+                      <div style={{ margin: '0.75rem 0', padding: '0.75rem', background: '#fef2f2', border: '1px solid #f87171', borderRadius: 'var(--radius-sm)', color: '#b91c1c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <i className="fa-solid fa-triangle-exclamation"></i>
+                        <span>{bookingError}</span>
+                      </div>
+                    )}
+
                     {/* Submit Button */}
                     <button 
                       type="submit" 
-                      disabled={isSoldOut || isSeatExceeded || bookedPax === 0}
+                      disabled={isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting}
                       className="btn-primary w-full" 
-                      style={{ padding: '0.95rem', fontSize: '1.05rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', width: '100%', justifyContent: 'center', boxShadow: '0 10px 25px rgba(5,150,105,0.35)', cursor: (isSoldOut || isSeatExceeded || bookedPax === 0) ? 'not-allowed' : 'pointer' }}
+                      style={{ padding: '0.95rem', fontSize: '1.05rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', width: '100%', justifyContent: 'center', boxShadow: '0 10px 25px rgba(5,150,105,0.35)', cursor: (isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting) ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.75 : 1 }}
                     >
-                      <i className="fa-solid fa-lock"></i> {isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}
+                      <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-lock"}></i> {isSubmitting ? 'Đang Xử Lý Đơn...' : isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}
                     </button>
 
                     <div style={{ textAlign: 'center', margin: '0.85rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>

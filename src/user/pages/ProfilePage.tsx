@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/useAuth';
 import { bookingService, BookingPayload, getBookingUiStatus } from '../../services/bookingService';
 import { profileService } from '../../services/profileService';
 import { formatCurrencyVND } from '../../utils/formatters';
+import { sanitizePhone, validatePhone } from '../../utils/formValidation';
 import { ETicketModal } from '../components/profile/ETicketModal';
 import { QuickPaymentModal } from '../components/profile/QuickPaymentModal';
 import { Link } from 'react-router-dom';
@@ -82,6 +83,15 @@ export const ProfilePage: React.FC = () => {
     setIsSavingProfile(true);
     setSaveSuccessMsg('');
     setSaveErrorMsg('');
+
+    if (editPhone.trim()) {
+      const phoneCheck = validatePhone(editPhone.trim());
+      if (!phoneCheck.isValid) {
+        setSaveErrorMsg(phoneCheck.error || 'Số điện thoại không hợp lệ.');
+        setIsSavingProfile(false);
+        return;
+      }
+    }
 
     try {
       const res = await profileService.updateUserProfile(user.id, {
@@ -966,14 +976,22 @@ export const ProfilePage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                      Số Điện Thoại Liên Hệ
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155', margin: 0 }}>
+                        Số Điện Thoại Liên Hệ
+                      </label>
+                      {editPhone.length > 0 && (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: editPhone.length === 10 ? '#059669' : '#64748b' }}>
+                          {editPhone.length}/10 số
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="tel"
                       value={editPhone}
-                      onChange={(e) => setEditPhone(e.target.value)}
-                      placeholder="Ví dụ: 0912 345 678"
+                      maxLength={10}
+                      onChange={(e) => setEditPhone(sanitizePhone(e.target.value))}
+                      placeholder="Ví dụ: 0912345678"
                       style={{
                         width: '100%',
                         padding: '0.75rem 1rem',

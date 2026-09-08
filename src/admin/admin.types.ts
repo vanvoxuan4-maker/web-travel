@@ -28,6 +28,7 @@ export interface BookingRecord {
   couponDiscount?: number;
   status: 'confirmed' | 'deposit' | 'pending' | 'cancelled';
   createdAt: string;
+  rawCreatedAt?: string;
 }
 
 export interface CustomerRecord {

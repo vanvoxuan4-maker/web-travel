@@ -113,7 +113,8 @@ export const AdminPortal: React.FC = () => {
               couponCode: b.coupon_code,
               couponDiscount: b.coupon_discount,
               status: uiStatus,
-              createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay'
+              createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay',
+              rawCreatedAt: b.created_at || new Date().toISOString()
             };
           });
           setBookings(mappedBookings);
@@ -166,7 +167,8 @@ export const AdminPortal: React.FC = () => {
                   couponCode: b.couponCode,
                   couponDiscount: b.couponDiscount,
                   status: uiStatus,
-                  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'
+                  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay',
+                  rawCreatedAt: b.createdAt || new Date().toISOString()
                 };
               }));
             }
@@ -524,6 +526,7 @@ export const AdminPortal: React.FC = () => {
               customersCount={customers.length}
               onNavigateToBookings={() => setActiveTab('bookings')}
               onApproveBooking={(id) => handleStatusChange(id, 'confirmed')}
+              onConfirmFullPayment={(id) => handleStatusChange(id, 'confirmed')}
             />
           )}
 

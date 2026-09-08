@@ -8,6 +8,7 @@ import { formatCurrencyVND, getDayOfWeekVN } from '../../utils/formatters';
 import { bookingService, PaymentMethod } from '../../services/bookingService';
 import { couponService } from '../../services/couponService';
 import { useAuth } from '../../auth/useAuth';
+import { sanitizePhone, validatePhone } from '../../utils/formValidation';
 
 export const CheckoutPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -187,7 +188,7 @@ export const CheckoutPage: React.FC = () => {
 
     setIsCheckingCoupon(true);
     try {
-      const res = await couponService.validateCoupon(couponCode, rawTotal);
+      const res = await couponService.validateCoupon(couponCode, rawTotal, user?.id);
       if (res.valid) {
         setCouponDiscount(res.discountAmount);
         setCouponMsg({ text: res.message, success: true });
@@ -211,12 +212,9 @@ export const CheckoutPage: React.FC = () => {
       errors.name = 'Vui lòng nhập họ và tên đầy đủ (tối thiểu 2 ký tự).';
     }
 
-    const phoneClean = customerPhone.replace(/\s+/g, '');
-    const phoneRegex = /(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/;
-    if (!phoneClean) {
-      errors.phone = 'Vui lòng nhập số điện thoại liên hệ.';
-    } else if (phoneClean.length < 10 || !phoneRegex.test(phoneClean)) {
-      errors.phone = 'Số điện thoại không hợp lệ (cần 10 chữ số).';
+    const phoneCheck = validatePhone(customerPhone);
+    if (!phoneCheck.isValid) {
+      errors.phone = phoneCheck.error || 'Số điện thoại không hợp lệ.';
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -264,9 +262,6 @@ export const CheckoutPage: React.FC = () => {
       const ref = `WT-${todayStr}-${randHex}`;
       setBookingRef(ref);
 
-      // Deduct seats in inventory manager & Supabase
-      deductSeats(tour.id, selectedDate, bookedPax);
-
       // Save to Database (Supabase + LocalStorage)
       const res = await bookingService.createBooking({
         bookingCode: ref,
@@ -295,6 +290,8 @@ export const CheckoutPage: React.FC = () => {
       });
 
       if (res.success) {
+        // Deduct seats in inventory manager & Supabase only after successful booking
+        deductSeats(tour.id, selectedDate, bookedPax);
         setIsSuccess(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -984,16 +981,25 @@ export const CheckoutPage: React.FC = () => {
                         )}
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.3rem', display: 'block' }}>
-                          <i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *
-                        </label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155', margin: 0 }}>
+                            <i className="fa-solid fa-phone"></i> Số Điện Thoại (Zalo) *
+                          </label>
+                          {customerPhone.length > 0 && (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: customerPhone.length === 10 ? '#059669' : '#64748b' }}>
+                              {customerPhone.length}/10 số
+                            </span>
+                          )}
+                        </div>
                         <input 
                           type="tel" 
                           required 
-                          placeholder="0901 234 567" 
+                          placeholder="0901234567" 
                           value={customerPhone} 
+                          maxLength={10}
                           onChange={(e) => {
-                            setCustomerPhone(e.target.value);
+                            const clean = sanitizePhone(e.target.value);
+                            setCustomerPhone(clean);
                             if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: undefined }));
                           }} 
                           style={{ 
@@ -1282,9 +1288,15 @@ export const CheckoutPage: React.FC = () => {
                         </div>
                       )}
                       {couponDiscount > 0 && (
-                        <div className="breakdown-row discount-row">
-                          <span className="label"><i className="fa-solid fa-tag"></i> Mã giảm giá:</span>
-                          <span className="val">-{formatCurrencyVND(couponDiscount)}</span>
+                        <div className="breakdown-row" style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '0.45rem', marginTop: '0.45rem' }}>
+                          <span className="label" style={{ color: '#475569', fontWeight: 600 }}>Tổng tiền tạm tính:</span>
+                          <span className="val" style={{ color: '#475569', fontWeight: 600 }}>{formatCurrencyVND(rawTotal)}</span>
+                        </div>
+                      )}
+                      {couponDiscount > 0 && (
+                        <div className="breakdown-row discount-row" style={{ color: '#047857', fontWeight: 700 }}>
+                          <span className="label"><i className="fa-solid fa-tag"></i> Mã giảm giá ({couponCode.toUpperCase()}):</span>
+                          <span className="val" style={{ fontWeight: 800 }}>-{formatCurrencyVND(couponDiscount)}</span>
                         </div>
                       )}
                     </div>
@@ -1318,9 +1330,23 @@ export const CheckoutPage: React.FC = () => {
 
                     {/* Total Price Summary Box */}
                     <div className="final-total-wrap">
-                      <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>TỔNG THANH TOÁN:</div>
-                      <div className="final-price-num" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-forest)', margin: '0.2rem 0' }}>
-                        {formatCurrencyVND(finalTotal)}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>TỔNG THANH TOÁN:</div>
+                        {couponDiscount > 0 && (
+                          <span style={{ background: '#ecfdf5', color: '#047857', fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                            <i className="fa-solid fa-gift"></i> Tiết kiệm {formatCurrencyVND(couponDiscount)}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.65rem', margin: '0.2rem 0' }}>
+                        <div className="final-price-num" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-forest)' }}>
+                          {formatCurrencyVND(finalTotal)}
+                        </div>
+                        {couponDiscount > 0 && (
+                          <div style={{ fontSize: '1.15rem', color: '#94a3b8', textDecoration: 'line-through', fontWeight: 600 }}>
+                            {formatCurrencyVND(rawTotal)}
+                          </div>
+                        )}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--accent-forest)', fontWeight: 600 }}>
                         <i className="fa-solid fa-circle-check"></i> Đã bao gồm 100% Thuế VAT &amp; Phí tham quan
