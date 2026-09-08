@@ -381,40 +381,59 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Error Message Box — handles both regular errors and locked account notices */}
-          {errorMsg && (
-            // Detect if this is a locked/banned account message to render a richer notice
-            errorMsg.includes('bị tạm khóa') || errorMsg.includes('bị xóa') || errorMsg.includes('ngưng hoạt động') ? (
-              // Rich notice for locked account — no sign-out button (user not logged in successfully)
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-                  border: '1.5px solid #fca5a5',
-                  borderRadius: '14px',
-                  padding: '1.1rem 1.25rem',
-                  marginBottom: '1.25rem',
-                  animation: 'fadeIn 0.2s'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: '0.5rem' }}>
-                  <i className="fa-solid fa-lock" style={{ color: '#dc2626', fontSize: '1rem' }} />
-                  <span>Tài Khoản Tạm Thời Bị Khóa</span>
-                </div>
-                <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.83rem', lineHeight: 1.55, color: '#7f1d1d' }}>
-                  {errorMsg}
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#991b1b' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <i className="fa-solid fa-phone" style={{ color: '#dc2626', width: '14px' }} />
-                    <span>Hotline hỗ trợ: <a href="tel:19001234" style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>1900 1234</a></span>
+          {errorMsg && (() => {
+            const isSuspendedNotice =
+              errorMsg.includes('bị tạm khóa') ||
+              errorMsg.includes('bị xóa') ||
+              errorMsg.includes('ngưng hoạt động') ||
+              errorMsg.includes('tạm đình chỉ') ||
+              errorMsg.includes('vô hiệu hóa');
+
+            if (isSuspendedNotice) {
+              const isStaffAdmin = errorMsg.includes('nhân viên') || errorMsg.includes('quản trị');
+              return (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                    border: '1.5px solid #fca5a5',
+                    borderRadius: '14px',
+                    padding: '1.1rem 1.25rem',
+                    marginBottom: '1.25rem',
+                    animation: 'fadeIn 0.2s'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: '0.5rem' }}>
+                    <i className={isStaffAdmin ? 'fa-solid fa-shield-halved' : 'fa-solid fa-lock'} style={{ color: '#dc2626', fontSize: '1rem' }} />
+                    <span>{isStaffAdmin ? 'Quyền Quản Trị / Nhân Viên Bị Đình Chỉ' : 'Tài Khoản Tạm Thời Bị Khóa'}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <i className="fa-solid fa-envelope" style={{ color: '#dc2626', width: '14px' }} />
-                    <span>Email: <a href="mailto:hotro@webtravel.vn" style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>hotro@webtravel.vn</a></span>
+                  <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.83rem', lineHeight: 1.55, color: '#7f1d1d' }}>
+                    {errorMsg}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#991b1b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-phone" style={{ color: '#dc2626', width: '14px' }} />
+                      <span>
+                        {isStaffAdmin ? 'Hotline IT Support / Nội Bộ: ' : 'Hotline hỗ trợ: '}
+                        <a href={isStaffAdmin ? 'tel:02438889999' : 'tel:19001234'} style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>
+                          {isStaffAdmin ? '024 3888 9999 (Máy lẻ 101)' : '1900 1234'}
+                        </a>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-envelope" style={{ color: '#dc2626', width: '14px' }} />
+                      <span>
+                        {isStaffAdmin ? 'Email An Ninh Nội Bộ: ' : 'Email: '}
+                        <a href={isStaffAdmin ? 'mailto:admin-security@webtravel.vn' : 'mailto:hotro@webtravel.vn'} style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>
+                          {isStaffAdmin ? 'admin-security@webtravel.vn' : 'hotro@webtravel.vn'}
+                        </a>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              // Standard error box for other errors (wrong password, network, etc.)
+              );
+            }
+
+            return (
               <div
                 style={{
                   background: '#fef2f2',
@@ -433,8 +452,8 @@ export const LoginPage: React.FC = () => {
                 <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '1rem' }}></i>
                 <span>{errorMsg}</span>
               </div>
-            )
-          )}
+            );
+          })()}
 
           {/* Success Message Box */}
           {successMsg && (

@@ -1,18 +1,25 @@
 import React from 'react';
 import { UserProfile } from './auth.types';
+import { ROLE_LABELS, ROLE_BADGE_STYLES } from './permissions';
 
 interface AccountSuspendedScreenProps {
   user: UserProfile;
   onSignOut: () => Promise<void> | void;
   reason?: string;
+  userContext?: 'customer' | 'staff_admin';
 }
 
 export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
   user,
   onSignOut,
-  reason
+  reason,
+  userContext
 }) => {
   const [isSigningOut, setIsSigningOut] = React.useState(false);
+
+  const isStaffAdmin =
+    userContext === 'staff_admin' ||
+    (!userContext && (user.role === 'staff' || user.role === 'admin' || user.role === 'super_admin'));
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -28,11 +35,18 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
     }
   };
 
-
-
   const defaultReason =
     reason ||
-    'Tài khoản của bạn đã bị tạm khóa do vi phạm Quy chế hoạt động và Điều khoản bảo mật của WebTravel, hoặc có yêu cầu hạn chế từ Quản trị viên hệ thống.';
+    (isStaffAdmin
+      ? 'Tài khoản nội bộ của bạn đã bị tạm đình chỉ hoặc thu hồi quyền truy cập bảng điều khiển do vi phạm quy định bảo mật hệ thống, hoặc có quyết định điều chỉnh quyền từ Quản trị viên cấp cao (Super Admin).'
+      : 'Tài khoản của bạn đã bị tạm khóa do vi phạm Quy chế hoạt động và Điều khoản bảo mật của WebTravel, hoặc có yêu cầu hạn chế từ Quản trị viên hệ thống.');
+
+  const roleLabel = ROLE_LABELS[user.role] || user.role;
+  const roleBadgeStyle = ROLE_BADGE_STYLES[user.role] || {
+    bg: '#eff6ff',
+    color: '#1d4ed8',
+    border: '#93c5fd'
+  };
 
   return (
     <div
@@ -57,7 +71,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
         aria-labelledby="suspended-title"
         style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '490px',
           background: '#ffffff',
           borderRadius: '12px',
           border: '1px solid #e2e8f0',
@@ -67,7 +81,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
           boxSizing: 'border-box'
         }}
       >
-        {/* Warning Lock Icon */}
+        {/* Warning Icon */}
         <div
           style={{
             width: '56px',
@@ -83,7 +97,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
             fontSize: '1.5rem'
           }}
         >
-          <i className="fa-solid fa-lock" />
+          <i className={isStaffAdmin ? 'fa-solid fa-shield-halved' : 'fa-solid fa-lock'} />
         </div>
 
         {/* Status Tag */}
@@ -113,7 +127,9 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
               display: 'inline-block'
             }}
           />
-          Trạng Thái: Tài Khoản Đã Bị Khóa
+          {isStaffAdmin
+            ? 'Trạng Thái: Đình Chỉ Quyền Vận Hành'
+            : 'Trạng Thái: Tài Khoản Đã Bị Khóa'}
         </div>
 
         {/* Heading */}
@@ -128,10 +144,12 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
             lineHeight: 1.3
           }}
         >
-          Quyền Truy Cập Tạm Thời Bị Đình Chỉ
+          {isStaffAdmin
+            ? 'Đình Chỉ Quyền Quản Trị & Vận Hành Hệ Thống'
+            : 'Quyền Truy Cập Tạm Thời Bị Đình Chỉ'}
         </h2>
 
-        {/* User Info Chip */}
+        {/* User Info Chip with Role Badge */}
         <div
           style={{
             background: '#f8fafc',
@@ -150,8 +168,24 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
             whiteSpace: 'nowrap'
           }}
         >
-          <i className="fa-solid fa-user" style={{ color: '#64748b', fontSize: '0.8rem' }} />
+          <i
+            className={isStaffAdmin ? 'fa-solid fa-user-gear' : 'fa-solid fa-user'}
+            style={{ color: '#64748b', fontSize: '0.8rem' }}
+          />
           <strong style={{ color: '#0f172a' }}>{user.fullName || 'Thành viên'}</strong>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              padding: '0.15rem 0.5rem',
+              borderRadius: '6px',
+              background: roleBadgeStyle.bg,
+              color: roleBadgeStyle.color,
+              border: `1px solid ${roleBadgeStyle.border}`
+            }}
+          >
+            {roleLabel}
+          </span>
           <span style={{ color: '#cbd5e1' }}>•</span>
           <span style={{ color: '#64748b' }}>{user.email}</span>
         </div>
@@ -182,7 +216,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
             }}
           >
             <i className="fa-solid fa-circle-exclamation" style={{ color: '#dc2626' }} />
-            Lý do khóa tài khoản
+            Lý do đình chỉ tài khoản
           </div>
           <p
             style={{
@@ -196,7 +230,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
           </p>
         </div>
 
-        {/* Support Instructions */}
+        {/* Support Instructions — differentiated by role */}
         <div
           style={{
             background: '#f8fafc',
@@ -211,43 +245,55 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
           }}
         >
           <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '0.3rem' }}>
-            Cần khiếu nại hoặc mở lại tài khoản?
+            {isStaffAdmin
+              ? 'Cần xác minh hoặc khôi phục quyền quản trị?'
+              : 'Cần khiếu nại hoặc mở lại tài khoản?'}
           </div>
           <p style={{ margin: '0 0 0.55rem 0', color: '#64748b', fontSize: '0.8rem' }}>
-            Vui lòng liên hệ bộ phận Chăm Sóc Khách Hàng WebTravel để được hỗ trợ xác minh:
+            {isStaffAdmin
+              ? 'Vui lòng liên hệ Trưởng bộ phận, Tổng Quản Trị (Super Admin) hoặc Đội ngũ Kỹ Thuật Nội Bộ:'
+              : 'Vui lòng liên hệ bộ phận Chăm Sóc Khách Hàng WebTravel để được hỗ trợ xác minh:'}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <i className="fa-solid fa-phone" style={{ color: '#059669', width: '14px' }} />
-              <span style={{ color: '#64748b' }}>Hotline 24/7:</span>
+              <span style={{ color: '#64748b' }}>
+                {isStaffAdmin ? 'Hotline Nội Bộ / IT Support:' : 'Hotline 24/7:'}
+              </span>
               <a
-                href="tel:19001234"
+                href={isStaffAdmin ? 'tel:02438889999' : 'tel:19001234'}
                 style={{
                   color: '#059669',
                   fontWeight: 700,
                   textDecoration: 'none'
                 }}
               >
-                1900 1234
+                {isStaffAdmin ? '024 3888 9999 (Máy lẻ 101)' : '1900 1234'}
               </a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <i className="fa-solid fa-envelope" style={{ color: '#0284c7', width: '14px' }} />
-              <span style={{ color: '#64748b' }}>Email:</span>
+              <span style={{ color: '#64748b' }}>
+                {isStaffAdmin ? 'Email An Ninh Nội Bộ:' : 'Email:'}
+              </span>
               <a
-                href="mailto:hotro@webtravel.vn"
+                href={isStaffAdmin ? 'mailto:admin-security@webtravel.vn' : 'mailto:hotro@webtravel.vn'}
                 style={{
                   color: '#0284c7',
                   fontWeight: 700,
                   textDecoration: 'none'
                 }}
               >
-                hotro@webtravel.vn
+                {isStaffAdmin ? 'admin-security@webtravel.vn' : 'hotro@webtravel.vn'}
               </a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <i className="fa-solid fa-clock" style={{ color: '#d97706', width: '14px' }} />
-              <span style={{ color: '#64748b' }}>Giờ làm việc: 08:00 - 21:00 (Hàng ngày)</span>
+              <span style={{ color: '#64748b' }}>
+                {isStaffAdmin
+                  ? 'Giờ làm việc: 08:00 - 18:00 (Thứ 2 - Thứ 7)'
+                  : 'Giờ làm việc: 08:00 - 21:00 (Hàng ngày)'}
+              </span>
             </div>
           </div>
         </div>
@@ -284,7 +330,11 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
             }}
           >
             <i className="fa-solid fa-arrow-right-from-bracket" />
-            {isSigningOut ? 'Đang đăng xuất...' : 'Đăng Xuất Khỏi Tài Khoản'}
+            {isSigningOut
+              ? 'Đang đăng xuất...'
+              : isStaffAdmin
+              ? 'Đăng Xuất Khỏi Hệ Thống Quản Trị'
+              : 'Đăng Xuất Khỏi Tài Khoản'}
           </button>
         </div>
       </div>

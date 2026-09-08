@@ -140,6 +140,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
+  // Real-time listener: Watch for account status / role changes while the user is actively logged in
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-status-watch-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload: any) => {
+          if (payload.new) {
+            setUser((prev) => {
+              if (!prev) return null;
+              const updated: UserProfile = {
+                ...prev,
+                role: payload.new.role || prev.role,
+                status: payload.new.status || prev.status,
+                fullName: payload.new.full_name || prev.fullName,
+                phone: payload.new.phone || prev.phone,
+                avatarUrl: payload.new.avatar_url ?? prev.avatarUrl,
+                address: payload.new.address || prev.address,
+                loyaltyPoints: payload.new.loyalty_points ?? prev.loyaltyPoints,
+                updatedAt: payload.new.updated_at || new Date().toISOString()
+              };
+              localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user?.id]);
+
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     if (!isSupabaseConfigured || !supabase) {
       const mockProfile: UserProfile = {
@@ -177,12 +221,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             await supabase.auth.signOut();
             setUser(null);
             localStorage.removeItem(LOCAL_USER_KEY);
+            const isStaffOrAdmin =
+              profile.role === 'staff' || profile.role === 'admin' || profile.role === 'super_admin';
             return {
               success: false,
               error:
                 profile.status === 'banned'
-                  ? 'Tài khoản của bạn đã bị tạm khóa do vi phạm Điều khoản dịch vụ & Quy định an toàn WebTravel. Vui lòng liên hệ Hotline: 1900 1234 hoặc Email: hotro@webtravel.vn để được kiểm tra và hỗ trợ.'
-                  : 'Tài khoản này đã bị xóa hoặc ngừng hoạt động trên hệ thống WebTravel.'
+                  ? isStaffOrAdmin
+                    ? 'Tài khoản nhân viên / quản trị viên của bạn đã bị tạm đình chỉ quyền truy cập hệ thống WebTravel. Vui lòng liên hệ Quản trị viên cấp cao (Super Admin) hoặc bộ phận Kỹ thuật nội bộ.'
+                    : 'Tài khoản của bạn đã bị tạm khóa do vi phạm Điều khoản dịch vụ & Quy định an toàn WebTravel. Vui lòng liên hệ Hotline: 1900 1234 hoặc Email: hotro@webtravel.vn để được kiểm tra và hỗ trợ.'
+                  : isStaffOrAdmin
+                    ? 'Tài khoản nhân sự này đã bị vô hiệu hóa hoặc xóa khỏi hệ thống WebTravel.'
+                    : 'Tài khoản này đã bị xóa hoặc ngừng hoạt động trên hệ thống WebTravel.'
             };
           }
           setUser(profile);

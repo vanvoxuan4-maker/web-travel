@@ -68,7 +68,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 2. Account is banned or deleted -> Show clear notification screen instead of flickering redirect
   if (user.status === 'banned' || user.status === 'deleted') {
-    return <AccountSuspendedScreen user={user} onSignOut={signOut} />;
+    const userContext = user.role === 'customer' ? 'customer' : 'staff_admin';
+    return <AccountSuspendedScreen user={user} onSignOut={signOut} userContext={userContext} />;
   }
 
   const role = user.role;
