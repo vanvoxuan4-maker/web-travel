@@ -28,16 +28,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
     }
   };
 
-  const handleGoHomeAsGuest = async () => {
-    setIsSigningOut(true);
-    try {
-      await onSignOut();
-      // Same reasoning: let React state drive navigation to prevent double-redirect flicker.
-    } catch (err) {
-      console.error('Error signing out:', err);
-      window.location.href = '/';
-    }
-  };
+
 
   const defaultReason =
     reason ||
@@ -261,7 +252,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Button — Sign out only (user is authenticated) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <button
             type="button"
@@ -288,31 +279,6 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
           >
             <i className="fa-solid fa-arrow-right-from-bracket" />
             {isSigningOut ? 'Đang đăng xuất...' : 'Đăng Xuất Khỏi Tài Khoản'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleGoHomeAsGuest}
-            disabled={isSigningOut}
-            style={{
-              width: '100%',
-              padding: '0.85rem 1.5rem',
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#e2e8f0',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '12px',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              cursor: isSigningOut ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.6rem',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <i className="fa-solid fa-house" />
-            Về Trang Chủ (Duyệt Tour với tư cách Khách)
           </button>
         </div>
       </div>

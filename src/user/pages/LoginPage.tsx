@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
   const redirectUrl = searchParams.get('redirect') || '/home';
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
-  const { signIn, signUp, isAuthenticated, user, signOut, isLoading: isAuthLoading } = useAuth();
+  const { signIn, signUp, isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -65,6 +65,7 @@ export const LoginPage: React.FC = () => {
     if (!isAuthLoading && isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
       navigate(redirectUrl, { replace: true });
     }
+    // Do NOT redirect if user is banned/deleted — let them see the notice on the login page
   }, [isAuthLoading, isAuthenticated, user, navigate, redirectUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -379,69 +380,60 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Locked Account Warning Banner */}
-          {user && (user.status === 'banned' || user.status === 'deleted') && (
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-                border: '1.5px solid #fca5a5',
-                borderRadius: '14px',
-                padding: '1rem 1.1rem',
-                marginBottom: '1.25rem',
-                color: '#991b1b',
-                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#dc2626' }} />
-                <span>Tài khoản ({user.email}) đang bị khóa</span>
-              </div>
-              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.82rem', lineHeight: 1.5, color: '#7f1d1d' }}>
-                Tài khoản này đã bị hạn chế quyền truy cập do vi phạm quy chế hoặc yêu cầu từ Quản trị viên. Vui lòng liên hệ Hotline <strong>1900 1234</strong> để được hỗ trợ.
-              </p>
-              <button
-                type="button"
-                onClick={() => signOut()}
+          {/* Error Message Box — handles both regular errors and locked account notices */}
+          {errorMsg && (
+            // Detect if this is a locked/banned account message to render a richer notice
+            errorMsg.includes('bị tạm khóa') || errorMsg.includes('bị xóa') || errorMsg.includes('ngưng hoạt động') ? (
+              // Rich notice for locked account — no sign-out button (user not logged in successfully)
+              <div
                 style={{
-                  padding: '0.45rem 1rem',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem'
+                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  border: '1.5px solid #fca5a5',
+                  borderRadius: '14px',
+                  padding: '1.1rem 1.25rem',
+                  marginBottom: '1.25rem',
+                  animation: 'fadeIn 0.2s'
                 }}
               >
-                <i className="fa-solid fa-arrow-right-from-bracket" />
-                Đăng Xuất Tài Khoản Này
-              </button>
-            </div>
-          )}
-
-          {/* Error Message Box */}
-          {errorMsg && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#b91c1c',
-                padding: '0.75rem 1rem',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                animation: 'fadeIn 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '1rem' }}></i>
-              <span>{errorMsg}</span>
-            </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: '0.5rem' }}>
+                  <i className="fa-solid fa-lock" style={{ color: '#dc2626', fontSize: '1rem' }} />
+                  <span>Tài Khoản Tạm Thời Bị Khóa</span>
+                </div>
+                <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.83rem', lineHeight: 1.55, color: '#7f1d1d' }}>
+                  {errorMsg}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#991b1b' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fa-solid fa-phone" style={{ color: '#dc2626', width: '14px' }} />
+                    <span>Hotline hỗ trợ: <a href="tel:19001234" style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>1900 1234</a></span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fa-solid fa-envelope" style={{ color: '#dc2626', width: '14px' }} />
+                    <span>Email: <a href="mailto:hotro@webtravel.vn" style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>hotro@webtravel.vn</a></span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Standard error box for other errors (wrong password, network, etc.)
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  animation: 'fadeIn 0.2s'
+                }}
+              >
+                <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '1rem' }}></i>
+                <span>{errorMsg}</span>
+              </div>
+            )
           )}
 
           {/* Success Message Box */}
