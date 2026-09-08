@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
+import { UserProfile } from '../../auth/auth.types';
 
 // Destination slides for left hero visual
 const HERO_SLIDES = [
@@ -29,11 +30,32 @@ const HERO_SLIDES = [
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/home';
+  const redirectParam = searchParams.get('redirect');
+  const fromState = (location.state as any)?.from?.pathname;
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
   const { signIn, signUp, isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
+
+  // Helper to determine destination based on role: staff/admin -> /admin, customer -> /home
+  const getDestination = (targetUser: UserProfile | null | undefined): string => {
+    if (!targetUser) return '/home';
+    const isStaffOrAdmin =
+      targetUser.role === 'staff' || targetUser.role === 'admin' || targetUser.role === 'super_admin';
+
+    if (isStaffOrAdmin) {
+      // Staff and admin accounts must navigate into the enterprise admin portal
+      if (redirectParam && redirectParam.startsWith('/admin')) return redirectParam;
+      if (fromState && fromState.startsWith('/admin')) return fromState;
+      return '/admin';
+    }
+
+    // Customer accounts enter the public travel storefront
+    if (redirectParam && !redirectParam.startsWith('/admin')) return redirectParam;
+    if (fromState && !fromState.startsWith('/admin')) return fromState;
+    return '/home';
+  };
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -59,14 +81,15 @@ export const LoginPage: React.FC = () => {
 
   // CRITICAL: Wait for auth to finish loading before redirecting.
   // Without this check, stale localStorage data (e.g., cached status='active' for a now-banned user)
-  // would trigger an immediate redirect to /home, causing a brief flicker of the home page
+  // would trigger an immediate redirect, causing a brief flicker
   // before ProtectedRoute detects the banned status and switches to AccountSuspendedScreen.
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
-      navigate(redirectUrl, { replace: true });
+      const targetDestination = getDestination(user);
+      navigate(targetDestination, { replace: true });
     }
     // Do NOT redirect if user is banned/deleted — let them see the notice on the login page
-  }, [isAuthLoading, isAuthenticated, user, navigate, redirectUrl]);
+  }, [isAuthLoading, isAuthenticated, user, navigate, redirectParam, fromState]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +104,19 @@ export const LoginPage: React.FC = () => {
         if (!res.success) {
           setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác.');
         } else {
-          setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng vào hệ thống...');
+          const loggedInUser = res.user || user;
+          const isStaffOrAdmin =
+            loggedInUser?.role === 'staff' || loggedInUser?.role === 'admin' || loggedInUser?.role === 'super_admin';
+          const targetDestination = getDestination(loggedInUser);
+
+          setSuccessMsg(
+            isStaffOrAdmin
+              ? 'Đăng nhập quyền Quản trị thành công! Đang chuyển đến Bảng điều khiển...'
+              : 'Đăng nhập thành công! Đang chuyển hướng vào hệ thống...'
+          );
           setTimeout(() => {
-            navigate(redirectUrl, { replace: true });
-          }, 500);
+            navigate(targetDestination, { replace: true });
+          }, 400);
         }
       } else {
         if (password.length < 6) {
@@ -112,7 +144,7 @@ export const LoginPage: React.FC = () => {
         } else {
           setSuccessMsg('Đăng ký tài khoản thành công! Đang tự động đăng nhập...');
           setTimeout(() => {
-            navigate(redirectUrl, { replace: true });
+            navigate(getDestination(null), { replace: true });
           }, 800);
         }
       }

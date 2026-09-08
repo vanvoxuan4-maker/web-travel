@@ -13,7 +13,7 @@ export interface AuthContextType {
   authModalMode: 'login' | 'register';
   openAuthModal: (mode?: 'login' | 'register') => void;
   closeAuthModal: () => void;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   signUp: (data: { email: string; password: string; fullName: string; phone?: string; address?: string }) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -184,14 +184,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [user?.id]);
 
-  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signIn = async (email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
     if (!isSupabaseConfigured || !supabase) {
       const mockProfile: UserProfile = {
         id: 'mock-user-01',
         email,
         fullName: email.split('@')[0],
         phone: '0901234567',
-        role: email.includes('admin') ? 'admin' : 'customer',
+        role: email.includes('admin') ? 'admin' : email.includes('staff') ? 'staff' : 'customer',
         loyaltyPoints: 150,
         address: 'Hà Nội, Việt Nam',
         status: 'active',
@@ -201,7 +201,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(mockProfile);
       localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(mockProfile));
       closeAuthModal();
-      return { success: true };
+      return { success: true, user: mockProfile };
     }
 
     try {
@@ -214,6 +214,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, error: error.message };
       }
 
+      let authenticatedProfile: UserProfile | null = null;
       if (data.user) {
         const profile = await fetchUserProfile(data.user.id, data.user.email || email);
         if (profile) {
@@ -235,13 +236,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     : 'Tài khoản này đã bị xóa hoặc ngừng hoạt động trên hệ thống WebTravel.'
             };
           }
+          authenticatedProfile = profile;
           setUser(profile);
           localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(profile));
         }
       }
 
       closeAuthModal();
-      return { success: true };
+      return { success: true, user: authenticatedProfile || undefined };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Đăng nhập không thành công' };
     }
