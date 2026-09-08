@@ -5,3 +5,4 @@ export * from './ProtectedRoute';
 export * from './permissions';
 export * from './usePermission';
 export * from './PermissionGate';
+export * from './AccountSuspendedScreen';

@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
   const redirectUrl = searchParams.get('redirect') || '/home';
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
-  const { signIn, signUp, isAuthenticated } = useAuth();
+  const { signIn, signUp, isAuthenticated, user, signOut } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -57,12 +57,12 @@ export const LoginPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // If user is already authenticated, redirect straight to target page
+  // If user is already authenticated and NOT banned/deleted, redirect straight to target page
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
       navigate(redirectUrl, { replace: true });
     }
-  }, [isAuthenticated, navigate, redirectUrl]);
+  }, [isAuthenticated, user, navigate, redirectUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,6 +375,49 @@ export const LoginPage: React.FC = () => {
               <i className="fa-solid fa-user-plus"></i> Đăng Ký
             </button>
           </div>
+
+          {/* Locked Account Warning Banner */}
+          {user && (user.status === 'banned' || user.status === 'deleted') && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                border: '1.5px solid #fca5a5',
+                borderRadius: '14px',
+                padding: '1rem 1.1rem',
+                marginBottom: '1.25rem',
+                color: '#991b1b',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.35rem' }}>
+                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#dc2626' }} />
+                <span>Tài khoản ({user.email}) đang bị khóa</span>
+              </div>
+              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.82rem', lineHeight: 1.5, color: '#7f1d1d' }}>
+                Tài khoản này đã bị hạn chế quyền truy cập do vi phạm quy chế hoặc yêu cầu từ Quản trị viên. Vui lòng liên hệ Hotline <strong>1900 1234</strong> để được hỗ trợ.
+              </p>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                style={{
+                  padding: '0.45rem 1rem',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <i className="fa-solid fa-arrow-right-from-bracket" />
+                Đăng Xuất Tài Khoản Này
+              </button>
+            </div>
+          )}
 
           {/* Error Message Box */}
           {errorMsg && (

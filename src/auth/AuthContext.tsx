@@ -187,9 +187,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.user) {
         const profile = await fetchUserProfile(data.user.id, data.user.email || email);
         if (profile) {
-          if (profile.status === 'banned') {
+          if (profile.status === 'banned' || profile.status === 'deleted') {
             await supabase.auth.signOut();
-            return { success: false, error: 'Tài khoản của bạn đã bị tạm khóa do vi phạm quy định.' };
+            setUser(null);
+            localStorage.removeItem(LOCAL_USER_KEY);
+            return {
+              success: false,
+              error:
+                profile.status === 'banned'
+                  ? 'Tài khoản của bạn đã bị tạm khóa do vi phạm Điều khoản dịch vụ & Quy định an toàn WebTravel. Vui lòng liên hệ Hotline: 1900 1234 hoặc Email: hotro@webtravel.vn để được kiểm tra và hỗ trợ.'
+                  : 'Tài khoản này đã bị xóa hoặc ngừng hoạt động trên hệ thống WebTravel.'
+            };
           }
           setUser(profile);
           localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(profile));

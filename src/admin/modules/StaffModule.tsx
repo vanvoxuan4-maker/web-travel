@@ -478,15 +478,18 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
+                            gap: '0.35rem',
                             padding: '0.25rem 0.65rem',
                             borderRadius: '8px',
                             fontSize: '0.76rem',
                             fontWeight: 700,
-                            background: s.status === 'active' ? '#ecfdf5' : '#fee2e2',
-                            color: s.status === 'active' ? '#047857' : '#b91c1c'
+                            background: s.status === 'active' ? '#ecfdf5' : s.status === 'banned' ? '#fee2e2' : '#f1f5f9',
+                            color: s.status === 'active' ? '#047857' : s.status === 'banned' ? '#b91c1c' : '#475569',
+                            border: `1px solid ${s.status === 'active' ? '#a7f3d0' : s.status === 'banned' ? '#fecaca' : '#cbd5e1'}`
                           }}
                         >
-                          {s.status === 'active' ? 'Hoạt Động' : 'Đã Khóa'}
+                          <i className={`fa-solid ${s.status === 'active' ? 'fa-circle-check' : s.status === 'banned' ? 'fa-lock' : 'fa-trash-can'}`} style={{ fontSize: '0.7rem' }} />
+                          {s.status === 'active' ? 'Hoạt Động' : s.status === 'banned' ? 'Đã Khóa' : 'Đã Xóa'}
                         </span>
                       </td>
 

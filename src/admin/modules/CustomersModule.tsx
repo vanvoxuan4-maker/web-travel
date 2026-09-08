@@ -291,15 +291,18 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
+                          gap: '0.35rem',
                           padding: '0.25rem 0.65rem',
                           borderRadius: '8px',
                           fontSize: '0.76rem',
                           fontWeight: 700,
-                          background: c.status === 'active' ? '#ecfdf5' : '#fee2e2',
-                          color: c.status === 'active' ? '#047857' : '#b91c1c'
+                          background: c.status === 'active' ? '#ecfdf5' : c.status === 'banned' ? '#fee2e2' : '#f1f5f9',
+                          color: c.status === 'active' ? '#047857' : c.status === 'banned' ? '#b91c1c' : '#475569',
+                          border: `1px solid ${c.status === 'active' ? '#a7f3d0' : c.status === 'banned' ? '#fecaca' : '#cbd5e1'}`
                         }}
                       >
-                        {c.status === 'active' ? 'Hoạt Động' : 'Đã Khóa'}
+                        <i className={`fa-solid ${c.status === 'active' ? 'fa-circle-check' : c.status === 'banned' ? 'fa-lock' : 'fa-trash-can'}`} style={{ fontSize: '0.7rem' }} />
+                        {c.status === 'active' ? 'Hoạt Động' : c.status === 'banned' ? 'Đã Khóa' : 'Đã Xóa'}
                       </span>
                     </td>
 

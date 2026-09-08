@@ -236,16 +236,23 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: 'Bạn không có quyền khóa hoặc mở khóa tài khoản thành viên.' });
       return;
     }
+    if (user?.id === customerId && currentStatus === 'active') {
+      setActionFeedback({ type: 'error', message: 'Bạn không thể tự khóa tài khoản của chính mình để tránh mất quyền quản trị.' });
+      return;
+    }
     const newStatus = currentStatus === 'active' ? 'banned' : 'active';
     const result = await profileService.updateUserStatus(customerId, newStatus);
     if (!result.success) {
-      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật trạng thái' });
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật trạng thái tài khoản' });
       return;
     }
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, status: newStatus } : c)));
     setActionFeedback({
       type: 'success',
-      message: newStatus === 'banned' ? 'Đã khóa tài khoản thành viên' : 'Đã mở khóa tài khoản thành viên'
+      message:
+        newStatus === 'banned'
+          ? 'Đã khóa tài khoản thành công! Người dùng sẽ nhận được thông báo giải thích lý do khi đăng nhập.'
+          : 'Đã mở khóa tài khoản thành công! Người dùng có thể tiếp tục sử dụng hệ thống bình thường.'
     });
   };
 
