@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
+import { ConfirmLockModal } from '../modals/ConfirmLockModal';
 import { exportCustomersToCSV } from '../../utils/exportUtils';
 
 interface CustomersModuleProps {
@@ -22,6 +23,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     customer: CustomerRecord;
     targetRole: 'admin' | 'super_admin';
   } | null>(null);
+  const [pendingStatusCustomer, setPendingStatusCustomer] = useState<CustomerRecord | null>(null);
 
   // Filter only actual customers (exclude staff / admins who now have their own tab)
   const pureCustomers = useMemo(() => {
@@ -291,15 +293,18 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
+                          gap: '0.35rem',
                           padding: '0.25rem 0.65rem',
                           borderRadius: '8px',
                           fontSize: '0.76rem',
                           fontWeight: 700,
-                          background: c.status === 'active' ? '#ecfdf5' : '#fee2e2',
-                          color: c.status === 'active' ? '#047857' : '#b91c1c'
+                          background: c.status === 'active' ? '#ecfdf5' : c.status === 'banned' ? '#fee2e2' : '#f1f5f9',
+                          color: c.status === 'active' ? '#047857' : c.status === 'banned' ? '#b91c1c' : '#475569',
+                          border: `1px solid ${c.status === 'active' ? '#a7f3d0' : c.status === 'banned' ? '#fecaca' : '#cbd5e1'}`
                         }}
                       >
-                        {c.status === 'active' ? 'Hoạt Động' : 'Đã Khóa'}
+                        <i className={`fa-solid ${c.status === 'active' ? 'fa-circle-check' : c.status === 'banned' ? 'fa-lock' : 'fa-trash-can'}`} style={{ fontSize: '0.7rem' }} />
+                        {c.status === 'active' ? 'Hoạt Động' : c.status === 'banned' ? 'Đã Khóa' : 'Đã Xóa'}
                       </span>
                     </td>
 
@@ -394,7 +399,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           {hasPermission(currentUser?.role, 'customer:ban') && (
                             <button
                               type="button"
-                              onClick={() => onToggleStatus(c.id, c.status)}
+                              onClick={() => setPendingStatusCustomer(c)}
                               style={{
                                 padding: '0.35rem 0.65rem',
                                 background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
@@ -418,6 +423,19 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Confirmation Modal for Lock / Unlock */}
+      {pendingStatusCustomer && (
+        <ConfirmLockModal
+          isOpen={!!pendingStatusCustomer}
+          user={pendingStatusCustomer}
+          onClose={() => setPendingStatusCustomer(null)}
+          onConfirm={async (customerId, currentStatus) => {
+            await onToggleStatus(customerId, currentStatus);
+            setPendingStatusCustomer(null);
+          }}
+        />
       )}
 
       {/* Re-authentication Confirmation Modal for Admin / Super Admin Promotion */}

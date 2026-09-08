@@ -113,7 +113,8 @@ export const AdminPortal: React.FC = () => {
               couponCode: b.coupon_code,
               couponDiscount: b.coupon_discount,
               status: uiStatus,
-              createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay'
+              createdAt: b.created_at ? new Date(b.created_at).toLocaleDateString('vi-VN') : 'Hôm nay',
+              rawCreatedAt: b.created_at || new Date().toISOString()
             };
           });
           setBookings(mappedBookings);
@@ -166,7 +167,8 @@ export const AdminPortal: React.FC = () => {
                   couponCode: b.couponCode,
                   couponDiscount: b.couponDiscount,
                   status: uiStatus,
-                  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay'
+                  createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Hôm nay',
+                  rawCreatedAt: b.createdAt || new Date().toISOString()
                 };
               }));
             }
@@ -236,16 +238,23 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: 'Bạn không có quyền khóa hoặc mở khóa tài khoản thành viên.' });
       return;
     }
+    if (user?.id === customerId && currentStatus === 'active') {
+      setActionFeedback({ type: 'error', message: 'Bạn không thể tự khóa tài khoản của chính mình để tránh mất quyền quản trị.' });
+      return;
+    }
     const newStatus = currentStatus === 'active' ? 'banned' : 'active';
     const result = await profileService.updateUserStatus(customerId, newStatus);
     if (!result.success) {
-      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật trạng thái' });
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật trạng thái tài khoản' });
       return;
     }
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, status: newStatus } : c)));
     setActionFeedback({
       type: 'success',
-      message: newStatus === 'banned' ? 'Đã khóa tài khoản thành viên' : 'Đã mở khóa tài khoản thành viên'
+      message:
+        newStatus === 'banned'
+          ? 'Đã khóa tài khoản thành công! Người dùng sẽ nhận được thông báo giải thích lý do khi đăng nhập.'
+          : 'Đã mở khóa tài khoản thành công! Người dùng có thể tiếp tục sử dụng hệ thống bình thường.'
     });
   };
 
@@ -517,6 +526,7 @@ export const AdminPortal: React.FC = () => {
               customersCount={customers.length}
               onNavigateToBookings={() => setActiveTab('bookings')}
               onApproveBooking={(id) => handleStatusChange(id, 'confirmed')}
+              onConfirmFullPayment={(id) => handleStatusChange(id, 'confirmed')}
             />
           )}
 

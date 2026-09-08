@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { UserRole } from './auth.types';
 import { PermissionKey, hasPermission, hasRoleAtLeast } from './permissions';
+import { AccountSuspendedScreen } from './AccountSuspendedScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -26,7 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredPermission,
   redirectTo = '/home',
 }) => {
-  const { user, isLoading, isAuthenticated, isAdmin } = useAuth();
+  const { user, isLoading, isAuthenticated, isAdmin, signOut } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -60,9 +61,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Not logged in or account banned
-  if (!isAuthenticated || !user || user.status === 'banned') {
+  // 1. Not logged in -> Navigate to login
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // 2. Account is banned or deleted -> Show clear notification screen instead of flickering redirect
+  if (user.status === 'banned' || user.status === 'deleted') {
+    const userContext = user.role === 'customer' ? 'customer' : 'staff_admin';
+    return <AccountSuspendedScreen user={user} onSignOut={signOut} userContext={userContext} />;
   }
 
   const role = user.role;

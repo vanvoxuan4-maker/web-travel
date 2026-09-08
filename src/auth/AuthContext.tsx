@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserProfile, UserRole } from './auth.types';
+import { translateAuthError } from '../utils/formValidation';
 
 export interface AuthContextType {
   user: UserProfile | null;
@@ -13,7 +14,7 @@ export interface AuthContextType {
   authModalMode: 'login' | 'register';
   openAuthModal: (mode?: 'login' | 'register') => void;
   closeAuthModal: () => void;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   signUp: (data: { email: string; password: string; fullName: string; phone?: string; address?: string }) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -116,26 +117,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const client = supabase;
 
-    const checkSession = async () => {
-      try {
-        const { data: sessionData } = await client.auth.getSession();
-        const session = sessionData?.session;
-        if (session && session.user) {
-          const profile = await fetchUserProfile(session.user.id, session.user.email || '');
-          if (profile) {
-            setUser(profile);
-            localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(profile));
-          }
-        }
-      } catch (e) {
-        console.error('Error checking session:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkSession();
-
+    // Use onAuthStateChange as the SINGLE source of truth for session state.
+    // It fires 'INITIAL_SESSION' immediately on mount (replacing the need for a separate checkSession call),
+    // preventing the race condition where two concurrent fetchUserProfile calls both call setUser,
+    // causing double renders and visual flickering.
     const { data: authListener } = client.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
         const profile = await fetchUserProfile(session.user.id, session.user.email || '');
@@ -147,6 +132,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         localStorage.removeItem(LOCAL_USER_KEY);
       }
+      // Always mark loading done after any auth event resolves
+      setIsLoading(false);
     });
 
     return () => {
@@ -154,14 +141,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  // Real-time listener: Watch for account status / role changes while the user is actively logged in
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-status-watch-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload: any) => {
+          if (payload.new) {
+            setUser((prev) => {
+              if (!prev) return null;
+              const updated: UserProfile = {
+                ...prev,
+                role: payload.new.role || prev.role,
+                status: payload.new.status || prev.status,
+                fullName: payload.new.full_name || prev.fullName,
+                phone: payload.new.phone || prev.phone,
+                avatarUrl: payload.new.avatar_url ?? prev.avatarUrl,
+                address: payload.new.address || prev.address,
+                loyaltyPoints: payload.new.loyalty_points ?? prev.loyaltyPoints,
+                updatedAt: payload.new.updated_at || new Date().toISOString()
+              };
+              localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user?.id]);
+
+  const signIn = async (email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
     if (!isSupabaseConfigured || !supabase) {
       const mockProfile: UserProfile = {
         id: 'mock-user-01',
         email,
         fullName: email.split('@')[0],
         phone: '0901234567',
-        role: email.includes('admin') ? 'admin' : 'customer',
+        role: email.includes('admin') ? 'admin' : email.includes('staff') ? 'staff' : 'customer',
         loyaltyPoints: 150,
         address: 'Hà Nội, Việt Nam',
         status: 'active',
@@ -171,7 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(mockProfile);
       localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(mockProfile));
       closeAuthModal();
-      return { success: true };
+      return { success: true, user: mockProfile };
     }
 
     try {
@@ -181,23 +212,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: translateAuthError(error.message) };
       }
 
+      let authenticatedProfile: UserProfile | null = null;
       if (data.user) {
         const profile = await fetchUserProfile(data.user.id, data.user.email || email);
         if (profile) {
-          if (profile.status === 'banned') {
+          if (profile.status === 'banned' || profile.status === 'deleted') {
             await supabase.auth.signOut();
-            return { success: false, error: 'Tài khoản của bạn đã bị tạm khóa do vi phạm quy định.' };
+            setUser(null);
+            localStorage.removeItem(LOCAL_USER_KEY);
+            const isStaffOrAdmin =
+              profile.role === 'staff' || profile.role === 'admin' || profile.role === 'super_admin';
+            return {
+              success: false,
+              error:
+                profile.status === 'banned'
+                  ? isStaffOrAdmin
+                    ? 'Tài khoản nhân viên / quản trị viên của bạn đã bị tạm đình chỉ quyền truy cập hệ thống WebTravel. Vui lòng liên hệ Quản trị viên cấp cao (Super Admin) hoặc bộ phận Kỹ thuật nội bộ.'
+                    : 'Tài khoản của bạn đã bị tạm khóa do vi phạm Điều khoản dịch vụ & Quy định an toàn WebTravel. Vui lòng liên hệ Hotline: 1900 1234 hoặc Email: hotro@webtravel.vn để được kiểm tra và hỗ trợ.'
+                  : isStaffOrAdmin
+                    ? 'Tài khoản nhân sự này đã bị vô hiệu hóa hoặc xóa khỏi hệ thống WebTravel.'
+                    : 'Tài khoản này đã bị xóa hoặc ngừng hoạt động trên hệ thống WebTravel.'
+            };
           }
+          authenticatedProfile = profile;
           setUser(profile);
           localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(profile));
         }
       }
 
       closeAuthModal();
-      return { success: true };
+      return { success: true, user: authenticatedProfile || undefined };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Đăng nhập không thành công' };
     }
@@ -244,7 +291,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
 
       if (authError) {
-        return { success: false, error: authError.message };
+        return { success: false, error: translateAuthError(authError.message) };
       }
 
       if (authData.user) {

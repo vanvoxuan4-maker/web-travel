@@ -8,7 +8,7 @@ import { CartModal } from '../modals/CartModal';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isAdmin, signOut } = useAuth();
+  const { user, isAuthenticated, isAdmin, isStaff, signOut } = useAuth();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -400,7 +400,7 @@ export const Navbar: React.FC = () => {
                         <i className="fa-solid fa-receipt"></i> Đơn Hàng &amp; Vé Điện Tử
                       </Link>
 
-                      {isAdmin && (
+                      {(isAdmin || isStaff) && (
                         <Link
                           to="/admin"
                           onClick={() => setIsUserMenuOpen(false)}
@@ -416,7 +416,7 @@ export const Navbar: React.FC = () => {
                             textDecoration: 'none'
                           }}
                         >
-                          <i className="fa-solid fa-gauge"></i> Trang Quản Trị Admin
+                          <i className="fa-solid fa-gauge"></i> Trang Quản Trị & Vận Hành
                         </Link>
                       )}
 

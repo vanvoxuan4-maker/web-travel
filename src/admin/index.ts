@@ -17,3 +17,4 @@ export * from './modals/ManageScheduleModal';
 export * from './modals/DeleteTourModal';
 export * from './modals/BookingDetailModal';
 export * from './modals/DeleteBookingModal';
+export * from './modals/ConfirmLockModal';

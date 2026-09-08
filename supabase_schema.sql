@@ -718,6 +718,7 @@ CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON public.blog_posts(status, pu
 CREATE INDEX IF NOT EXISTS idx_coupon_usages_coupon ON public.coupon_usages(coupon_code);
 CREATE INDEX IF NOT EXISTS idx_coupon_usages_user ON public.coupon_usages(user_id);
 CREATE INDEX IF NOT EXISTS idx_coupon_usages_booking ON public.coupon_usages(booking_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_user_code ON public.coupon_usages(user_id, coupon_code);
 
 -- ==============================================================================
 -- 20. CẤU HÌNH PHÂN QUYỀN ROW LEVEL SECURITY (RLS) CHUẨN BẢO MẬT

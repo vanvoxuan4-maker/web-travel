@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured, withTimeout } from '../lib/supabaseClient';
 import { AppLogger } from '../utils/logger';
 import { restoreSeats } from '../utils/inventoryManager';
+import { couponService } from './couponService';
 
 export type PaymentMethod = 'vietqr' | 'momo' | 'credit_card' | 'paypal' | 'bank_transfer' | 'cash';
 export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'failed' | 'refunded';
@@ -171,6 +172,20 @@ export const bookingService = {
         };
         this.saveToLocalStorage(savedPayload);
 
+        // Record coupon usage in Supabase & LocalStorage
+        if (booking.couponCode) {
+          couponService.recordCouponUsage({
+            couponCode: booking.couponCode,
+            userId: booking.userId || null,
+            bookingId: data.id,
+            bookingCode: booking.bookingCode,
+            discountApplied: booking.couponDiscount || 0,
+            customerName: booking.customerName,
+            customerEmail: booking.customerEmail,
+            customerPhone: booking.customerPhone
+          }).catch(err => console.warn('Could not record coupon usage:', err));
+        }
+
         AppLogger.info('Tạo đơn đặt tour thành công vào Supabase', {
           action: 'BOOKING_CREATE_SUCCESS',
           bookingCode: booking.bookingCode,
@@ -184,12 +199,39 @@ export const bookingService = {
           bookingCode: booking.bookingCode
         });
         this.saveToLocalStorage(payloadWithTime);
+
+        if (booking.couponCode) {
+          couponService.recordCouponUsage({
+            couponCode: booking.couponCode,
+            userId: booking.userId || null,
+            bookingId: payloadWithTime.id || booking.bookingCode,
+            bookingCode: booking.bookingCode,
+            discountApplied: booking.couponDiscount || 0,
+            customerName: booking.customerName,
+            customerEmail: booking.customerEmail,
+            customerPhone: booking.customerPhone
+          }).catch(err => console.warn('Could not record local coupon usage:', err));
+        }
+
         return { success: true, data: payloadWithTime };
       }
     }
 
     // 2. Fallback to LocalStorage
     this.saveToLocalStorage(payloadWithTime);
+    if (booking.couponCode) {
+      couponService.recordCouponUsage({
+        couponCode: booking.couponCode,
+        userId: booking.userId || null,
+        bookingId: payloadWithTime.id || booking.bookingCode,
+        bookingCode: booking.bookingCode,
+        discountApplied: booking.couponDiscount || 0,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        customerPhone: booking.customerPhone
+      }).catch(err => console.warn('Could not record local coupon usage:', err));
+    }
+
     AppLogger.info('Lưu đơn đặt tour vào LocalStorage (chế độ demo/offline)', {
       action: 'BOOKING_CREATE_LOCAL_SUCCESS',
       bookingCode: booking.bookingCode
@@ -514,6 +556,12 @@ export const bookingService = {
     // 2. Update LocalStorage
     try {
       const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const targetBooking = localBookings.find(b => b.bookingCode?.toUpperCase() === code || b.id === bookingCode);
+      if (newUiStatus === 'cancelled' && targetBooking?.couponCode) {
+        couponService.refundCouponUsage(targetBooking.couponCode, targetBooking.id || targetBooking.bookingCode)
+          .catch(e => console.warn('Could not refund coupon usage:', e));
+      }
+
       const updated = localBookings.map(b => {
         if (b.bookingCode?.toUpperCase() === code || b.id === bookingCode) {
           const totalAmt = Number(b.totalAmount) || 0;
@@ -572,6 +620,12 @@ export const bookingService = {
     // 2. Update LocalStorage
     try {
       const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const targetBooking = localBookings.find(b => b.bookingCode.toUpperCase() === code);
+      if (targetBooking?.couponCode) {
+        couponService.refundCouponUsage(targetBooking.couponCode, targetBooking.id || targetBooking.bookingCode)
+          .catch(e => console.warn('Could not refund coupon usage on cancel:', e));
+      }
+
       const updated = localBookings.map(b => {
         if (b.bookingCode.toUpperCase() === code) {
           return { 

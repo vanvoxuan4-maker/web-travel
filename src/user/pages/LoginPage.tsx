@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
+import { UserProfile } from '../../auth/auth.types';
+import { sanitizePhone, validatePhone, validateEmail, translateAuthError } from '../../utils/formValidation';
 
 // Destination slides for left hero visual
 const HERO_SLIDES = [
@@ -29,11 +31,32 @@ const HERO_SLIDES = [
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/home';
+  const redirectParam = searchParams.get('redirect');
+  const fromState = (location.state as any)?.from?.pathname;
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
-  const { signIn, signUp, isAuthenticated } = useAuth();
+  const { signIn, signUp, isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
+
+  // Helper to determine destination based on role: staff/admin -> /admin, customer -> /home
+  const getDestination = (targetUser: UserProfile | null | undefined): string => {
+    if (!targetUser) return '/home';
+    const isStaffOrAdmin =
+      targetUser.role === 'staff' || targetUser.role === 'admin' || targetUser.role === 'super_admin';
+
+    if (isStaffOrAdmin) {
+      // Staff and admin accounts must navigate into the enterprise admin portal
+      if (redirectParam && redirectParam.startsWith('/admin')) return redirectParam;
+      if (fromState && fromState.startsWith('/admin')) return fromState;
+      return '/admin';
+    }
+
+    // Customer accounts enter the public travel storefront
+    if (redirectParam && !redirectParam.startsWith('/admin')) return redirectParam;
+    if (fromState && !fromState.startsWith('/admin')) return fromState;
+    return '/home';
+  };
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -49,6 +72,16 @@ export const LoginPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+
+  // Real-time validation derivations
+  const phoneValidation = validatePhone(phone);
+  const emailValidation = validateEmail(email);
+  const isPasswordValid = password.length >= 6;
+
   // Auto-rotate left hero visual slides every 6 seconds
   useEffect(() => {
     const timer = setInterval(() => {
@@ -57,63 +90,108 @@ export const LoginPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // If user is already authenticated, redirect straight to target page
+  // CRITICAL: Wait for auth to finish loading before redirecting.
+  // Without this check, stale localStorage data (e.g., cached status='active' for a now-banned user)
+  // would trigger an immediate redirect, causing a brief flicker
+  // before ProtectedRoute detects the banned status and switches to AccountSuspendedScreen.
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate(redirectUrl, { replace: true });
+    if (!isAuthLoading && isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
+      const targetDestination = getDestination(user);
+      navigate(targetDestination, { replace: true });
     }
-  }, [isAuthenticated, navigate, redirectUrl]);
+    // Do NOT redirect if user is banned/deleted — let them see the notice on the login page
+  }, [isAuthLoading, isAuthenticated, user, navigate, redirectParam, fromState]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (mode === 'login') {
+      if (!cleanEmail) {
+        setErrorMsg('Vui lòng nhập địa chỉ email.');
+        return;
+      }
+      if (!password) {
+        setErrorMsg('Vui lòng nhập mật khẩu.');
+        return;
+      }
+    } else {
+      // REGISTER VALIDATIONS
+      if (!fullName.trim()) {
+        setErrorMsg('Vui lòng nhập họ và tên của bạn.');
+        return;
+      }
+
+      setPhoneTouched(true);
+      if (!phoneValidation.isValid) {
+        setErrorMsg(phoneValidation.error || 'Số điện thoại không hợp lệ.');
+        return;
+      }
+
+      setEmailTouched(true);
+      if (!emailValidation.isValid) {
+        setErrorMsg(emailValidation.error || 'Địa chỉ email không đúng định dạng.');
+        return;
+      }
+
+      setPasswordTouched(true);
+      if (password.length < 6) {
+        setErrorMsg('Mật khẩu phải có độ dài tối thiểu 6 ký tự.');
+        return;
+      }
+
+      setConfirmPasswordTouched(true);
+      if (password !== confirmPassword) {
+        setErrorMsg('Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
-      const cleanEmail = email.trim().toLowerCase();
       if (mode === 'login') {
         const res = await signIn(cleanEmail, password);
         if (!res.success) {
-          setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác.');
+          setErrorMsg(translateAuthError(res.error || 'Email hoặc mật khẩu không chính xác.'));
         } else {
-          setSuccessMsg('Đăng nhập thành công! Đang chuyển hướng vào hệ thống...');
+          const loggedInUser = res.user || user;
+          const isStaffOrAdmin =
+            loggedInUser?.role === 'staff' || loggedInUser?.role === 'admin' || loggedInUser?.role === 'super_admin';
+          const targetDestination = getDestination(loggedInUser);
+
+          setSuccessMsg(
+            isStaffOrAdmin
+              ? 'Đăng nhập quyền Quản trị thành công! Đang chuyển đến Bảng điều khiển...'
+              : 'Đăng nhập thành công! Đang chuyển hướng vào hệ thống...'
+          );
           setTimeout(() => {
-            navigate(redirectUrl, { replace: true });
-          }, 500);
+            navigate(targetDestination, { replace: true });
+          }, 400);
         }
       } else {
-        if (password.length < 6) {
-          setErrorMsg('Mật khẩu phải có độ dài tối thiểu 6 ký tự.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (password !== confirmPassword) {
-          setErrorMsg('Mật khẩu xác nhận không khớp. Vui lòng kiểm tra lại.');
-          setIsSubmitting(false);
-          return;
-        }
-
         const res = await signUp({
           email: cleanEmail,
           password,
-          fullName: fullName.trim() || cleanEmail.split('@')[0],
+          fullName: fullName.trim(),
           phone: phone.trim(),
           address: address.trim()
         });
 
         if (!res.success) {
-          setErrorMsg(res.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+          setErrorMsg(translateAuthError(res.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.'));
         } else {
           setSuccessMsg('Đăng ký tài khoản thành công! Đang tự động đăng nhập...');
           setTimeout(() => {
-            navigate(redirectUrl, { replace: true });
+            navigate(getDestination(null), { replace: true });
           }, 800);
         }
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Có lỗi xảy ra trong quá trình xử lý.');
+      setErrorMsg(translateAuthError(err?.message || 'Có lỗi xảy ra trong quá trình xử lý.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -376,27 +454,80 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Error Message Box */}
-          {errorMsg && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#b91c1c',
-                padding: '0.75rem 1rem',
-                borderRadius: '12px',
-                fontSize: '0.85rem',
-                marginBottom: '1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                animation: 'fadeIn 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '1rem' }}></i>
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          {/* Error Message Box — handles both regular errors and locked account notices */}
+          {errorMsg && (() => {
+            const isSuspendedNotice =
+              errorMsg.includes('bị tạm khóa') ||
+              errorMsg.includes('bị xóa') ||
+              errorMsg.includes('ngưng hoạt động') ||
+              errorMsg.includes('tạm đình chỉ') ||
+              errorMsg.includes('vô hiệu hóa');
+
+            if (isSuspendedNotice) {
+              const isStaffAdmin = errorMsg.includes('nhân viên') || errorMsg.includes('quản trị');
+              return (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                    border: '1.5px solid #fca5a5',
+                    borderRadius: '14px',
+                    padding: '1.1rem 1.25rem',
+                    marginBottom: '1.25rem',
+                    animation: 'fadeIn 0.2s'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: '0.5rem' }}>
+                    <i className={isStaffAdmin ? 'fa-solid fa-shield-halved' : 'fa-solid fa-lock'} style={{ color: '#dc2626', fontSize: '1rem' }} />
+                    <span>{isStaffAdmin ? 'Quyền Quản Trị / Nhân Viên Bị Đình Chỉ' : 'Tài Khoản Tạm Thời Bị Khóa'}</span>
+                  </div>
+                  <p style={{ margin: '0 0 0.65rem 0', fontSize: '0.83rem', lineHeight: 1.55, color: '#7f1d1d' }}>
+                    {errorMsg}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.8rem', color: '#991b1b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-phone" style={{ color: '#dc2626', width: '14px' }} />
+                      <span>
+                        {isStaffAdmin ? 'Hotline IT Support / Nội Bộ: ' : 'Hotline hỗ trợ: '}
+                        <a href={isStaffAdmin ? 'tel:02438889999' : 'tel:19001234'} style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>
+                          {isStaffAdmin ? '024 3888 9999 (Máy lẻ 101)' : '1900 1234'}
+                        </a>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fa-solid fa-envelope" style={{ color: '#dc2626', width: '14px' }} />
+                      <span>
+                        {isStaffAdmin ? 'Email An Ninh Nội Bộ: ' : 'Email: '}
+                        <a href={isStaffAdmin ? 'mailto:admin-security@webtravel.vn' : 'mailto:hotro@webtravel.vn'} style={{ color: '#b91c1c', fontWeight: 700, textDecoration: 'none' }}>
+                          {isStaffAdmin ? 'admin-security@webtravel.vn' : 'hotro@webtravel.vn'}
+                        </a>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  animation: 'fadeIn 0.2s'
+                }}
+              >
+                <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '1rem' }}></i>
+                <span>{errorMsg}</span>
+              </div>
+            );
+          })()}
 
           {/* Success Message Box */}
           {successMsg && (
@@ -453,25 +584,58 @@ export const LoginPage: React.FC = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                      Số điện thoại *
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>
+                        Số điện thoại *
+                      </label>
+                      {phone.length > 0 && (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: phoneValidation.isValid ? '#059669' : '#64748b' }}>
+                          {phone.length}/10 số
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="tel"
                       required
                       placeholder="0901234567"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      maxLength={10}
+                      onChange={(e) => {
+                        const clean = sanitizePhone(e.target.value);
+                        setPhone(clean);
+                        setPhoneTouched(true);
+                      }}
+                      onBlur={() => setPhoneTouched(true)}
                       style={{
                         width: '100%',
                         padding: '0.75rem 0.9rem',
                         borderRadius: '12px',
-                        border: '1.5px solid #cbd5e1',
+                        border: phoneTouched && phone.length > 0
+                          ? phoneValidation.isValid
+                            ? '1.5px solid #10b981'
+                            : '1.5px solid #ef4444'
+                          : '1.5px solid #cbd5e1',
+                        background: phoneTouched && phone.length > 0 && !phoneValidation.isValid ? '#fef2f2' : '#ffffff',
                         fontSize: '0.92rem',
                         outline: 'none',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        transition: 'all 0.2s'
                       }}
                     />
+                    {phoneTouched && phone.length > 0 && (
+                      <div style={{
+                        fontSize: '0.74rem',
+                        marginTop: '0.3rem',
+                        color: phoneValidation.isValid ? '#059669' : '#dc2626',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem'
+                      }}>
+                        <i className={`fa-solid ${phoneValidation.isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+                        <span>{phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
@@ -510,18 +674,36 @@ export const LoginPage: React.FC = () => {
                   required
                   placeholder="khachhang@webtravel.vn"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (mode === 'register') setEmailTouched(true);
+                  }}
+                  onBlur={() => {
+                    if (mode === 'register') setEmailTouched(true);
+                  }}
                   style={{
                     width: '100%',
                     padding: '0.75rem 1rem 0.75rem 2.6rem',
                     borderRadius: '12px',
-                    border: '1.5px solid #cbd5e1',
+                    border: mode === 'register' && emailTouched && email.length > 0
+                      ? emailValidation.isValid
+                        ? '1.5px solid #10b981'
+                        : '1.5px solid #ef4444'
+                      : '1.5px solid #cbd5e1',
+                    background: mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid ? '#fef2f2' : '#ffffff',
                     fontSize: '0.92rem',
                     outline: 'none',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s'
                   }}
                 />
               </div>
+              {mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid && (
+                <div style={{ fontSize: '0.74rem', marginTop: '0.3rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                  <span>{emailValidation.error}</span>
+                </div>
+              )}
             </div>
 
             {/* PASSWORD */}
@@ -543,15 +725,26 @@ export const LoginPage: React.FC = () => {
                   required
                   placeholder={mode === 'register' ? 'Tối thiểu 6 ký tự' : 'Nhập mật khẩu của bạn'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (mode === 'register') setPasswordTouched(true);
+                  }}
+                  onBlur={() => {
+                    if (mode === 'register') setPasswordTouched(true);
+                  }}
                   style={{
                     width: '100%',
                     padding: '0.75rem 2.6rem 0.75rem 2.6rem',
                     borderRadius: '12px',
-                    border: '1.5px solid #cbd5e1',
+                    border: mode === 'register' && passwordTouched && password.length > 0
+                      ? isPasswordValid
+                        ? '1.5px solid #10b981'
+                        : '1.5px solid #ef4444'
+                      : '1.5px solid #cbd5e1',
                     fontSize: '0.92rem',
                     outline: 'none',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s'
                   }}
                 />
                 <button
@@ -571,6 +764,20 @@ export const LoginPage: React.FC = () => {
                   <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                 </button>
               </div>
+              {mode === 'register' && passwordTouched && password.length > 0 && (
+                <div style={{
+                  fontSize: '0.74rem',
+                  marginTop: '0.3rem',
+                  color: isPasswordValid ? '#059669' : '#dc2626',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem'
+                }}>
+                  <i className={`fa-solid ${isPasswordValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+                  <span>{isPasswordValid ? 'Độ dài mật khẩu đạt chuẩn' : 'Mật khẩu tối thiểu 6 ký tự'}</span>
+                </div>
+              )}
             </div>
 
             {/* CONFIRM PASSWORD (ONLY IN REGISTER MODE) */}
@@ -586,15 +793,24 @@ export const LoginPage: React.FC = () => {
                     required
                     placeholder="Nhập lại mật khẩu giống ở trên"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setConfirmPasswordTouched(true);
+                    }}
+                    onBlur={() => setConfirmPasswordTouched(true)}
                     style={{
                       width: '100%',
                       padding: '0.75rem 2.6rem 0.75rem 2.6rem',
                       borderRadius: '12px',
-                      border: password && confirmPassword && password !== confirmPassword ? '1.5px solid #ef4444' : '1.5px solid #cbd5e1',
+                      border: confirmPasswordTouched && confirmPassword.length > 0
+                        ? password === confirmPassword
+                          ? '1.5px solid #10b981'
+                          : '1.5px solid #ef4444'
+                        : '1.5px solid #cbd5e1',
                       fontSize: '0.92rem',
                       outline: 'none',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
+                      transition: 'all 0.2s'
                     }}
                   />
                   <button
@@ -614,10 +830,19 @@ export const LoginPage: React.FC = () => {
                     <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
                   </button>
                 </div>
-                {password && confirmPassword && password !== confirmPassword && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.25rem', display: 'block' }}>
-                    <i className="fa-solid fa-circle-xmark"></i> Mật khẩu xác nhận chưa khớp
-                  </span>
+                {confirmPasswordTouched && confirmPassword.length > 0 && (
+                  <div style={{
+                    fontSize: '0.74rem',
+                    marginTop: '0.3rem',
+                    color: password === confirmPassword ? '#059669' : '#dc2626',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}>
+                    <i className={`fa-solid ${password === confirmPassword ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+                    <span>{password === confirmPassword ? 'Mật khẩu xác nhận trùng khớp' : 'Mật khẩu xác nhận không khớp'}</span>
+                  </div>
                 )}
               </div>
             )}
