@@ -18,9 +18,12 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
     setIsSigningOut(true);
     try {
       await onSignOut();
-      window.location.href = '/login';
+      // NOTE: Do NOT call window.location.href here.
+      // onSignOut() sets user=null in React state → ProtectedRoute re-renders → <Navigate to="/login" />.
+      // Adding window.location.href causes a SECOND hard-reload on top of React Router navigation = flicker.
     } catch (err) {
       console.error('Error signing out:', err);
+      // Only force hard redirect on error (React state may be inconsistent)
       window.location.href = '/login';
     }
   };
@@ -29,7 +32,7 @@ export const AccountSuspendedScreen: React.FC<AccountSuspendedScreenProps> = ({
     setIsSigningOut(true);
     try {
       await onSignOut();
-      window.location.href = '/';
+      // Same reasoning: let React state drive navigation to prevent double-redirect flicker.
     } catch (err) {
       console.error('Error signing out:', err);
       window.location.href = '/';

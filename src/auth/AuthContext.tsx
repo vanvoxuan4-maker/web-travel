@@ -116,26 +116,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const client = supabase;
 
-    const checkSession = async () => {
-      try {
-        const { data: sessionData } = await client.auth.getSession();
-        const session = sessionData?.session;
-        if (session && session.user) {
-          const profile = await fetchUserProfile(session.user.id, session.user.email || '');
-          if (profile) {
-            setUser(profile);
-            localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(profile));
-          }
-        }
-      } catch (e) {
-        console.error('Error checking session:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkSession();
-
+    // Use onAuthStateChange as the SINGLE source of truth for session state.
+    // It fires 'INITIAL_SESSION' immediately on mount (replacing the need for a separate checkSession call),
+    // preventing the race condition where two concurrent fetchUserProfile calls both call setUser,
+    // causing double renders and visual flickering.
     const { data: authListener } = client.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
         const profile = await fetchUserProfile(session.user.id, session.user.email || '');
@@ -147,6 +131,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         localStorage.removeItem(LOCAL_USER_KEY);
       }
+      // Always mark loading done after any auth event resolves
+      setIsLoading(false);
     });
 
     return () => {

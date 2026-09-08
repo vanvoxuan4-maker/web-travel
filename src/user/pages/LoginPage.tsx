@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
   const redirectUrl = searchParams.get('redirect') || '/home';
   const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
 
-  const { signIn, signUp, isAuthenticated, user, signOut } = useAuth();
+  const { signIn, signUp, isAuthenticated, user, signOut, isLoading: isAuthLoading } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -57,12 +57,15 @@ export const LoginPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // If user is already authenticated and NOT banned/deleted, redirect straight to target page
+  // CRITICAL: Wait for auth to finish loading before redirecting.
+  // Without this check, stale localStorage data (e.g., cached status='active' for a now-banned user)
+  // would trigger an immediate redirect to /home, causing a brief flicker of the home page
+  // before ProtectedRoute detects the banned status and switches to AccountSuspendedScreen.
   useEffect(() => {
-    if (isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
+    if (!isAuthLoading && isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
       navigate(redirectUrl, { replace: true });
     }
-  }, [isAuthenticated, user, navigate, redirectUrl]);
+  }, [isAuthLoading, isAuthenticated, user, navigate, redirectUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
