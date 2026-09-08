@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
+import { ConfirmLockModal } from '../modals/ConfirmLockModal';
 import { exportStaffToCSV } from '../../utils/exportUtils';
 import { removeVietnameseTones } from '../../utils/formatters';
 
@@ -26,6 +27,7 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
     customer: StaffRecord;
     targetRole: 'admin' | 'super_admin';
   } | null>(null);
+  const [pendingStatusStaff, setPendingStatusStaff] = useState<StaffRecord | null>(null);
 
   // 1. Metric stats
   const stats = useMemo(() => {
@@ -580,7 +582,7 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
                             {hasPermission(currentUser?.role, 'customer:ban') && (
                               <button
                                 type="button"
-                                onClick={() => onToggleStatus(s.id, s.status)}
+                                onClick={() => setPendingStatusStaff(s)}
                                 style={{
                                   padding: '0.35rem 0.65rem',
                                   background: s.status === 'active' ? '#fee2e2' : '#ecfdf5',
@@ -604,6 +606,19 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Confirmation Modal for Staff Lock / Unlock */}
+        {pendingStatusStaff && (
+          <ConfirmLockModal
+            isOpen={!!pendingStatusStaff}
+            user={pendingStatusStaff}
+            onClose={() => setPendingStatusStaff(null)}
+            onConfirm={async (staffId, currentStatus) => {
+              await onToggleStatus(staffId, currentStatus);
+              setPendingStatusStaff(null);
+            }}
+          />
         )}
 
         {/* Re-auth Modal */}

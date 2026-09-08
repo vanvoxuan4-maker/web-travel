@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
+import { ConfirmLockModal } from '../modals/ConfirmLockModal';
 import { exportCustomersToCSV } from '../../utils/exportUtils';
 
 interface CustomersModuleProps {
@@ -22,6 +23,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
     customer: CustomerRecord;
     targetRole: 'admin' | 'super_admin';
   } | null>(null);
+  const [pendingStatusCustomer, setPendingStatusCustomer] = useState<CustomerRecord | null>(null);
 
   // Filter only actual customers (exclude staff / admins who now have their own tab)
   const pureCustomers = useMemo(() => {
@@ -397,7 +399,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           {hasPermission(currentUser?.role, 'customer:ban') && (
                             <button
                               type="button"
-                              onClick={() => onToggleStatus(c.id, c.status)}
+                              onClick={() => setPendingStatusCustomer(c)}
                               style={{
                                 padding: '0.35rem 0.65rem',
                                 background: c.status === 'active' ? '#fee2e2' : '#ecfdf5',
@@ -421,6 +423,19 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Confirmation Modal for Lock / Unlock */}
+      {pendingStatusCustomer && (
+        <ConfirmLockModal
+          isOpen={!!pendingStatusCustomer}
+          user={pendingStatusCustomer}
+          onClose={() => setPendingStatusCustomer(null)}
+          onConfirm={async (customerId, currentStatus) => {
+            await onToggleStatus(customerId, currentStatus);
+            setPendingStatusCustomer(null);
+          }}
+        />
       )}
 
       {/* Re-authentication Confirmation Modal for Admin / Super Admin Promotion */}
