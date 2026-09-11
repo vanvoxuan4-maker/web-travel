@@ -1,31 +1,25 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { BookingRecord } from '../admin.types';
 import { formatCurrencyVND, removeVietnameseTones } from '../../utils/formatters';
-import { BookingDetailModal } from '../modals/BookingDetailModal';
-import { DeleteBookingModal } from '../modals/DeleteBookingModal';
 import { ETicketModal } from '../../user/components/profile/ETicketModal';
 import { BookingPayload } from '../../services/bookingService';
-import { PermissionGate } from '../../auth';
 import { exportBookingsToCSV } from '../../utils/exportUtils';
 
 interface BookingsModuleProps {
   bookings: BookingRecord[];
   onStatusChange: (bookingId: string, newStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled') => Promise<void>;
-  onDeleteBooking?: (bookingId: string) => Promise<void>;
 }
 
 type FilterTab = 'all' | 'pending' | 'deposit' | 'confirmed' | 'cancelled';
 
 export const BookingsModule: React.FC<BookingsModuleProps> = ({
   bookings,
-  onStatusChange,
-  onDeleteBooking
+  onStatusChange
 }) => {
   const [selectedTab, setSelectedTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeBookingForDetail, setActiveBookingForDetail] = useState<BookingRecord | null>(null);
   const [activeBookingForETicket, setActiveBookingForETicket] = useState<BookingRecord | null>(null);
-  const [bookingToDelete, setBookingToDelete] = useState<BookingRecord | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // 1. Calculate KPI Metrics
@@ -342,13 +336,13 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
                     {/* Mã Đơn & Ngày tạo */}
                     <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span
-                          onClick={() => setActiveBookingForDetail(b)}
-                          style={{ fontWeight: 800, color: '#047857', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}
-                          title="Bấm để xem chi tiết đơn"
+                        <Link
+                          to={`/admin/bookings/${b.bookingCode || b.id}`}
+                          style={{ fontWeight: 800, color: '#047857', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                          title="Bấm để mở trang chi tiết đơn"
                         >
                           {b.bookingCode || b.id}
-                        </span>
+                        </Link>
                         <button
                           type="button"
                           onClick={() => handleCopy(b.bookingCode || b.id)}
@@ -450,10 +444,9 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
                     {/* Thao tác */}
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {/* Chi tiết */}
-                        <button
-                          type="button"
-                          onClick={() => setActiveBookingForDetail(b)}
+                        {/* Chi tiết trang riêng */}
+                        <Link
+                          to={`/admin/bookings/${b.bookingCode || b.id}`}
                           style={{
                             padding: '0.35rem 0.65rem',
                             borderRadius: '8px',
@@ -462,15 +455,15 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
                             color: '#047857',
                             fontSize: '0.8rem',
                             fontWeight: 700,
-                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.3rem'
+                            gap: '0.3rem',
+                            textDecoration: 'none'
                           }}
-                          title="Xem hồ sơ & đối soát tiền"
+                          title="Xem hồ sơ & đối soát tiền trên trang riêng"
                         >
-                          <i className="fa-solid fa-eye" /> Chi Tiết
-                        </button>
+                          <i className="fa-solid fa-arrow-up-right-from-square" /> Chi Tiết
+                        </Link>
 
                         {/* Xuất vé E-Ticket */}
                         <button
@@ -515,33 +508,6 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
                           <option value="confirmed">100% Xong</option>
                           <option value="cancelled">Hủy Đơn</option>
                         </select>
-
-                        {/* Xóa Cứng Vĩnh Viễn */}
-                        {onDeleteBooking && (
-                          <PermissionGate permission="booking:delete">
-                            <button
-                              type="button"
-                              onClick={() => setBookingToDelete(b)}
-                              style={{
-                                padding: '0.35rem 0.55rem',
-                                borderRadius: '8px',
-                                background: '#fef2f2',
-                                border: '1px solid #fecaca',
-                                color: '#dc2626',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.15s ease'
-                              }}
-                              title="Xóa cứng vĩnh viễn đơn hàng này"
-                            >
-                              <i className="fa-solid fa-trash-can" />
-                            </button>
-                          </PermissionGate>
-                        )}
                       </div>
                     </td>
 
@@ -553,42 +519,11 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
         </div>
       </div>
 
-      {/* Booking Detail Modal */}
-      {activeBookingForDetail && (
-        <BookingDetailModal
-          booking={activeBookingForDetail}
-          onClose={() => setActiveBookingForDetail(null)}
-          onUpdateStatus={async (id, newSt) => {
-            await onStatusChange(id, newSt);
-            setActiveBookingForDetail((prev) => (prev && prev.id === id ? { ...prev, status: newSt } : prev));
-          }}
-          onRequestDelete={(b) => {
-            setActiveBookingForDetail(null);
-            setBookingToDelete(b);
-          }}
-        />
-      )}
-
       {/* E-Ticket Printable Modal */}
       {activeBookingForETicket && (
         <ETicketModal
           booking={getETicketPayload(activeBookingForETicket)}
           onClose={() => setActiveBookingForETicket(null)}
-        />
-      )}
-
-      {/* Delete Booking Confirmation Modal */}
-      {bookingToDelete && (
-        <DeleteBookingModal
-          booking={bookingToDelete}
-          isOpen={!!bookingToDelete}
-          onClose={() => setBookingToDelete(null)}
-          onConfirmDelete={async (id) => {
-            if (onDeleteBooking) {
-              await onDeleteBooking(id);
-            }
-            setBookingToDelete(null);
-          }}
         />
       )}
 

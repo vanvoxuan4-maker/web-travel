@@ -27,6 +27,8 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
         return { breadcrumb: 'Tổng Quan & Doanh Thu', title: 'Bảng Điều Khiển Kinh Doanh' };
       case 'bookings':
         return { breadcrumb: 'Quản Lý Đơn Tour', title: 'Danh Sách Đơn Đặt Tour' };
+      case 'payments':
+        return { breadcrumb: 'Lịch Sử Giao Dịch', title: 'Đối Soát & Quản Lý Dòng Tiền' };
       case 'tours':
         return { breadcrumb: 'Kho Tour Lữ Hành', title: 'Quản Lý Sản Phẩm & Lịch Trình' };
       case 'customers':
@@ -35,6 +37,8 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
         return { breadcrumb: 'Đội Ngũ Nhân Sự', title: 'Quản Lý Cán Bộ & Phân Quyền Vận Hành' };
       case 'coupons':
         return { breadcrumb: 'Mã Khuyến Mãi', title: 'Cấu Hình Mã Khuyến Mãi' };
+      default:
+        return { breadcrumb: 'Quản Trị', title: 'Hệ Thống Quản Trị' };
     }
   };
 
@@ -66,7 +70,29 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
       </div>
 
       {/* Right Action Widgets */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        {/* Security Inactivity Notice Badge */}
+        <div
+          title="Cơ chế bảo mật quản trị: Sau 30 phút không có thao tác chuột hoặc bàn phím, hệ thống sẽ hiển thị cảnh báo 60 giây và tự động đăng xuất an toàn."
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            padding: '0.45rem 0.85rem',
+            background: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '10px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            color: '#92400e',
+            cursor: 'help',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+          }}
+        >
+          <i className="fa-solid fa-shield-halved" style={{ color: '#d97706', fontSize: '0.85rem' }}></i>
+          <span>Tự khóa sau <strong>30p</strong> không thao tác</span>
+        </div>
+
         {/* Sync Button */}
         <button
           type="button"

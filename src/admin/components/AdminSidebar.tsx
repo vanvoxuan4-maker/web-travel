@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AdminTab } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
+import { isTabAllowed } from '../../auth/permissions';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -10,6 +11,7 @@ interface AdminSidebarProps {
   toursCount: number;
   customersCount: number;
   staffCount?: number;
+  paymentsCount?: number;
   pendingBookingsCount: number;
 }
 
@@ -20,6 +22,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   toursCount,
   customersCount,
   staffCount = 0,
+  paymentsCount = 0,
   pendingBookingsCount
 }) => {
   const navigate = useNavigate();
@@ -123,175 +126,221 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             Quản Trị Nghiệp Vụ
           </div>
 
-          {/* 1. Tổng Quan */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'overview' ? '#059669' : 'transparent',
-              color: activeTab === 'overview' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'overview' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <i className="fa-solid fa-chart-pie" style={{ width: '18px', textAlign: 'center' }}></i>
-            <span>Tổng Quan & Doanh Thu</span>
-          </button>
+          {/* 1. Tổng Quan & Doanh Thu (Admin & Super Admin only) */}
+          {isTabAllowed(user?.role, 'overview') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'overview' ? '#059669' : 'transparent',
+                color: activeTab === 'overview' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'overview' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <i className="fa-solid fa-chart-pie" style={{ width: '18px', textAlign: 'center' }}></i>
+              <span>Tổng Quan & Doanh Thu</span>
+            </button>
+          )}
 
           {/* 2. Đơn Đặt Tour */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('bookings')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'bookings' ? '#059669' : 'transparent',
-              color: activeTab === 'bookings' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'bookings' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <i className="fa-solid fa-receipt" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Quản Lý Đơn Tour</span>
-            </div>
-            <span style={{ background: pendingBookingsCount > 0 ? '#ef4444' : 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-              {bookingsCount}
-            </span>
-          </button>
+          {isTabAllowed(user?.role, 'bookings') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('bookings')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'bookings' ? '#059669' : 'transparent',
+                color: activeTab === 'bookings' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'bookings' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <i className="fa-solid fa-receipt" style={{ width: '18px', textAlign: 'center' }}></i>
+                <span>Quản Lý Đơn Tour</span>
+              </div>
+              <span style={{ background: pendingBookingsCount > 0 ? '#ef4444' : 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+                {bookingsCount}
+              </span>
+            </button>
+          )}
 
-          {/* 3. Kho Tour */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('tours')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'tours' ? '#059669' : 'transparent',
-              color: activeTab === 'tours' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'tours' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <i className="fa-solid fa-map-location-dot" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Kho Tour Lữ Hành</span>
-            </div>
-            <span style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-              {toursCount}
-            </span>
-          </button>
+          {/* 3. Lịch Sử Giao Dịch */}
+          {isTabAllowed(user?.role, 'payments') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('payments')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'payments' ? '#059669' : 'transparent',
+                color: activeTab === 'payments' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'payments' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <i className="fa-solid fa-credit-card" style={{ width: '18px', textAlign: 'center' }}></i>
+                <span>Lịch Sử Giao Dịch</span>
+              </div>
+              {paymentsCount > 0 && (
+                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+                  {paymentsCount}
+                </span>
+              )}
+            </button>
+          )}
 
-          {/* 4. Khách Hàng Thành Viên */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('customers')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'customers' ? '#059669' : 'transparent',
-              color: activeTab === 'customers' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'customers' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <i className="fa-solid fa-users" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Khách Hàng</span>
-            </div>
-            <span style={{ background: '#34d399', color: '#064e3b', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-              {customersCount}
-            </span>
-          </button>
+          {/* 4. Kho Tour */}
+          {isTabAllowed(user?.role, 'tours') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('tours')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'tours' ? '#059669' : 'transparent',
+                color: activeTab === 'tours' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'tours' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <i className="fa-solid fa-map-location-dot" style={{ width: '18px', textAlign: 'center' }}></i>
+                <span>Kho Tour Lữ Hành</span>
+              </div>
+              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+                {toursCount}
+              </span>
+            </button>
+          )}
 
-          {/* 5. Đội Ngũ Nhân Sự */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('staff')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'staff' ? '#059669' : 'transparent',
-              color: activeTab === 'staff' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'staff' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <i className="fa-solid fa-id-badge" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Đội Ngũ Nhân Sự</span>
-            </div>
-            <span style={{ background: '#60a5fa', color: '#1e3a8a', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-              {staffCount}
-            </span>
-          </button>
+          {/* 5. Khách Hàng Thành Viên */}
+          {isTabAllowed(user?.role, 'customers') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('customers')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'customers' ? '#059669' : 'transparent',
+                color: activeTab === 'customers' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'customers' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <i className="fa-solid fa-users" style={{ width: '18px', textAlign: 'center' }}></i>
+                <span>Khách Hàng</span>
+              </div>
+              <span style={{ background: '#34d399', color: '#064e3b', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+                {customersCount}
+              </span>
+            </button>
+          )}
 
-          {/* 5. Mã Khuyến Mãi */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('coupons')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 0.9rem',
-              borderRadius: '12px',
-              border: 'none',
-              background: activeTab === 'coupons' ? '#059669' : 'transparent',
-              color: activeTab === 'coupons' ? '#ffffff' : '#d1fae5',
-              fontWeight: activeTab === 'coupons' ? 700 : 500,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s'
-            }}
-          >
-            <i className="fa-solid fa-tags" style={{ width: '18px', textAlign: 'center' }}></i>
-            <span>Mã Giảm Giá & Voucher</span>
-          </button>
+          {/* 6. Đội Ngũ Nhân Sự (Admin & Super Admin only) */}
+          {isTabAllowed(user?.role, 'staff') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('staff')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'staff' ? '#059669' : 'transparent',
+                color: activeTab === 'staff' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'staff' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <i className="fa-solid fa-id-badge" style={{ width: '18px', textAlign: 'center' }}></i>
+                <span>Đội Ngũ Nhân Sự</span>
+              </div>
+              <span style={{ background: '#60a5fa', color: '#1e3a8a', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
+                {staffCount}
+              </span>
+            </button>
+          )}
+
+          {/* 7. Mã Khuyến Mãi & Voucher (Admin & Super Admin only) */}
+          {isTabAllowed(user?.role, 'coupons') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('coupons')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'coupons' ? '#059669' : 'transparent',
+                color: activeTab === 'coupons' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'coupons' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <i className="fa-solid fa-tags" style={{ width: '18px', textAlign: 'center' }}></i>
+              <span>Mã Giảm Giá & Voucher</span>
+            </button>
+          )}
         </div>
       </div>
 

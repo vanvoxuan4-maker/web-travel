@@ -1,4 +1,5 @@
 import { UserRole } from './auth.types';
+import { AdminTab } from '../admin/admin.types';
 
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 1,
@@ -21,10 +22,34 @@ export const ROLE_BADGE_STYLES: Record<UserRole, { bg: string; color: string; bo
   super_admin: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
 };
 
+/**
+ * Tab-level RBAC Permissions
+ * - Staff: Only operational modules (bookings, payments, tours, customers)
+ * - Admin & Super Admin: All management modules including revenue overview, staff & coupons
+ */
+export const TAB_PERMISSIONS: Record<AdminTab, readonly UserRole[]> = {
+  overview: ['admin', 'super_admin'],
+  bookings: ['staff', 'admin', 'super_admin'],
+  payments: ['staff', 'admin', 'super_admin'],
+  tours: ['staff', 'admin', 'super_admin'],
+  customers: ['staff', 'admin', 'super_admin'],
+  staff: ['admin', 'super_admin'],
+  coupons: ['admin', 'super_admin'],
+};
+
+/**
+ * Check whether a user role is allowed to view and access an Admin Tab
+ */
+export function isTabAllowed(role: UserRole | undefined | null, tab: AdminTab): boolean {
+  if (!role) return false;
+  const allowedRoles = TAB_PERMISSIONS[tab];
+  return allowedRoles ? allowedRoles.includes(role) : false;
+}
+
 export const PERMISSIONS = {
   // Admin Portal Access
   'admin:access': ['staff', 'admin', 'super_admin'],
-  'admin:overview': ['staff', 'admin', 'super_admin'],
+  'admin:overview': ['admin', 'super_admin'],
 
   // Bookings Management
   'booking:view': ['staff', 'admin', 'super_admin'],
@@ -46,11 +71,11 @@ export const PERMISSIONS = {
   'customer:promote_staff': ['admin', 'super_admin'],
   'customer:promote_admin': ['super_admin'],
   'customer:promote_super_admin': ['super_admin'],
-  'staff:view': ['staff', 'admin', 'super_admin'],
+  'staff:view': ['admin', 'super_admin'],
   'staff:manage': ['admin', 'super_admin'],
 
   // Promotions & Coupons
-  'coupon:view': ['staff', 'admin', 'super_admin'],
+  'coupon:view': ['admin', 'super_admin'],
   'coupon:create': ['admin', 'super_admin'],
   'coupon:delete': ['super_admin'],
 

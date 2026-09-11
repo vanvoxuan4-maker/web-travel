@@ -3,7 +3,13 @@ import { useSearchParams, useParams, Link } from 'react-router-dom';
 import { TOURS_DATA } from '../../data/toursData';
 import { tourService } from '../../services/tourService';
 import { Tour, DepartureDate } from '../../types/tour.types';
-import { getDateDetails, deductSeats, getRemainingSeats } from '../../utils/inventoryManager';
+import { 
+  getDateDetails, 
+  deductSeats, 
+  getRemainingSeats,
+  subscribeToSeatUpdates,
+  syncAllSeatsFromSupabase
+} from '../../utils/inventoryManager';
 import { formatCurrencyVND, getDayOfWeekVN } from '../../utils/formatters';
 import { bookingService, PaymentMethod } from '../../services/bookingService';
 import { couponService } from '../../services/couponService';
@@ -60,6 +66,7 @@ export const CheckoutPage: React.FC = () => {
   }, [tour, initialDateFromQuery]);
 
   const [showAllDates, setShowAllDates] = useState<boolean>(false);
+  const [realtimeSoldOut, setRealtimeSoldOut] = useState<boolean>(false);
 
   const currentDetails = useMemo(() => {
     if (!tour) return null;
@@ -67,7 +74,7 @@ export const CheckoutPage: React.FC = () => {
   }, [tour, selectedDate]);
 
   const maxSeats = currentDetails?.seats ?? (tour ? getRemainingSeats(tour.id, selectedDate) : 0);
-  const isSoldOut = maxSeats <= 0;
+  const isSoldOut = maxSeats <= 0 || realtimeSoldOut;
 
   const [adults, setAdults] = useState<number>(() => (isSoldOut ? 0 : Math.min(2, Math.max(1, maxSeats))));
   const [children, setChildren] = useState<number>(0);
@@ -140,11 +147,65 @@ export const CheckoutPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Supabase Realtime & DB Sync for departure seats in Checkout
+  useEffect(() => {
+    if (!tour?.id) return;
+
+    syncAllSeatsFromSupabase(tour.id);
+    const unsubscribe = subscribeToSeatUpdates(tour.id);
+
+    const handleRealtimeSeats = (e: any) => {
+      const { tourId, date, seats } = e?.detail || {};
+      if (tourId !== tour.id) return;
+
+      // Nếu ngày khách đang chọn bị giảm số ghế <= 0 trong lúc đang ở trang Checkout
+      if (date === selectedDate && seats <= 0) {
+        setRealtimeSoldOut(true);
+      } else if (date === selectedDate && seats > 0) {
+        setRealtimeSoldOut(false);
+      }
+
+      // Cập nhật departureDates trong state để danh sách hiển thị đúng
+      setTour(prev => prev ? {
+        ...prev,
+        departureDates: (prev.departureDates || []).map(d =>
+          d.date === date ? { ...d, seats } : d
+        )
+      } : prev);
+    };
+
+    const handleInventorySynced = (e: any) => {
+      const { tourId } = e?.detail || {};
+      if (tourId !== tour.id) return;
+      const latestSeats = getRemainingSeats(tour.id, selectedDate);
+      if (latestSeats <= 0) {
+        setRealtimeSoldOut(true);
+      }
+      setTour(prev => prev ? {
+        ...prev,
+        departureDates: (prev.departureDates || []).map(d => ({
+          ...d,
+          seats: getRemainingSeats(prev.id, d.date, prev)
+        }))
+      } : prev);
+    };
+
+    window.addEventListener('webtravel:realtime_seats', handleRealtimeSeats);
+    window.addEventListener('webtravel:inventory_synced', handleInventorySynced);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('webtravel:realtime_seats', handleRealtimeSeats);
+      window.removeEventListener('webtravel:inventory_synced', handleInventorySynced);
+    };
+  }, [tour?.id, selectedDate]);
+
   const handleSelectDate = (dateStr: string) => {
     if (!tour) return;
     const seats = getRemainingSeats(tour.id, dateStr);
     if (seats <= 0) return;
     setSelectedDate(dateStr);
+    setRealtimeSoldOut(false);
     setShowAllDates(false);
     if (adults + children + toddlers > seats) {
       setAdults(Math.max(1, Math.min(2, seats)));
@@ -251,7 +312,7 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    if (isSoldOut || isSeatExceeded || bookedPax === 0) return;
+    if (isSoldOut || isSeatExceeded || bookedPax === 0 || realtimeSoldOut) return;
 
     setIsSubmitting(true);
 
@@ -452,13 +513,48 @@ export const CheckoutPage: React.FC = () => {
                   <h3 style={{ margin: '0 0 0.5rem', color: '#111827', fontSize: '1.05rem' }}>
                     <i className="fa-solid fa-qrcode" style={{ color: 'var(--accent-emerald)', marginRight: '0.4rem' }}></i> Quét Mã VietQR Chuyển Khoản Tự Động
                   </h3>
-                  <img src={vietQrUrl} alt="VietQR Thanh Toán" style={{ maxWidth: '200px', borderRadius: '10px', border: '1.5px solid #e2e8f0', boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }} />
-                  
+
+                  {/* Phase 2 UI: Blur & lock QR when payment window expired */}
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <img
+                      src={vietQrUrl}
+                      alt="VietQR Thanh Toán"
+                      style={{
+                        maxWidth: '200px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #e2e8f0',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
+                        filter: (secondsRemaining <= 0 && !isPaidConfirmed) ? 'blur(6px) grayscale(0.8)' : undefined,
+                        transition: 'filter 0.4s ease'
+                      }}
+                    />
+                    {(secondsRemaining <= 0 && !isPaidConfirmed) && (
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(254,242,242,0.85)', borderRadius: '10px',
+                        color: '#b91c1c', fontSize: '0.8rem', fontWeight: 700, gap: '0.4rem', padding: '0.5rem'
+                      }}>
+                        <i className="fa-solid fa-lock" style={{ fontSize: '1.5rem' }}></i>
+                        <span style={{ textAlign: 'center', lineHeight: 1.3 }}>Mã QR đã hết hạn<br/>Vui lòng đặt lại</span>
+                      </div>
+                    )}
+                  </div>
+
                   <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.6rem 0 0.85rem' }}>
                     Nội dung chuyển khoản: <strong style={{ color: '#0f172a' }}>{bookingRef} {customerPhone}</strong>
                   </p>
 
-                  {!isPaidConfirmed ? (
+                  {(secondsRemaining <= 0 && !isPaidConfirmed) ? (
+                    <div style={{
+                      padding: '0.7rem 1rem', background: '#fef2f2', border: '1px solid #f87171',
+                      borderRadius: '10px', color: '#b91c1c', fontSize: '0.82rem', textAlign: 'center'
+                    }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: '0.35rem' }}></i>
+                      Thời gian giữ chỗ đã hết (15 phút). Chỗ của bạn có thể đã được nhả.
+                      Vui lòng đặt lại hoặc liên hệ hotline <strong>1900 6868</strong> để hỗ trợ.
+                    </div>
+                  ) : !isPaidConfirmed ? (
                     <button
                       type="button"
                       onClick={handleMarkPaymentTransferred}
@@ -547,6 +643,95 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Main 2-Column Grid */}
             <form id="smart-booking-form" onSubmit={handleConfirmBooking} noValidate>
+              
+              {/* Realtime Sold Out Alert Banner */}
+              {(realtimeSoldOut || isSoldOut) && (
+                <div 
+                  id="realtime-soldout-banner"
+                  style={{
+                    background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
+                    border: '2px solid #f59e0b',
+                    borderRadius: '16px',
+                    padding: '1.25rem 1.5rem',
+                    marginBottom: '1.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.85rem',
+                    boxShadow: '0 8px 24px rgba(245, 158, 11, 0.15)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: '#fef3c7',
+                      border: '2px solid #f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <i className="fa-solid fa-triangle-exclamation" style={{ color: '#d97706', fontSize: '1.3rem' }} />
+                    </div>
+                    <div>
+                      <strong style={{ color: '#92400e', fontSize: '1.05rem', display: 'block', marginBottom: '0.2rem' }}>
+                        Ngày khởi hành {selectedDate} vừa được khách khác đặt hết!
+                      </strong>
+                      <span style={{ color: '#78350f', fontSize: '0.88rem', lineHeight: 1.4 }}>
+                        Toàn bộ thông tin quý khách vừa điền vẫn được giữ nguyên vẹn. Vui lòng chọn một ngày khởi hành khác còn chỗ bên dưới:
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Date Picker Pills */}
+                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', paddingTop: '0.25rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginRight: '0.25rem' }}>
+                      Chọn nhanh ngày còn chỗ:
+                    </span>
+                    {departureList
+                      .filter(d => d.date !== selectedDate && (getRemainingSeats(tour.id, d.date, tour) > 0))
+                      .slice(0, 6)
+                      .map(d => {
+                        const avail = getRemainingSeats(tour.id, d.date, tour);
+                        return (
+                          <button
+                            key={d.date}
+                            type="button"
+                            onClick={() => handleSelectDate(d.date)}
+                            style={{
+                              background: '#047857',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '0.45rem 1.1rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <i className="fa-regular fa-calendar" style={{ fontSize: '0.8rem' }}></i>
+                            <span>{d.date}</span>
+                            <span style={{ background: 'rgba(255,255,255,0.25)', padding: '0.1rem 0.4rem', borderRadius: '8px', fontSize: '0.75rem' }}>
+                              còn {avail}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    {departureList.filter(d => d.date !== selectedDate && (getRemainingSeats(tour.id, d.date, tour) > 0)).length === 0 && (
+                      <span style={{ fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
+                        Hiện tại tour này đã hết chỗ cho tất cả các ngày. Quý khách vui lòng liên hệ hotline để được hỗ trợ.
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="booking-modal-grid">
                 
                 {/* LEFT COLUMN: Step-by-Step Configuration */}
@@ -1237,9 +1422,13 @@ export const CheckoutPage: React.FC = () => {
                   <div className="booking-summary-sticky-card">
                     
                     {/* Reservation Lock Countdown Badge */}
-                    <div className="seat-lock-banner">
-                      <i className="fa-solid fa-stopwatch fa-spin-pulse"></i>
-                      <span>Giữ chỗ tạm thời trong: <strong>{timerDisplay}</strong></span>
+                    <div className="seat-lock-banner" style={secondsRemaining <= 0 ? { background: '#fef2f2', borderColor: '#f87171', color: '#b91c1c' } : undefined}>
+                      <i className={`fa-solid ${secondsRemaining <= 0 ? 'fa-circle-xmark' : 'fa-stopwatch fa-spin-pulse'}`}></i>
+                      <span>
+                        {secondsRemaining <= 0
+                          ? <strong>Thời gian giữ chỗ đã hết hạn!</strong>
+                          : <>Giữ chỗ tạm thời trong: <strong>{timerDisplay}</strong></>}
+                      </span>
                     </div>
 
                     <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', color: '#111827', margin: '1.25rem 0 0.4rem' }}>
@@ -1394,7 +1583,7 @@ export const CheckoutPage: React.FC = () => {
                     {/* Submit Button */}
                     <button 
                       type="submit" 
-                      disabled={isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0}
+                      disabled={isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0 || realtimeSoldOut}
                       className="btn-primary w-full" 
                       style={{ 
                         padding: '1rem', 
@@ -1403,15 +1592,18 @@ export const CheckoutPage: React.FC = () => {
                         borderRadius: '10px', 
                         width: '100%', 
                         justifyContent: 'center', 
-                        boxShadow: '0 10px 25px rgba(5,150,105,0.35)', 
-                        cursor: (isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0) ? 'not-allowed' : 'pointer',
-                        opacity: isSubmitting ? 0.7 : 1
+                        boxShadow: (isSoldOut || realtimeSoldOut) ? 'none' : '0 10px 25px rgba(5,150,105,0.35)', 
+                        cursor: (isSubmitting || isSoldOut || isSeatExceeded || bookedPax === 0 || realtimeSoldOut) ? 'not-allowed' : 'pointer',
+                        opacity: isSubmitting ? 0.7 : ((isSoldOut || realtimeSoldOut) ? 0.65 : 1),
+                        background: (isSoldOut || realtimeSoldOut) ? '#94a3b8' : undefined
                       }}
                     >
                       {isSubmitting ? (
                         <span><i className="fa-solid fa-spinner fa-spin"></i> Đang Xử Lý Đặt Chỗ...</span>
+                      ) : (isSoldOut || realtimeSoldOut) ? (
+                        <span><i className="fa-solid fa-ban"></i> Ngày Này Đã Hết Chỗ — Vui Lòng Đổi Ngày</span>
                       ) : (
-                        <span><i className="fa-solid fa-lock"></i> {isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}</span>
+                        <span><i className="fa-solid fa-lock"></i> Tiến Hành Đặt Chỗ ({formatCurrencyVND(dueAmount)})</span>
                       )}
                     </button>
 

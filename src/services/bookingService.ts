@@ -56,7 +56,7 @@ export function getBookingUiStatus(booking: {
   }
 
   // 2. Paid 100% (Confirmed)
-  if (pStatus === 'paid' || bStatus === 'completed') {
+  if (pStatus === 'paid' || bStatus === 'completed' || bStatus === 'confirmed') {
     return 'confirmed';
   }
 
@@ -143,7 +143,6 @@ export const bookingService = {
                 total_amount: booking.totalAmount,
                 paid_amount: booking.paidAmount || (booking.paymentStatus === 'paid' ? booking.totalAmount : 0),
                 coupon_code: booking.couponCode || null,
-                coupon_discount: booking.couponDiscount || 0,
                 payment_method: booking.paymentMethod,
                 payment_status: booking.paymentStatus,
                 booking_status: booking.bookingStatus,
@@ -157,13 +156,18 @@ export const bookingService = {
         );
 
         if (error) {
-          AppLogger.warn('Supabase booking insert trả về lỗi, chuyển sang lưu LocalStorage', {
-            action: 'BOOKING_CREATE_SUPABASE_FALLBACK',
+          // Kiểm tra lỗi không đủ ghế từ trigger DB (Phase 1)
+          const isSeatError = (error.message || '').includes('INSUFFICIENT_SEATS');
+          const userMsg = isSeatError
+            ? 'Rất tiếc! Số ghế còn lại không đủ cho yêu cầu của bạn. Vui lòng chọn ngày khác hoặc giảm số lượng khách.'
+            : `Không thể tạo đơn đặt tour: ${error.message}. Vui lòng thử lại.`;
+          AppLogger.warn('Supabase booking insert trả về lỗi', {
+            action: 'BOOKING_CREATE_SUPABASE_ERROR',
             bookingCode: booking.bookingCode,
             error: error.message
           });
-          this.saveToLocalStorage(payloadWithTime);
-          return { success: true, data: payloadWithTime };
+          // Phase 3: Không lưu localStorage khi Supabase lỗi — tránh tạo "đơn ma"
+          return { success: false, error: userMsg };
         }
 
         const savedPayload: BookingPayload = {
@@ -172,18 +176,30 @@ export const bookingService = {
         };
         this.saveToLocalStorage(savedPayload);
 
-        // Record coupon usage in Supabase & LocalStorage
-        if (booking.couponCode) {
-          couponService.recordCouponUsage({
-            couponCode: booking.couponCode,
-            userId: booking.userId || null,
-            bookingId: data.id,
-            bookingCode: booking.bookingCode,
-            discountApplied: booking.couponDiscount || 0,
-            customerName: booking.customerName,
-            customerEmail: booking.customerEmail,
-            customerPhone: booking.customerPhone
-          }).catch(err => console.warn('Could not record coupon usage:', err));
+        // Tự động ghi nhận giao dịch vào payment_transactions trên Supabase nếu đơn có thanh toán/cọc ban đầu
+        const initialPaid = Number(booking.paidAmount) || (booking.paymentStatus === 'paid' ? Number(booking.totalAmount) : 0);
+        if (initialPaid > 0 && data?.id) {
+          const txCode = `TXN-${booking.bookingCode}-${Date.now().toString(36).toUpperCase()}`;
+          const isDeposit = booking.paymentStatus === 'partially_paid' || (initialPaid < Number(booking.totalAmount));
+          try {
+            const { error: txErr } = await supabase
+              .from('payment_transactions')
+              .insert([{
+                booking_id: data.id,
+                booking_code: booking.bookingCode,
+                transaction_code: txCode,
+                amount: initialPaid,
+                currency: 'VND',
+                payment_method: booking.paymentMethod || 'vietqr',
+                payment_type: isDeposit ? 'deposit' : 'full',
+                status: 'success',
+                notes: `Thanh toán ban đầu khi tạo đơn ${booking.bookingCode}`,
+                paid_at: timestamp
+              }]);
+            if (txErr) console.warn('Supabase insert initial payment transaction warning:', txErr);
+          } catch (txEx) {
+            console.warn('Supabase insert initial payment transaction exception:', txEx);
+          }
         }
 
         AppLogger.info('Tạo đơn đặt tour thành công vào Supabase', {
@@ -198,39 +214,20 @@ export const bookingService = {
           action: 'BOOKING_CREATE_EXCEPTION',
           bookingCode: booking.bookingCode
         });
-        this.saveToLocalStorage(payloadWithTime);
-
-        if (booking.couponCode) {
-          couponService.recordCouponUsage({
-            couponCode: booking.couponCode,
-            userId: booking.userId || null,
-            bookingId: payloadWithTime.id || booking.bookingCode,
-            bookingCode: booking.bookingCode,
-            discountApplied: booking.couponDiscount || 0,
-            customerName: booking.customerName,
-            customerEmail: booking.customerEmail,
-            customerPhone: booking.customerPhone
-          }).catch(err => console.warn('Could not record local coupon usage:', err));
-        }
-
-        return { success: true, data: payloadWithTime };
+        // Phase 3: Không lưu localStorage khi Supabase lỗi — tránh tạo "đơn ma".
+        // Nếu lỗi là do thiếu ghế (trigger exception), trả thông báo thân thiện.
+        const isSeatError = (err?.message || '').includes('INSUFFICIENT_SEATS');
+        return {
+          success: false,
+          error: isSeatError
+            ? 'Rất tiếc! Số ghế còn lại không đủ cho yêu cầu của bạn. Vui lòng chọn ngày khác hoặc giảm số lượng khách.'
+            : 'Máy chủ đang gián đoạn hoặc quá tải. Vui lòng thử lại sau ít phút.'
+        };
       }
     }
 
-    // 2. Fallback to LocalStorage
+    // 2. Fallback to LocalStorage (chế độ demo / Supabase chưa kết nối)
     this.saveToLocalStorage(payloadWithTime);
-    if (booking.couponCode) {
-      couponService.recordCouponUsage({
-        couponCode: booking.couponCode,
-        userId: booking.userId || null,
-        bookingId: payloadWithTime.id || booking.bookingCode,
-        bookingCode: booking.bookingCode,
-        discountApplied: booking.couponDiscount || 0,
-        customerName: booking.customerName,
-        customerEmail: booking.customerEmail,
-        customerPhone: booking.customerPhone
-      }).catch(err => console.warn('Could not record local coupon usage:', err));
-    }
 
     AppLogger.info('Lưu đơn đặt tour vào LocalStorage (chế độ demo/offline)', {
       action: 'BOOKING_CREATE_LOCAL_SUCCESS',
@@ -309,7 +306,7 @@ export const bookingService = {
         let query = supabase.from('bookings').select('*');
         
         const conditions: string[] = [];
-        if (userId) conditions.push(`user_id.eq.${userId}`);
+        if (userId && isUuid(userId)) conditions.push(`user_id.eq.${userId}`);
         if (email && email.trim()) conditions.push(`customer_email.eq.${email.trim()}`);
         if (phone && phone.trim()) conditions.push(`customer_phone.eq.${phone.trim()}`);
 
@@ -352,6 +349,27 @@ export const bookingService = {
               });
             }
           });
+
+          // Sync fresh status to LocalStorage cache so other tabs / local reads stay up to date
+          try {
+            const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+            const updatedLocal = localBookings.map(lb => {
+              const fresh = data.find((d: any) => d.booking_code === lb.bookingCode || d.id === lb.id);
+              if (fresh) {
+                return {
+                  ...lb,
+                  bookingStatus: fresh.booking_status,
+                  paymentStatus: fresh.payment_status,
+                  paidAmount: fresh.paid_amount,
+                  totalAmount: fresh.total_amount
+                };
+              }
+              return lb;
+            });
+            localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(updatedLocal));
+          } catch (e) {
+            console.warn('Could not sync fresh Supabase bookings to localStorage:', e);
+          }
         }
       } catch (err) {
         console.warn('Error querying user bookings from Supabase:', err);
@@ -398,7 +416,7 @@ export const bookingService = {
         // Fetch booking to get ID and total amount
         const { data: bookingData } = await supabase
           .from('bookings')
-          .select('id, total_amount, payment_method')
+          .select('id, total_amount, payment_method, coupon_code, user_id, customer_name, customer_email, customer_phone')
           .eq('booking_code', code)
           .single();
 
@@ -434,6 +452,26 @@ export const bookingService = {
                   notes: `Xác nhận thanh toán đơn ${code} qua ${method.toUpperCase()}`
                 }
               ]);
+          }
+
+          // Phase 1: Ghi nhận coupon usage CHỈ khi đã xác nhận thanh toán thành công
+          if (
+            (paymentStatus === 'paid' || paymentStatus === 'partially_paid') &&
+            bookingData.coupon_code
+          ) {
+            couponService.validateCoupon(bookingData.coupon_code, totalAmt).then(res => {
+              const discount = res.valid ? res.discountAmount : 0;
+              couponService.recordCouponUsage({
+                couponCode: bookingData.coupon_code!,
+                userId: bookingData.user_id || null,
+                bookingId: bookingData.id,
+                bookingCode: code,
+                discountApplied: discount,
+                customerName: bookingData.customer_name || '',
+                customerEmail: bookingData.customer_email || '',
+                customerPhone: bookingData.customer_phone || ''
+              }).catch(err => console.warn('Could not record coupon usage on payment:', err));
+            }).catch(() => {});
           }
         }
       } catch (err: any) {
@@ -503,7 +541,7 @@ export const bookingService = {
         // fail, causing the status to appear changed in UI but reset on reload.
         let fetchQuery = supabase
           .from('bookings')
-          .select('id, total_amount');
+          .select('id, total_amount, paid_amount, payment_method, coupon_code, user_id, customer_name, customer_email, customer_phone');
 
         if (isUuid(code)) {
           fetchQuery = fetchQuery.or(`booking_code.eq.${code},id.eq.${code}`);
@@ -518,6 +556,7 @@ export const bookingService = {
         }
 
         const totalAmt = Number(bookingData?.total_amount) || 0;
+        const currentPaid = Number(bookingData?.paid_amount) || 0;
         const paidAmt = newUiStatus === 'confirmed' ? totalAmt : newUiStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
 
         let updateQuery = supabase
@@ -528,7 +567,9 @@ export const bookingService = {
             paid_amount: paidAmt
           });
 
-        if (isUuid(code)) {
+        if (bookingData?.id) {
+          updateQuery = updateQuery.eq('id', bookingData.id);
+        } else if (isUuid(code)) {
           updateQuery = updateQuery.or(`booking_code.eq.${code},id.eq.${code}`);
         } else {
           updateQuery = updateQuery.eq('booking_code', code);
@@ -547,6 +588,89 @@ export const bookingService = {
             paymentStatus,
             paidAmt
           });
+
+          // Ghi nhận transaction vào bảng payment_transactions khi Admin xác nhận thanh toán
+          if (bookingData?.id && (newUiStatus === 'confirmed' || newUiStatus === 'deposit')) {
+            const isDeposit = newUiStatus === 'deposit';
+            const targetPaid = isDeposit ? Math.round(totalAmt * 0.5) : totalAmt;
+            const diffAmount = Math.max(0, targetPaid - currentPaid);
+            const recordAmount = diffAmount > 0 ? diffAmount : (currentPaid === 0 ? targetPaid : 0);
+
+            if (recordAmount > 0) {
+              const txCode = `TXN-ADM-${code}-${Date.now().toString(36).toUpperCase()}`;
+              const txType = isDeposit ? 'deposit' : (currentPaid > 0 ? 'remaining' : 'full');
+              const method = (bookingData.payment_method || 'vietqr') as PaymentMethod;
+              const noteText = isDeposit
+                ? 'Admin duyệt đặt cọc 50%'
+                : (currentPaid > 0 ? 'Admin duyệt thanh toán phần còn lại' : 'Admin duyệt thanh toán 100%');
+
+              try {
+                const { error: txErr } = await supabase
+                  .from('payment_transactions')
+                  .insert([{
+                    booking_id: bookingData.id,
+                    booking_code: code,
+                    transaction_code: txCode,
+                    amount: recordAmount,
+                    currency: 'VND',
+                    payment_method: method,
+                    payment_type: txType,
+                    status: 'success',
+                    notes: noteText,
+                    paid_at: new Date().toISOString()
+                  }]);
+                if (txErr) console.warn('Supabase insert payment transaction warning:', txErr);
+              } catch (txEx) {
+                console.warn('Supabase insert payment transaction exception:', txEx);
+              }
+            }
+          }
+
+          // Broadcast realtime event across all tabs, devices and browsers
+          try {
+            const realtimeChannel = supabase.channel('webtravel_realtime_bookings');
+            realtimeChannel.subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                realtimeChannel.send({
+                  type: 'broadcast',
+                  event: 'booking_updated',
+                  payload: {
+                    bookingCode: code,
+                    bookingId: bookingData?.id || code,
+                    newUiStatus,
+                    bookingStatus,
+                    paymentStatus,
+                    paidAmount: paidAmt,
+                    timestamp: Date.now()
+                  }
+                }).then(() => {
+                  setTimeout(() => { supabase?.removeChannel(realtimeChannel); }, 1200);
+                });
+              }
+            });
+          } catch (broadcastErr) {
+            console.warn('Realtime broadcast error:', broadcastErr);
+          }
+
+          // Ghi nhận hoặc hoàn trả coupon_usages khi Admin duyệt/hủy đơn
+          if ((newUiStatus === 'confirmed' || newUiStatus === 'deposit') && bookingData?.coupon_code) {
+            couponService.validateCoupon(bookingData.coupon_code, totalAmt, bookingData.user_id).then(res => {
+              const discount = res.valid ? res.discountAmount : 0;
+              couponService.recordCouponUsage({
+                couponCode: bookingData.coupon_code,
+                userId: bookingData.user_id || null,
+                bookingId: bookingData.id,
+                bookingCode: code,
+                discountApplied: discount,
+                customerName: bookingData.customer_name || '',
+                customerEmail: bookingData.customer_email || '',
+                customerPhone: bookingData.customer_phone || ''
+              }).catch(err => console.warn('Could not record coupon usage on admin status update:', err));
+            }).catch(() => {});
+          } else if (newUiStatus === 'cancelled' && bookingData?.coupon_code) {
+            couponService.refundCouponUsage(bookingData.coupon_code, bookingData.id)
+              .catch(err => console.warn('Could not refund coupon usage on admin cancel:', err));
+          }
         }
       } catch (err: any) {
         console.error('Supabase updateBookingAdminStatus error:', err);
@@ -560,6 +684,49 @@ export const bookingService = {
       if (newUiStatus === 'cancelled' && targetBooking?.couponCode) {
         couponService.refundCouponUsage(targetBooking.couponCode, targetBooking.id || targetBooking.bookingCode)
           .catch(e => console.warn('Could not refund coupon usage:', e));
+      } else if ((newUiStatus === 'confirmed' || newUiStatus === 'deposit') && targetBooking?.couponCode) {
+        couponService.recordCouponUsage({
+          couponCode: targetBooking.couponCode,
+          userId: targetBooking.userId || null,
+          bookingId: targetBooking.id,
+          bookingCode: code,
+          discountApplied: targetBooking.couponDiscount || 0,
+          customerName: targetBooking.customerName || '',
+          customerEmail: targetBooking.customerEmail || '',
+          customerPhone: targetBooking.customerPhone || ''
+        }).catch(e => console.warn('Could not record coupon usage locally:', e));
+      }
+
+      // Ghi nhận transaction vào LocalStorage khi Admin duyệt
+      if (newUiStatus === 'confirmed' || newUiStatus === 'deposit') {
+        const localTransactions: PaymentTransactionRecord[] = JSON.parse(
+          localStorage.getItem(LOCAL_TRANSACTIONS_KEY) || '[]'
+        );
+        const totalAmt = Number(targetBooking?.totalAmount) || 0;
+        const currentPaid = Number(targetBooking?.paidAmount) || 0;
+        const isDeposit = newUiStatus === 'deposit';
+        const targetPaid = isDeposit ? Math.round(totalAmt * 0.5) : totalAmt;
+        const diffAmount = Math.max(0, targetPaid - currentPaid);
+        const recordAmount = diffAmount > 0 ? diffAmount : (currentPaid === 0 ? targetPaid : 0);
+
+        if (recordAmount > 0) {
+          const txCode = `TXN-ADM-${code}-${Date.now().toString(36).toUpperCase()}`;
+          localTransactions.push({
+            bookingId: targetBooking?.id,
+            bookingCode: code,
+            transactionCode: txCode,
+            amount: recordAmount,
+            currency: 'VND',
+            paymentMethod: (targetBooking?.paymentMethod as PaymentMethod) || 'vietqr',
+            paymentType: isDeposit ? 'deposit' : (currentPaid > 0 ? 'remaining' : 'full'),
+            status: 'success',
+            notes: isDeposit
+              ? 'Admin duyệt đặt cọc 50%'
+              : (currentPaid > 0 ? 'Admin duyệt thanh toán phần còn lại' : 'Admin duyệt thanh toán 100%'),
+            paidAt: new Date().toISOString()
+          });
+          localStorage.setItem(LOCAL_TRANSACTIONS_KEY, JSON.stringify(localTransactions));
+        }
       }
 
       const updated = localBookings.map(b => {
@@ -641,6 +808,32 @@ export const bookingService = {
       console.warn('Failed to update cancel in localStorage:', e);
     }
 
+    // Broadcast realtime cancellation
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const cancelChannel = supabase.channel('webtravel_realtime_bookings');
+        cancelChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            cancelChannel.send({
+              type: 'broadcast',
+              event: 'booking_updated',
+              payload: {
+                bookingCode: code,
+                newUiStatus: 'cancelled',
+                bookingStatus: 'cancelled',
+                paymentStatus: 'refunded',
+                timestamp: Date.now()
+              }
+            }).then(() => {
+              setTimeout(() => { supabase?.removeChannel(cancelChannel); }, 1200);
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Realtime cancel broadcast error:', e);
+    }
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
         detail: { bookingCode: code, newUiStatus: 'cancelled', paymentStatus: 'refunded', bookingStatus: 'cancelled' }
@@ -686,7 +879,7 @@ export const bookingService = {
             couponDiscount: data.coupon_discount || 0,
             paymentMethod: data.payment_method || 'vietqr',
             paymentStatus: data.payment_status || 'pending',
-            bookingStatus: data.booking_status || 'confirmed',
+            bookingStatus: data.booking_status || 'pending',
             createdAt: data.created_at
           };
         }
@@ -782,12 +975,18 @@ export const bookingService = {
       }
     }
 
-    // Restore seats if found locally
-    if (bookingToRestore && bookingToRestore.tourId && bookingToRestore.departureDate) {
-      const totalSeats = (bookingToRestore.adultsCount || 1) + 
-                         (bookingToRestore.childrenCount || 0) + 
-                         (bookingToRestore.toddlersCount || 0);
-      restoreSeats(bookingToRestore.tourId, bookingToRestore.departureDate, totalSeats);
+    // Restore seats & refund coupon if found
+    if (bookingToRestore) {
+      if (bookingToRestore.tourId && bookingToRestore.departureDate) {
+        const totalSeats = (bookingToRestore.adultsCount || 1) + 
+                           (bookingToRestore.childrenCount || 0) + 
+                           (bookingToRestore.toddlersCount || 0);
+        restoreSeats(bookingToRestore.tourId, bookingToRestore.departureDate, totalSeats);
+      }
+      if (bookingToRestore.couponCode) {
+        couponService.refundCouponUsage(bookingToRestore.couponCode, bookingToRestore.id || bookingToRestore.bookingCode)
+          .catch(e => console.warn('Could not refund coupon usage on delete:', e));
+      }
     }
 
     // 3. Delete from LocalStorage
@@ -803,13 +1002,110 @@ export const bookingService = {
       console.warn('LocalStorage delete booking error:', e);
     }
 
-    // 4. Dispatch real-time update event
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
-        detail: { bookingId: idOrCode, action: 'deleted' }
-      }));
+    return { success: true };
+  },
+
+  /**
+   * Get all payment transactions for a given booking code or id
+   * Strictly reads directly from Supabase payment_transactions table (100% database only)
+   */
+  async getTransactionsByBookingCode(bookingCodeOrId: string): Promise<PaymentTransactionRecord[]> {
+    const cleanCode = (bookingCodeOrId || '').trim().toUpperCase();
+    if (!cleanCode) return [];
+
+    if (!isSupabaseConfigured || !supabase) {
+      return [];
     }
 
-    return { success: true };
+    try {
+      let query = supabase
+        .from('payment_transactions')
+        .select('*');
+
+      if (isUuid(cleanCode)) {
+        query = query.or(`booking_id.eq.${cleanCode},booking_code.eq.${cleanCode}`);
+      } else {
+        query = query.eq('booking_code', cleanCode);
+      }
+
+      query = query.order('paid_at', { ascending: false });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Supabase fetch payment_transactions error:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      return data.map((t: any) => ({
+        id: t.id,
+        bookingId: t.booking_id,
+        bookingCode: t.booking_code,
+        transactionCode: t.transaction_code,
+        amount: Number(t.amount) || 0,
+        currency: t.currency || 'VND',
+        paymentMethod: (t.payment_method || 'vietqr') as PaymentMethod,
+        paymentType: t.payment_type || 'full',
+        status: t.status || 'success',
+        bankName: t.bank_name,
+        payerName: t.payer_name,
+        notes: (t.notes && !t.notes.includes('Đồng bộ giao dịch thanh toán')) ? t.notes : undefined,
+        paidAt: t.paid_at || t.created_at,
+        createdAt: t.created_at
+      }));
+    } catch (err) {
+      console.error('Lỗi khi truy vấn payment_transactions từ database:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Get all payment transactions across the entire system
+   * Strictly reads directly from Supabase payment_transactions table (100% database only)
+   */
+  async getAllTransactions(): Promise<PaymentTransactionRecord[]> {
+    if (!isSupabaseConfigured || !supabase) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .order('paid_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase getAllTransactions error:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      return data.map((t: any) => ({
+        id: t.id,
+        bookingId: t.booking_id,
+        bookingCode: t.booking_code,
+        transactionCode: t.transaction_code,
+        amount: Number(t.amount) || 0,
+        currency: t.currency || 'VND',
+        paymentMethod: (t.payment_method || 'vietqr') as PaymentMethod,
+        paymentType: t.payment_type || 'full',
+        status: t.status || 'success',
+        bankName: t.bank_name,
+        payerName: t.payer_name,
+        notes: (t.notes && !t.notes.includes('Đồng bộ giao dịch thanh toán')) ? t.notes : undefined,
+        paidAt: t.paid_at || t.created_at,
+        createdAt: t.created_at
+      }));
+    } catch (err) {
+      console.error('Lỗi khi lấy toàn bộ payment_transactions từ database:', err);
+      return [];
+    }
   }
 };

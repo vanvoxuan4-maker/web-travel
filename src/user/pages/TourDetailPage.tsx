@@ -3,7 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { TOURS_DATA } from '../../data/toursData';
 import { tourService } from '../../services/tourService';
 import { Tour } from '../../types/tour.types';
-import { getDatePrice, getRemainingSeats, getDateDetails } from '../../utils/inventoryManager';
+import { 
+  getDatePrice, 
+  getRemainingSeats, 
+  getDateDetails, 
+  updateTourInventory,
+  subscribeToSeatUpdates,
+  syncAllSeatsFromSupabase
+} from '../../utils/inventoryManager';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { HeroGallery } from './detail-sections/HeroGallery';
 import { ScheduleCalendar } from './detail-sections/ScheduleCalendar';
@@ -39,7 +46,35 @@ export const TourDetailPage: React.FC = () => {
         }
       });
     }
-  }, [id, navigate]);
+
+    const handleToursUpdated = (e: any) => {
+      const list = e?.detail as Tour[];
+      if (Array.isArray(list) && id) {
+        const found = list.find(t => t.id === id || t.slug === id);
+        if (found) {
+          setTour(found);
+        }
+      }
+    };
+
+    const handleInventoryUpdated = (e: any) => {
+      const { tourId, departureDates } = e?.detail || {};
+      if (tourId && (tourId === id || tour?.id === tourId)) {
+        setTour(prev => prev ? {
+          ...prev,
+          departureDates: departureDates || prev.departureDates
+        } : prev);
+      }
+    };
+
+    window.addEventListener('webtravel:tours_updated', handleToursUpdated);
+    window.addEventListener('webtravel:inventory_updated', handleInventoryUpdated);
+
+    return () => {
+      window.removeEventListener('webtravel:tours_updated', handleToursUpdated);
+      window.removeEventListener('webtravel:inventory_updated', handleInventoryUpdated);
+    };
+  }, [id, navigate, tour?.id]);
 
   const [selectedDepartureDate, setSelectedDepartureDate] = useState<string | null>(null);
   const [isETicketOpen, setIsETicketOpen] = useState(false);
@@ -58,9 +93,66 @@ export const TourDetailPage: React.FC = () => {
     );
   }
 
+  useEffect(() => {
+    if (tour && tour.departureDates && tour.departureDates.length > 0) {
+      updateTourInventory(tour.id, tour.departureDates);
+    }
+  }, [tour]);
+
+  // Supabase Realtime & DB Sync for departure seats
+  useEffect(() => {
+    if (!tour?.id) return;
+
+    // 1. Đồng bộ toàn bộ số ghế mới nhất từ Supabase DB khi vào trang
+    syncAllSeatsFromSupabase(tour.id);
+
+    // 2. Đăng ký Realtime WebSocket từ Supabase
+    const unsubscribe = subscribeToSeatUpdates(tour.id);
+
+    // 3. Lắng nghe CustomEvent khi có cập nhật số ghế của 1 ngày
+    const handleRealtimeSeats = (e: any) => {
+      const { tourId, date, seats } = e?.detail || {};
+      if (tourId !== tour.id) return;
+
+      setTour(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          departureDates: (prev.departureDates || []).map(d =>
+            d.date === date ? { ...d, seats } : d
+          )
+        };
+      });
+    };
+
+    const handleInventorySynced = (e: any) => {
+      const { tourId } = e?.detail || {};
+      if (tourId !== tour.id) return;
+      setTour(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          departureDates: (prev.departureDates || []).map(d => ({
+            ...d,
+            seats: getRemainingSeats(prev.id, d.date, prev)
+          }))
+        };
+      });
+    };
+
+    window.addEventListener('webtravel:realtime_seats', handleRealtimeSeats);
+    window.addEventListener('webtravel:inventory_synced', handleInventorySynced);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('webtravel:realtime_seats', handleRealtimeSeats);
+      window.removeEventListener('webtravel:inventory_synced', handleInventorySynced);
+    };
+  }, [tour?.id]);
+
   const currentDateDetails = selectedDepartureDate ? getDateDetails(tour.id, selectedDepartureDate, tour) : null;
   const currentPrice = selectedDepartureDate ? getDatePrice(tour.id, selectedDepartureDate, tour) : tour.priceAdult;
-  const currentSeats = selectedDepartureDate ? getRemainingSeats(tour.id, selectedDepartureDate) : tour.seatsLeft;
+  const currentSeats = selectedDepartureDate ? getRemainingSeats(tour.id, selectedDepartureDate, tour) : tour.seatsLeft;
   const isSoldOut = currentSeats <= 0;
 
   const scrollToSection = (sectionId: string) => {
@@ -75,6 +167,9 @@ export const TourDetailPage: React.FC = () => {
     if (!selectedDepartureDate) {
       // Chưa chọn ngày khởi hành -> Cuộn mượt mà tới khu vực Lịch Trình Khởi Hành
       scrollToSection('section-schedule');
+      return;
+    }
+    if (isSoldOut) {
       return;
     }
     // Đã chọn ngày -> Điều hướng sang trang checkout
@@ -343,15 +438,18 @@ export const TourDetailPage: React.FC = () => {
                 disabled={Boolean(selectedDepartureDate && isSoldOut)}
                 onClick={handleOpenBooking}
                 style={{ 
-                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%) !important', 
+                  background: (selectedDepartureDate && isSoldOut) 
+                    ? '#94a3b8 !important' 
+                    : 'linear-gradient(135deg, #059669 0%, #047857 100%) !important', 
                   border: 'none !important', 
                   color: '#ffffff !important', 
                   fontWeight: 800, 
                   fontSize: '1.05rem', 
                   padding: '0.85rem 1.5rem', 
                   borderRadius: 'var(--radius-full)', 
-                  boxShadow: '0 8px 25px rgba(5, 150, 105, 0.35)', 
+                  boxShadow: (selectedDepartureDate && isSoldOut) ? 'none' : '0 8px 25px rgba(5, 150, 105, 0.35)', 
                   cursor: (selectedDepartureDate && isSoldOut) ? 'not-allowed' : 'pointer', 
+                  opacity: (selectedDepartureDate && isSoldOut) ? 0.65 : 1,
                   transition: 'all 0.25s ease', 
                   width: '100%', 
                   display: 'flex', 
@@ -360,7 +458,7 @@ export const TourDetailPage: React.FC = () => {
                   gap: '0.6rem' 
                 }}
               >
-                <i className={selectedDepartureDate ? "fa-solid fa-calendar-check" : "fa-solid fa-calendar-days"}></i> 
+                <i className={selectedDepartureDate ? (isSoldOut ? "fa-solid fa-lock" : "fa-solid fa-calendar-check") : "fa-solid fa-calendar-days"}></i> 
                 {selectedDepartureDate ? (isSoldOut ? 'Đã Hết Chỗ' : 'Đặt Tour Ngay') : 'Chọn Ngày Khởi Hành'}
               </button>
 

@@ -60,14 +60,46 @@ function saveInventoryStore(store: Record<string, Record<string, number>>): void
 }
 
 /**
+ * Synchronize and update local inventory for a specific tour's departure dates
+ * (called when admin saves new schedule or seats in AdminPortal)
+ */
+export function updateTourInventory(tourId: string, departureDates: DepartureDate[]): void {
+  const store = getInventoryStore();
+  if (!store[tourId]) store[tourId] = {};
+  departureDates.forEach(d => {
+    store[tourId][d.date] = d.seats !== undefined ? d.seats : 5;
+  });
+  saveInventoryStore(store);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('webtravel:inventory_updated', {
+      detail: { tourId, departureDates }
+    }));
+  }
+}
+
+/**
  * Get remaining seats for a specific tour and departure date
  */
-export function getRemainingSeats(tourId: string, date: string): number {
+export function getRemainingSeats(tourId: string, date: string, tourObj?: any): number {
   const store = getInventoryStore();
   if (store[tourId] && store[tourId][date] !== undefined) {
     return store[tourId][date];
   }
-  return 5; // Default fallback
+
+  // Fallback: check departureDates directly from tour object or tour cache
+  const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
+  if (tour && tour.departureDates && tour.departureDates.length > 0) {
+    const matched = tour.departureDates.find((d: any) => d.date === date);
+    if (matched && matched.seats !== undefined) {
+      if (!store[tourId]) store[tourId] = {};
+      store[tourId][date] = matched.seats;
+      saveInventoryStore(store);
+      return matched.seats;
+    }
+  }
+
+  return tour?.seatsLeft ?? 5; // Default fallback
 }
 
 /**
@@ -124,7 +156,7 @@ export function getDateDetails(tourId: string, date: string, tourObj?: any): Dat
   const priceToddler = (matched && matched.priceToddler) || Math.round(priceAdult * 0.5);
   const priceInfant = (matched && matched.priceInfant) || tour.priceInfant || 500000;
   const singleRoomSurcharge = (matched && matched.singleRoomSurcharge) || 800000;
-  const seats = getRemainingSeats(tourId, date);
+  const seats = getRemainingSeats(tourId, date, tour);
 
   return {
     date: date,
@@ -146,7 +178,13 @@ export function getDateDetails(tourId: string, date: string, tourObj?: any): Dat
 }
 
 /**
- * Deduct seats from inventory when booking is confirmed
+ * Deduct seats from the local client-side inventory store.
+ *
+ * Phase 1 (Scalability Patch): Supabase seat deduction is now handled
+ * atomically by the DB trigger `fn_manage_departure_seats` (AFTER INSERT on
+ * bookings) which uses SELECT FOR UPDATE row-level locking to prevent
+ * overbooking race conditions. A separate client-side Supabase UPDATE is no
+ * longer needed and would cause double-deduction.
  */
 export function deductSeats(tourId: string, date: string, count: number): boolean {
   const store = getInventoryStore();
@@ -156,77 +194,36 @@ export function deductSeats(tourId: string, date: string, count: number): boolea
   store[tourId][date] = newCount;
   saveInventoryStore(store);
 
-  // Sync with Supabase departure_dates if connected
-  if (isSupabaseConfigured && supabase) {
-    const client = supabase;
-    (async () => {
-      try {
-        const { data, error } = await client
-          .from('departure_dates')
-          .select('available_seats')
-          .eq('tour_id', tourId)
-          .eq('date', date)
-          .single();
-
-        if (!error && data && typeof data.available_seats === 'number') {
-          const updatedSeats = Math.max(0, data.available_seats - count);
-          await client
-            .from('departure_dates')
-            .update({
-              available_seats: updatedSeats,
-              status: updatedSeats <= 0 ? 'sold_out' : updatedSeats <= 5 ? 'few_seats' : 'available'
-            })
-            .eq('tour_id', tourId)
-            .eq('date', date);
-        }
-      } catch (err) {
-        console.warn('Could not sync seats deduction to Supabase:', err);
-      }
-    })();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('webtravel:realtime_seats', {
+      detail: { tourId, date, seats: newCount }
+    }));
   }
 
   return true;
 }
 
 /**
- * Restore seats back to inventory when a booking is hard-deleted or cancelled
+ * Restore seats to the local client-side inventory store.
+ *
+ * Phase 1 (Scalability Patch): Supabase seat restoration on cancellation is
+ * now handled atomically by the DB trigger `fn_manage_departure_seats` (AFTER
+ * UPDATE on bookings when booking_status → 'cancelled'). A separate
+ * client-side Supabase UPDATE is no longer needed.
  */
 export function restoreSeats(tourId: string, date: string, count: number): boolean {
   if (!tourId || !date || count <= 0) return false;
   const store = getInventoryStore();
   if (!store[tourId]) store[tourId] = {};
-  const current = store[tourId][date] !== undefined ? store[tourId][date] : 5;
+  const current = store[tourId][date] !== undefined ? store[tourId][date] : 0;
   const newCount = current + count;
   store[tourId][date] = newCount;
   saveInventoryStore(store);
 
-  // Sync with Supabase departure_dates if connected
-  if (isSupabaseConfigured && supabase) {
-    const client = supabase;
-    (async () => {
-      try {
-        const { data, error } = await client
-          .from('departure_dates')
-          .select('available_seats')
-          .eq('tour_id', tourId)
-          .eq('date', date)
-          .single();
-
-        if (!error && data && typeof data.available_seats === 'number') {
-          const updatedSeats = data.available_seats + count;
-          await client
-            .from('departure_dates')
-            .update({
-              available_seats: updatedSeats,
-              status: updatedSeats <= 0 ? 'sold_out' : updatedSeats <= 5 ? 'few_seats' : 'available'
-            })
-            .eq('tour_id', tourId)
-            .eq('date', date);
-        }
-      } catch (err) {
-        console.warn('Could not sync seats restoration to Supabase:', err);
-      }
-    })();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('webtravel:realtime_seats', {
+      detail: { tourId, date, seats: newCount }
+    }));
   }
 
   return true;
@@ -306,6 +303,97 @@ export async function fetchSeatsFromSupabase(tourId: string, date: string): Prom
   }
 
   return getRemainingSeats(tourId, date);
+}
+
+/**
+ * Subscribe to Supabase Realtime changes on departure_dates for a specific tourId.
+ * Cập nhật inventoryStore ngay khi DB có thay đổi, đồng thời dispatch
+ * CustomEvent 'webtravel:realtime_seats' để TourDetailPage / CheckoutPage re-render.
+ *
+ * @param tourId  ID của tour cần theo dõi
+ * @returns Hàm unsubscribe — gọi trong cleanup của useEffect
+ */
+export function subscribeToSeatUpdates(tourId: string): () => void {
+  if (!isSupabaseConfigured || !supabase) {
+    return () => {}; // no-op khi chưa có Supabase
+  }
+
+  const channelName = `departure_seats_${tourId}_${Date.now()}`;
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'departure_dates',
+        filter: `tour_id=eq.${tourId}`
+      },
+      (payload: any) => {
+        const { date, available_seats } = payload.new || {};
+        if (!date || available_seats === undefined) return;
+
+        const seatsNum = Number(available_seats);
+
+        // 1. Ghi vào inventoryStore (ghi đè localStorage)
+        const store = getInventoryStore();
+        if (!store[tourId]) store[tourId] = {};
+        store[tourId][date] = seatsNum;
+        saveInventoryStore(store);
+
+        // 2. Phát CustomEvent để mọi React component đang mount đều nhận được
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('webtravel:realtime_seats', {
+            detail: { tourId, date, seats: seatsNum }
+          }));
+        }
+      }
+    )
+    .subscribe();
+
+  // Trả về hàm cleanup
+  return () => {
+    supabase?.removeChannel(channel);
+  };
+}
+
+/**
+ * Fetch toàn bộ số ghế mới nhất từ Supabase cho tất cả ngày của một tour.
+ * Gọi 1 lần khi component mount để khởi tạo inventoryStore chính xác từ DB.
+ *
+ * @param tourId ID của tour cần đồng bộ
+ */
+export async function syncAllSeatsFromSupabase(tourId: string): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+
+  try {
+    const { data, error } = await supabase
+      .from('departure_dates')
+      .select('date, available_seats')
+      .eq('tour_id', tourId);
+
+    if (error || !data) return;
+
+    const store = getInventoryStore();
+    if (!store[tourId]) store[tourId] = {};
+
+    data.forEach((row: any) => {
+      if (row.date && typeof row.available_seats === 'number') {
+        store[tourId][row.date] = row.available_seats;
+      }
+    });
+
+    saveInventoryStore(store);
+
+    // Phát event để trigger re-render
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('webtravel:inventory_synced', {
+        detail: { tourId }
+      }));
+    }
+  } catch (err) {
+    console.warn('syncAllSeatsFromSupabase failed:', err);
+  }
 }
 
 /**

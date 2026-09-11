@@ -79,6 +79,18 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   }, [departureList]);
 
   const [activeMonth, setActiveMonth] = useState<string>(uniqueMonths[0]);
+  const [, setTick] = useState(0);
+
+  // Re-render immediately on realtime seat updates
+  useEffect(() => {
+    const handleUpdate = () => setTick(t => t + 1);
+    window.addEventListener('webtravel:realtime_seats', handleUpdate);
+    window.addEventListener('webtravel:inventory_synced', handleUpdate);
+    return () => {
+      window.removeEventListener('webtravel:realtime_seats', handleUpdate);
+      window.removeEventListener('webtravel:inventory_synced', handleUpdate);
+    };
+  }, []);
 
   // Keep activeMonth in sync if uniqueMonths changes
   useEffect(() => {
@@ -145,259 +157,186 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       <div className="schedule-rows-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {depsToRender.map(dep => {
           const isSelected = dep.date === selectedDate;
-          const seats = getRemainingSeats(tour.id, dep.date);
+          const seats = getRemainingSeats(tour.id, dep.date, tour);
           const isSoldOut = seats <= 0;
           const dayOfWeek = dep.dayOfWeek || getDayOfWeekVN(dep.date);
           const sku = dep.sku || `${tour.sku || 'WT1001'}-${dep.date.replace(/[\/-]/g, '')}VU-D-1`;
           const priceAdult = dep.priceAdult || tour.priceAdult;
           const priceChild = dep.priceChild || Math.round(priceAdult * 0.75);
-          const priceToddler = dep.priceToddler || Math.round(priceAdult * 0.5);
           const priceInfant = dep.priceInfant || 500000;
           const singleSurcharge = dep.singleRoomSurcharge || 1500000;
 
           // Outbound / Inbound dates & times
           const outbound = dep.transport?.outbound || {
-            date: dep.date, time: '07:05', arriveTime: '09:05', flightNo: 'VU774', airline: 'Vietravel Airlines', from: 'SGN', to: 'HAN'
+            date: dep.date, time: '01:15', arriveTime: '05:30', flightNo: 'HO1330', airline: 'Vietravel Airlines', from: 'SGN', to: 'HAN'
           };
           const inbound = dep.transport?.inbound || {
-            date: dep.transport?.inbound?.date || dep.date, time: '20:00', arriveTime: '22:22', flightNo: 'VN263', airline: 'Vietnam Airlines', from: 'HAN', to: 'SGN'
+            date: dep.transport?.inbound?.date || dep.date, time: '21:45', arriveTime: '00:15', flightNo: 'HO1329', airline: 'Vietnam Airlines', from: 'HAN', to: 'SGN'
           };
 
           if (isSelected) {
-            /* EXPANDED ROW */
+            /* COMPACT ELEGANT EXPANDED ROW (Y HỆT MẪU) */
             return (
               <div 
                 key={dep.date} 
                 className="schedule-row-expanded"
                 style={{
                   background: '#ffffff',
-                  border: '1.5px solid var(--accent-forest, #047857)',
-                  borderRadius: '16px',
-                  padding: '1.5rem 1.75rem',
-                  boxShadow: '0 6px 24px rgba(4, 120, 87, 0.08)'
+                  border: isSoldOut ? '1.5px solid #cbd5e1' : '1.5px solid var(--accent-forest, #047857)',
+                  borderRadius: '24px',
+                  padding: '1.25rem 1.75rem',
+                  boxShadow: isSoldOut ? 'none' : '0 8px 28px rgba(4, 120, 87, 0.1)',
+                  opacity: isSoldOut ? 0.85 : 1
                 }}
               >
-                {/* 1. Header Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.25rem' }}>
+                {/* 1. Header Bar: Badge Ngày + Mã SKU + Số chỗ còn + Nút Đang chọn / Đã hết */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.85rem', borderBottom: '1px solid #f1f5f9', marginBottom: '0.85rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-                    {/* Ngày đi màu xanh ngọc bích */}
-                    <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-forest, #047857)', background: '#ecfdf5', padding: '0.35rem 1rem', borderRadius: '9999px', border: '1px solid rgba(5, 150, 105, 0.25)' }}>
+                    {/* Badge Ngày */}
+                    <span style={{ fontWeight: 800, fontSize: '0.92rem', color: isSoldOut ? '#64748b' : 'var(--accent-forest, #047857)', background: isSoldOut ? '#f1f5f9' : '#ecfdf5', padding: '0.35rem 1rem', borderRadius: '9999px', border: isSoldOut ? '1px solid #e2e8f0' : '1px solid rgba(5, 150, 105, 0.25)' }}>
                       {dayOfWeek}, {dep.date}
                     </span>
-                    {dep.label && (
-                      <span 
-                        style={{ 
-                          fontWeight: 800, 
-                          fontSize: '0.8rem', 
-                          color: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#e11d48' : dep.label.includes('Cuối') ? '#1d4ed8' : '#047857', 
-                          background: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '#fff1f2' : dep.label.includes('Cuối') ? '#eff6ff' : '#ecfdf5', 
-                          padding: '0.3rem 0.85rem', 
-                          borderRadius: '9999px', 
-                          border: dep.label.includes('Lễ') || dep.label.includes('Tết') || dep.label.includes('Quốc Khánh') || dep.label.includes('Giáng Sinh') || dep.label.includes('Năm Mới') ? '1px solid #fecdd3' : dep.label.includes('Cuối') ? '1px solid #bfdbfe' : '1px solid #a7f3d0',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem'
-                        }}
-                      >
-                        {dep.label}
-                      </span>
-                    )}
-                    {/* In đậm mã tour */}
-                    <span style={{ color: '#1e293b', fontSize: '0.92rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <i className="fa-solid fa-ticket" style={{ color: 'var(--accent-forest, #047857)' }}></i> {sku}
+                    {/* Mã Tour SKU */}
+                    <span style={{ color: '#334155', fontSize: '0.88rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <i className="fa-solid fa-ticket" style={{ color: isSoldOut ? '#94a3b8' : 'var(--accent-forest, #047857)' }}></i> {sku}
+                    </span>
+                    {/* Huy hiệu số chỗ còn nhận */}
+                    <span style={{ fontSize: '0.82rem', fontWeight: 800, color: isSoldOut ? '#dc2626' : (seats <= 5 ? '#e11d48' : '#047857'), background: isSoldOut ? '#fee2e2' : (seats <= 5 ? '#fef2f2' : '#ecfdf5'), padding: '0.22rem 0.75rem', borderRadius: '9999px', border: isSoldOut ? '1px solid #fca5a5' : (seats <= 5 ? '1px solid #fecdd3' : '1px solid #a7f3d0') }}>
+                      {isSoldOut ? 'Đã hết chỗ' : `Còn ${seats} chỗ`}
                     </span>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => onSelectDate(null)}
+                    disabled={isSoldOut}
+                    onClick={isSoldOut ? undefined : () => onSelectDate(null)}
                     style={{
-                      background: 'var(--accent-forest, #047857)',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '0.45rem 1.45rem',
+                      background: isSoldOut ? '#e2e8f0' : 'var(--accent-forest, #047857)',
+                      color: isSoldOut ? '#94a3b8' : '#ffffff',
+                      border: isSoldOut ? '1px solid #cbd5e1' : 'none',
+                      padding: '0.42rem 1.45rem',
                       borderRadius: '9999px',
                       fontSize: '0.9rem',
                       fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(4, 120, 87, 0.25)'
+                      cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                      opacity: isSoldOut ? 0.7 : 1,
+                      boxShadow: isSoldOut ? 'none' : '0 4px 14px rgba(4, 120, 87, 0.25)',
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    Đóng
+                    {isSoldOut ? 'Đã hết' : 'Đang chọn'}
                   </button>
                 </div>
 
-                {/* 2. Main 2-Part Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '1.5rem' }}>
-                  
-                  {/* LEFT PART: Flight / Transport Schedule Details */}
-                  <div>
-                    <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <i className="fa-solid fa-plane-departure" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Thông tin chuyến bay &amp; Di chuyển
-                    </h4>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                      {/* Outbound Box */}
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                            🛫 Chuyến đi • {outbound.date}
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{outbound.airline} ({outbound.flightNo})</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{outbound.time}</div>
-                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{outbound.from} (Khởi hành)</div>
-                          </div>
-                          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
-                            <div>2h00m</div>
-                            <i className="fa-solid fa-arrow-right-long" style={{ color: '#cbd5e1', fontSize: '1.1rem' }}></i>
-                            <div>Bay thẳng</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{outbound.arriveTime}</div>
-                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{outbound.to} (Đến nơi)</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Inbound Box */}
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#047857', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                            🛬 Chuyến về • {inbound.date}
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{inbound.airline} ({inbound.flightNo})</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{inbound.time}</div>
-                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{inbound.from} (Khởi hành)</div>
-                          </div>
-                          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
-                            <div>2h22m</div>
-                            <i className="fa-solid fa-arrow-right-long" style={{ color: '#cbd5e1', fontSize: '1.1rem' }}></i>
-                            <div>Bay thẳng</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{inbound.arriveTime}</div>
-                            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>{inbound.to} (Đến nơi)</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT PART: Gathering Point & Luggage Policy */}
-                  <div>
-                    <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <i className="fa-solid fa-location-dot" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Địa điểm tập trung &amp; Hành lý
-                    </h4>
-
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.25rem', height: 'calc(100% - 2.5rem)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
-                      <div>
-                        <div style={{ marginBottom: '1rem' }}>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Điểm đón khách:</span>
-                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#111827', marginTop: '0.2rem' }}>
-                            Cột 12 Ga Đi Trong Nước, Sân Bay Quốc Tế Tân Sơn Nhất / Nội Bài
-                          </div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.15rem' }}>
-                            (Hướng dẫn viên WebTravel cầm bảng đón trước giờ bay 2 tiếng)
-                          </div>
-                        </div>
-
-                        <div>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Tiêu chuẩn hành lý:</span>
-                          <div style={{ fontSize: '0.92rem', color: '#1e293b', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                            <div><i className="fa-solid fa-suitcase" style={{ color: 'var(--accent-emerald, #059669)', width: '20px' }}></i> <strong>20kg</strong> Hành lý ký gửi / khách</div>
-                            <div><i className="fa-solid fa-briefcase" style={{ color: 'var(--accent-emerald, #059669)', width: '20px' }}></i> <strong>07kg</strong> Hành lý xách tay tiêu chuẩn</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ marginTop: '1rem', paddingTop: '0.85rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Tình trạng chỗ:</span>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: seats <= 5 ? '#e11d48' : '#047857' }}>
-                          {isSoldOut ? 'Đã hết chỗ' : `Còn ${seats} chỗ trống`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
+                {/* 2. Phương tiện di chuyển */}
+                <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.95rem', color: '#111827', margin: '0.65rem 0 0.85rem' }}>
+                  Phương tiện di chuyển
                 </div>
 
-                {/* 3. Detailed Price Breakdown Table */}
-                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-                  <h4 style={{ margin: '0 0 1rem', fontSize: '1.05rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fa-solid fa-tags" style={{ color: 'var(--accent-emerald, #059669)' }}></i> Bảng giá tour chi tiết theo từng độ tuổi
-                  </h4>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem 3rem' }}>
-                    {/* Left Column (Người lớn, Trẻ em, Trẻ nhỏ) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Người lớn</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>(Từ 12 tuổi trở lên)</div>
-                        </div>
-                        {/* Giá màu xanh */}
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
-                          {formatCurrencyVND(priceAdult)}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Trẻ em</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>(Từ 5 đến 11 tuổi)</div>
-                        </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
-                          {formatCurrencyVND(priceChild)}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Trẻ nhỏ</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>(Từ 2 - 4 tuổi)</div>
-                        </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
-                          {formatCurrencyVND(priceToddler)}
-                        </div>
-                      </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: '1.5rem', alignItems: 'center', padding: '0 0.5rem' }}>
+                  {/* Cột Trái: Ngày đi */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày đi: <strong>{dep.date}</strong></span>
+                      <span style={{ fontSize: '0.88rem', color: 'var(--accent-forest, #047857)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <i className="fa-solid fa-plane" style={{ transform: 'rotate(-45deg)', fontSize: '0.8rem' }}></i> {outbound.flightNo || 'HO1330'}
+                      </span>
                     </div>
-
-                    {/* Right Column (Em bé, Phụ thu phòng đơn) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Em bé</div>
-                          <div style={{ fontSize: '0.82rem', color: '#64748b' }}>(Dưới 2 tuổi)</div>
-                        </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
-                          {formatCurrencyVND(priceInfant)}
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#111827', fontWeight: 700, fontSize: '1rem', marginTop: '0.2rem' }}>
+                      <span>{outbound.time || '01:15'}</span>
+                      <div style={{ flex: 1, margin: '0 1rem', display: 'flex', alignItems: 'center' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>
+                        <div style={{ flex: 1, borderTop: '1px dashed #cbd5e1', height: '1px' }}></div>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>
                       </div>
+                      <span>{outbound.arriveTime || '05:30'}</span>
+                    </div>
+                  </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#111827' }}>Phụ thu phòng đơn</div>
-                        </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
-                          {formatCurrencyVND(singleSurcharge)}
-                        </div>
+                  {/* Vạch kẻ ngăn giữa */}
+                  <div style={{ background: '#e5e7eb', height: '70%', width: '1px' }}></div>
+
+                  {/* Cột Phải: Ngày về */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày về: <strong>{inbound.date || dep.date}</strong></span>
+                      <span style={{ fontSize: '0.88rem', color: 'var(--accent-forest, #047857)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <i className="fa-solid fa-plane" style={{ transform: 'rotate(-45deg)', fontSize: '0.8rem' }}></i> {inbound.flightNo || 'HO1329'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#111827', fontWeight: 700, fontSize: '1rem', marginTop: '0.2rem' }}>
+                      <span>{inbound.time || '21:45'}</span>
+                      <div style={{ flex: 1, margin: '0 1rem', display: 'flex', alignItems: 'center' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>
+                        <div style={{ flex: 1, borderTop: '1px dashed #cbd5e1', height: '1px' }}></div>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#cbd5e1' }}></span>
                       </div>
+                      <span>{inbound.arriveTime || '00:15'}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 4. Consultation Contact Box */}
-                <div style={{ background: '#f0fdf4', border: '1px solid rgba(5, 150, 105, 0.25)', borderRadius: '10px', padding: '0.85rem 1.15rem', fontSize: '0.85rem', color: '#065f46', lineHeight: 1.5, marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <i className="fa-solid fa-phone-volume" style={{ fontSize: '1.15rem', color: 'var(--accent-emerald, #059669)', flexShrink: 0 }}></i>
-                  <div>
-                    <strong>Tổng đài tư vấn: 1800 646 888 (Miễn phí 24/7).</strong> Tour không hoàn hủy sai tên, trẻ em cần giấy khai sinh bản gốc.
+                {/* Đường kẻ phân cách */}
+                <div style={{ borderTop: '1px solid #e5e7eb', margin: '1.15rem 0 0.85rem' }}></div>
+
+                {/* 3. Giá chuyến đi */}
+                <div style={{ textAlign: 'center', fontWeight: 800, fontSize: '0.95rem', color: '#111827', marginBottom: '1rem' }}>
+                  Giá chuyến đi
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem 3rem', padding: '0 0.5rem' }}>
+                  {/* Người lớn */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>Người lớn</div>
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>(Từ 12 tuổi trở lên)</div>
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
+                      {formatCurrencyVND(priceAdult)}
+                    </div>
                   </div>
+
+                  {/* Em bé */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>Em bé</div>
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>(Dưới 2 tuổi)</div>
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
+                      {formatCurrencyVND(priceInfant)}
+                    </div>
+                  </div>
+
+                  {/* Trẻ em */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>Trẻ em</div>
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>(Từ 2 đến 11 tuổi)</div>
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
+                      {formatCurrencyVND(priceChild)}
+                    </div>
+                  </div>
+
+                  {/* Phụ thu phòng đơn */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#111827' }}>Phụ thu phòng đơn</div>
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-forest, #047857)', fontFamily: 'var(--font-body, "Montserrat", sans-serif)', fontVariantNumeric: 'lining-nums tabular-nums' }}>
+                      {formatCurrencyVND(singleSurcharge)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Banner ghi chú chân trang */}
+                <div style={{ background: '#f0fdf4', border: '1px solid rgba(5, 150, 105, 0.25)', borderRadius: '12px', padding: '0.75rem 1.25rem', fontSize: '0.85rem', color: '#065f46', fontWeight: 600, marginTop: '1.15rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <i className="fa-solid fa-circle-info" style={{ color: 'var(--accent-emerald, #059669)' }}></i>
+                  <span>
+                    {tour.category === 'international'
+                      ? 'Thời gian xin visa đoàn tối thiểu trước ngày khởi hành 09 ngày làm việc.'
+                      : 'Thời gian giữ chỗ và hoàn tất thủ tục tối thiểu trước ngày khởi hành 03 ngày làm việc.'}
+                  </span>
                 </div>
               </div>
             );
@@ -407,26 +346,45 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
               <div 
                 key={dep.date} 
                 className="schedule-row-compact" 
-                onClick={() => onSelectDate(dep.date)}
+                onClick={isSoldOut ? undefined : () => onSelectDate(dep.date)}
                 style={{
-                  background: '#ffffff',
-                  border: '1.5px solid #e5e7eb',
+                  background: isSoldOut ? '#f8fafc' : '#ffffff',
+                  border: isSoldOut ? '1.5px solid #e2e8f0' : '1.5px solid #e5e7eb',
                   borderRadius: '16px',
                   padding: '0.85rem 1.35rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-                  gap: '1rem'
+                  cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                  boxShadow: isSoldOut ? 'none' : '0 2px 6px rgba(0,0,0,0.02)',
+                  opacity: isSoldOut ? 0.6 : 1,
+                  gap: '1rem',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <div className="schedule-row-left" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
-                  {/* Ngày đi đổi thành màu xanh ngọc bích */}
-                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--accent-forest, #047857)', whiteSpace: 'nowrap' }}>
+                  {/* Ngày đi */}
+                  <span style={{ fontWeight: 800, fontSize: '0.98rem', color: isSoldOut ? '#94a3b8' : 'var(--accent-forest, #047857)', whiteSpace: 'nowrap' }}>
                     {dayOfWeek}, {dep.date}
                   </span>
-                  {dep.label && (
+
+                  {/* Huy hiệu trạng thái / khuyến mãi */}
+                  {isSoldOut ? (
+                    <span 
+                      style={{ 
+                        fontWeight: 800, 
+                        fontSize: '0.74rem', 
+                        color: '#dc2626', 
+                        background: '#fee2e2', 
+                        padding: '0.22rem 0.6rem', 
+                        borderRadius: '6px', 
+                        border: '1px solid #fca5a5',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Đã hết chỗ
+                    </span>
+                  ) : dep.label ? (
                     <span 
                       style={{ 
                         fontWeight: 800, 
@@ -444,15 +402,31 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                     >
                       {dep.label}
                     </span>
+                  ) : (
+                    <span 
+                      style={{ 
+                        fontWeight: 700, 
+                        fontSize: '0.76rem', 
+                        color: seats <= 5 ? '#e11d48' : '#047857', 
+                        background: seats <= 5 ? '#fef2f2' : '#ecfdf5', 
+                        padding: '0.2rem 0.55rem', 
+                        borderRadius: '6px', 
+                        border: seats <= 5 ? '1px solid #fecdd3' : '1px solid #a7f3d0',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Còn {seats} chỗ
+                    </span>
                   )}
+
                   {/* Mã tour in đậm rõ nét */}
-                  <span style={{ color: '#1e293b', fontSize: '0.9rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <i className="fa-solid fa-ticket" style={{ color: 'var(--accent-forest, #047857)' }}></i> {sku}
+                  <span style={{ color: isSoldOut ? '#94a3b8' : '#1e293b', fontSize: '0.9rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.45rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <i className="fa-solid fa-ticket" style={{ color: isSoldOut ? '#94a3b8' : 'var(--accent-forest, #047857)' }}></i> {sku}
                   </span>
                 </div>
 
                 <div className="schedule-row-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
-                  {/* Giá tour đổi thành màu xanh ngọc bích */}
+                  {/* Giá tour */}
                   <span 
                     className="schedule-compact-price" 
                     style={{ 
@@ -473,23 +447,26 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                     className="schedule-btn-choose"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectDate(dep.date);
+                      if (!isSoldOut) {
+                        onSelectDate(dep.date);
+                      }
                     }}
                     style={{
                       background: isSoldOut ? '#f1f5f9' : '#ffffff',
-                      border: '1.5px solid #e2e8f0',
+                      border: isSoldOut ? '1.5px solid #cbd5e1' : '1.5px solid #e2e8f0',
                       color: isSoldOut ? '#94a3b8' : '#334155',
                       padding: '0.45rem 1.45rem',
                       borderRadius: '9999px',
                       fontSize: '0.9rem',
                       fontWeight: 700,
                       cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                      opacity: isSoldOut ? 0.65 : 1,
                       transition: 'all 0.2s ease',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                      boxShadow: isSoldOut ? 'none' : '0 2px 6px rgba(0,0,0,0.03)',
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {isSoldOut ? 'Hết chỗ' : 'Chọn'}
+                    {isSoldOut ? 'Đã hết' : 'Chọn'}
                   </button>
                 </div>
               </div>

@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TOURS_DATA } from '../data/toursData';
 import { Tour, DepartureDate } from '../types/tour.types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { profileService } from '../services/profileService';
 import { couponService } from '../services/couponService';
 import { tourService } from '../services/tourService';
-import { bookingService, getBookingUiStatus } from '../services/bookingService';
+import { bookingService, getBookingUiStatus, PaymentTransactionRecord } from '../services/bookingService';
+import { updateTourInventory } from '../utils/inventoryManager';
 import { AdminTab, BookingRecord, CustomerRecord, StaffRecord, CouponRecord, ActionFeedback } from './admin.types';
 import { UserRole } from '../auth/auth.types';
-import { useAuth, hasPermission, canAssignRole } from '../auth';
+import { useAuth, hasPermission, canAssignRole, isTabAllowed } from '../auth';
 import { AdminSidebar } from './components/AdminSidebar';
 import { AdminTopbar } from './components/AdminTopbar';
 import { OverviewModule } from './modules/OverviewModule';
 import { BookingsModule } from './modules/BookingsModule';
+import { PaymentsModule } from './modules/PaymentsModule';
 import { ToursModule } from './modules/ToursModule';
 import { CustomersModule } from './modules/CustomersModule';
 import { StaffModule } from './modules/StaffModule';
@@ -20,16 +23,80 @@ import { CouponsModule } from './modules/CouponsModule';
 import { EditPriceModal } from './modals/EditPriceModal';
 import { AddTourModal } from './modals/AddTourModal';
 import { AddCouponModal } from './modals/AddCouponModal';
+import { IdleWarningModal } from './components/IdleWarningModal';
+import { useAdminIdleTimeout } from '../hooks/useAdminIdleTimeout';
+
+const VALID_TABS: AdminTab[] = ['overview', 'bookings', 'payments', 'tours', 'customers', 'staff', 'coupons'];
 
 export const AdminPortal: React.FC = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const { user, signOut } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Tab mặc định theo vai trò: Admin/SuperAdmin -> 'overview', Staff -> 'bookings'
+  const defaultTab: AdminTab = isTabAllowed(user?.role, 'overview') ? 'overview' : 'bookings';
+
+  const tabFromUrl = searchParams.get('tab') as AdminTab | null;
+  const initialTab =
+    tabFromUrl && VALID_TABS.includes(tabFromUrl) && isTabAllowed(user?.role, tabFromUrl)
+      ? tabFromUrl
+      : defaultTab;
+  const [activeTab, setActiveTabState] = useState<AdminTab>(initialTab);
+
+  // --- Admin Idle Timeout (30 min idle → 60s warning → auto sign-out) ---
+  // Only activates for privileged roles (admin, staff, super_admin).
+  // Customer accounts are intentionally excluded to avoid disrupting UX.
+  const isPrivilegedRole =
+    user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'staff';
+  const { showWarning: showIdleWarning, countdown: idleCountdown, extendSession } =
+    useAdminIdleTimeout({
+      idleMinutes: 30, // 30 phút không thao tác → hiện cảnh báo nhập mật khẩu
+      warningCountdownSeconds: 60,
+      enabled: isPrivilegedRole,
+      onSignOut: signOut,
+    });
+
+  // Chuyển tab có kiểm tra thẩm quyền RBAC
+  const setActiveTab = useCallback((newTab: AdminTab) => {
+    if (!isTabAllowed(user?.role, newTab)) {
+      setActionFeedback({
+        type: 'error',
+        message: 'Bạn không có quyền truy cập vào phân hệ này!'
+      });
+      return;
+    }
+    setActiveTabState(newTab);
+    setSearchParams(newTab === defaultTab ? {} : { tab: newTab });
+  }, [user?.role, defaultTab, setSearchParams]);
+
+  // Route Guard: Nếu cố tình sửa URL query ?tab=... thành tab không có quyền -> Chặn & redirect
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as AdminTab | null;
+    if (tabParam && VALID_TABS.includes(tabParam)) {
+      if (!isTabAllowed(user?.role, tabParam)) {
+        setActiveTabState(defaultTab);
+        setSearchParams(defaultTab === 'overview' ? {} : { tab: defaultTab });
+        setActionFeedback({
+          type: 'error',
+          message: `Bạn không có quyền truy cập phân hệ "${tabParam}". Đã chuyển hướng về trang làm việc.`
+        });
+      } else if (tabParam !== activeTab) {
+        setActiveTabState(tabParam);
+      }
+    } else if (!tabParam && activeTab !== defaultTab) {
+      if (!isTabAllowed(user?.role, activeTab)) {
+        setActiveTabState(defaultTab);
+      }
+    }
+  }, [searchParams, activeTab, user?.role, defaultTab, setSearchParams]);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
 
   // Live Database States
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [bookings, setBookings] = useState<BookingRecord[]>([]);
+  const [transactions, setTransactions] = useState<PaymentTransactionRecord[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(false);
   const [tours, setTours] = useState<Tour[]>(TOURS_DATA);
   const [coupons, setCoupons] = useState<CouponRecord[]>([]);
 
@@ -118,8 +185,25 @@ export const AdminPortal: React.FC = () => {
             };
           });
           setBookings(mappedBookings);
+
+          // Tự động đồng bộ các đơn có coupon đã hoàn thành vào coupon_usages nếu chưa có
+          const completedCouponBookings = mappedBookings.filter(
+            b => (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid') && b.couponCode
+          );
+          completedCouponBookings.forEach(pb => {
+            couponService.recordCouponUsage({
+              couponCode: pb.couponCode!,
+              userId: pb.userId || null,
+              bookingId: pb.id,
+              bookingCode: pb.bookingCode,
+              discountApplied: pb.couponDiscount || 0,
+              customerName: pb.customerName,
+              customerEmail: pb.email,
+              customerPhone: pb.phone
+            }).catch(() => {});
+          });
         } else {
-          // Read from LocalStorage fallback
+          // Read from LocalStorage fallback when Supabase has no records or fails
           try {
             const localBookings = JSON.parse(localStorage.getItem('webtravel_local_bookings') || '[]');
             if (localBookings.length > 0) {
@@ -197,6 +281,14 @@ export const AdminPortal: React.FC = () => {
           setTours(loadedTours);
         }
       }
+
+      // 5. Fetch Real Payment Transactions
+      try {
+        const txList = await bookingService.getAllTransactions();
+        setTransactions(txList);
+      } catch (txErr) {
+        console.warn('Error loading transactions in AdminPortal:', txErr);
+      }
     } catch (err: any) {
       console.error('Error loading Supabase data in AdminPortal:', err);
     } finally {
@@ -206,6 +298,31 @@ export const AdminPortal: React.FC = () => {
 
   useEffect(() => {
     loadDatabaseData();
+
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel(`admin_bookings_sync_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          loadDatabaseData();
+        }
+      )
+      .subscribe();
+
+    const broadcastChannel = supabase
+      .channel('webtravel_realtime_bookings')
+      .on('broadcast', { event: 'booking_updated' }, () => {
+        loadDatabaseData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase?.removeChannel(channel);
+      supabase?.removeChannel(broadcastChannel);
+    };
   }, [loadDatabaseData]);
 
   // Flash feedback auto dismiss
@@ -265,38 +382,23 @@ export const AdminPortal: React.FC = () => {
       return;
     }
     try {
-      const paymentStatus = newStatus === 'confirmed' ? 'paid' : newStatus === 'deposit' ? 'partially_paid' : 'pending';
+      const paymentStatus = newStatus === 'confirmed' ? 'paid' : newStatus === 'deposit' ? 'partially_paid' : newStatus === 'cancelled' ? 'refunded' : 'pending';
       const bookingStatus = newStatus === 'confirmed' ? 'confirmed' : newStatus === 'cancelled' ? 'cancelled' : 'pending';
       
-      const currentBooking = bookings.find(b => b.id === bookingId);
+      const currentBooking = bookings.find(b => b.id === bookingId || b.bookingCode === bookingId);
       const totalAmt = currentBooking ? currentBooking.totalAmount : 0;
       const paidAmt = newStatus === 'confirmed' ? totalAmt : newStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
 
       await bookingService.updateBookingAdminStatus(bookingId, newStatus);
-      setBookings(bookings.map((b) => (b.id === bookingId ? { ...b, status: newStatus, paymentStatus, bookingStatus, paidAmount: paidAmt } : b)));
+      setBookings(bookings.map((b) => (b.id === bookingId || b.bookingCode === bookingId ? { ...b, status: newStatus, paymentStatus, bookingStatus, paidAmount: paidAmt } : b)));
+      
+      // Auto refresh transactions ledger
+      bookingService.getAllTransactions().then(setTransactions).catch(() => {});
+
       const statusLabel = newStatus === 'confirmed' ? 'Đã Thanh Toán 100%' : newStatus === 'deposit' ? 'Đã Cọc 50%' : newStatus === 'pending' ? 'Chờ Duyệt' : 'Đã Hủy';
       setActionFeedback({ type: 'success', message: `Đã cập nhật trạng thái đơn ${bookingId} ➔ ${statusLabel}` });
     } catch (err: any) {
       setActionFeedback({ type: 'error', message: err?.message || 'Lỗi cập nhật đơn hàng' });
-    }
-  };
-
-  // Handler: Hard Delete Booking
-  const handleDeleteBooking = async (bookingId: string) => {
-    if (!hasPermission(user?.role, 'booking:delete')) {
-      setActionFeedback({ type: 'error', message: 'Chỉ Quản Trị Viên mới có quyền xóa đơn hàng này.' });
-      return;
-    }
-    try {
-      const result = await bookingService.deleteBooking(bookingId);
-      if (!result.success) {
-        setActionFeedback({ type: 'error', message: result.error || 'Lỗi xóa đơn hàng' });
-        return;
-      }
-      setBookings((prev) => prev.filter((b) => b.id !== bookingId && b.bookingCode !== bookingId));
-      setActionFeedback({ type: 'success', message: 'Đã xóa cứng vĩnh viễn đơn hàng khỏi hệ thống thành công!' });
-    } catch (err: any) {
-      setActionFeedback({ type: 'error', message: err?.message || 'Lỗi xóa đơn hàng' });
     }
   };
 
@@ -364,6 +466,7 @@ export const AdminPortal: React.FC = () => {
         availableDates: datesStr,
         seatsLeft: totalSeats > 0 ? totalSeats : targetTour.seatsLeft
       };
+      updateTourInventory(tourId, updatedDates);
       const result = await tourService.updateTour(updatedObj);
       if (!result.success) {
         setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật lịch trình' });
@@ -478,6 +581,7 @@ export const AdminPortal: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         bookingsCount={bookings.length}
+        paymentsCount={transactions.length}
         toursCount={tours.length}
         customersCount={pureCustomers.length}
         staffCount={staffMembers.length}
@@ -519,7 +623,7 @@ export const AdminPortal: React.FC = () => {
 
         {/* Scrollable View Content Body */}
         <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
-          {activeTab === 'overview' && (
+          {activeTab === 'overview' && isTabAllowed(user?.role, 'overview') && (
             <OverviewModule
               bookings={bookings}
               tours={tours}
@@ -530,15 +634,30 @@ export const AdminPortal: React.FC = () => {
             />
           )}
 
-          {activeTab === 'bookings' && (
+          {activeTab === 'bookings' && isTabAllowed(user?.role, 'bookings') && (
             <BookingsModule
               bookings={filteredBookings}
               onStatusChange={handleStatusChange}
-              onDeleteBooking={handleDeleteBooking}
             />
           )}
 
-          {activeTab === 'tours' && (
+          {activeTab === 'payments' && isTabAllowed(user?.role, 'payments') && (
+            <PaymentsModule
+              transactions={transactions}
+              onRefresh={async () => {
+                setIsLoadingTransactions(true);
+                try {
+                  const txList = await bookingService.getAllTransactions();
+                  setTransactions(txList);
+                } finally {
+                  setIsLoadingTransactions(false);
+                }
+              }}
+              isLoading={isLoadingTransactions}
+            />
+          )}
+
+          {activeTab === 'tours' && isTabAllowed(user?.role, 'tours') && (
             <ToursModule
               tours={tours}
               onOpenAddTour={() => setIsAddTourOpen(true)}
@@ -550,7 +669,7 @@ export const AdminPortal: React.FC = () => {
             />
           )}
 
-          {activeTab === 'customers' && (
+          {activeTab === 'customers' && isTabAllowed(user?.role, 'customers') && (
             <CustomersModule
               customers={filteredCustomers}
               onRoleChange={handleRoleChange}
@@ -558,7 +677,7 @@ export const AdminPortal: React.FC = () => {
             />
           )}
 
-          {activeTab === 'staff' && (
+          {activeTab === 'staff' && isTabAllowed(user?.role, 'staff') && (
             <StaffModule
               staff={filteredStaff}
               onRoleChange={handleRoleChange}
@@ -566,11 +685,65 @@ export const AdminPortal: React.FC = () => {
             />
           )}
 
-          {activeTab === 'coupons' && (
+          {activeTab === 'coupons' && isTabAllowed(user?.role, 'coupons') && (
             <CouponsModule
               coupons={coupons}
               onOpenAddCoupon={() => setIsAddCouponOpen(true)}
             />
+          )}
+
+          {/* Access Denied Guard Fallback */}
+          {!isTabAllowed(user?.role, activeTab) && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '4rem 1.5rem',
+                background: '#ffffff',
+                borderRadius: '16px',
+                border: '1px solid #fee2e2',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+              }}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.8rem',
+                  marginBottom: '1rem'
+                }}
+              >
+                <i className="fa-solid fa-shield-halved" />
+              </div>
+              <h3 style={{ margin: '0 0 0.5rem', color: '#1e293b', fontWeight: 800, fontSize: '1.2rem' }}>
+                Khu Vực Giới Hạn Quyền Truy Cập
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
+                Tài khoản của bạn ({user?.role === 'staff' ? 'Nhân Viên Vận Hành' : user?.role}) không có thẩm quyền truy cập phân hệ này.
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveTab(defaultTab)}
+                style={{
+                  padding: '0.65rem 1.5rem',
+                  background: '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)'
+                }}
+              >
+                Quay Về Trang Làm Việc
+              </button>
+            </div>
           )}
         </main>
       </div>
@@ -597,6 +770,18 @@ export const AdminPortal: React.FC = () => {
           isOpen={isAddCouponOpen}
           onClose={() => setIsAddCouponOpen(false)}
           onAddCoupon={handleAddCoupon}
+        />
+      )}
+
+      {/* Idle session warning — shown after 30 minutes of inactivity.
+          Requires password re-entry to unlock, preventing strangers from bypassing. */}
+      {showIdleWarning && (
+        <IdleWarningModal
+          countdown={idleCountdown}
+          idleMinutes={30}
+          userEmail={user?.email ?? ''}
+          onExtend={extendSession}
+          onSignOut={signOut}
         />
       )}
     </div>

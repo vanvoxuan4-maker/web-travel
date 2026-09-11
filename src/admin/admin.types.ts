@@ -1,4 +1,4 @@
-export type AdminTab = 'overview' | 'bookings' | 'tours' | 'customers' | 'staff' | 'coupons';
+export type AdminTab = 'overview' | 'bookings' | 'payments' | 'tours' | 'customers' | 'staff' | 'coupons';
 
 export interface BookingRecord {
   id: string;

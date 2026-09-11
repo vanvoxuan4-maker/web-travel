@@ -2,7 +2,7 @@ import React, { useEffect, Component, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './auth';
 import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, ProfilePage, TourCatalogPage, AIAssistantModal, NotFoundPage } from './user';
-import { AdminPortal } from './admin/AdminPortal';
+import { AdminPortal, AdminBookingDetailPage } from './admin';
 import { AppLogger } from './utils/logger';
 
 // === Luxury User-Friendly Error Boundary ===
@@ -248,6 +248,14 @@ const AppContent: React.FC = () => {
               element={
                 <ProtectedRoute requiredPermission="admin:access">
                   <AdminPortal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/bookings/:id"
+              element={
+                <ProtectedRoute requiredPermission="admin:access">
+                  <AdminBookingDetailPage />
                 </ProtectedRoute>
               }
             />

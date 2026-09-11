@@ -986,14 +986,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                       </div>
                     )}
 
+                    {/* Cảnh báo khi thời gian giữ chỗ hết hạn */}
+                    {secondsRemaining <= 0 && !isSuccess && (
+                      <div style={{ margin: '0 0 0.6rem', padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #f87171', borderRadius: 'var(--radius-sm)', color: '#b91c1c', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <i className="fa-solid fa-clock"></i>
+                        <span><strong>Thời gian giữ chỗ đã hết hạn (15 phút).</strong> Vui lòng đóng và đặt lại để tránh mất chỗ.</span>
+                      </div>
+                    )}
+
                     {/* Submit Button */}
                     <button 
                       type="submit" 
-                      disabled={isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting}
+                      disabled={isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting || secondsRemaining <= 0}
                       className="btn-primary w-full" 
-                      style={{ padding: '0.95rem', fontSize: '1.05rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', width: '100%', justifyContent: 'center', boxShadow: '0 10px 25px rgba(5,150,105,0.35)', cursor: (isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting) ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.75 : 1 }}
+                      style={{ padding: '0.95rem', fontSize: '1.05rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', width: '100%', justifyContent: 'center', boxShadow: '0 10px 25px rgba(5,150,105,0.35)', cursor: (isSoldOut || isSeatExceeded || bookedPax === 0 || isSubmitting || secondsRemaining <= 0) ? 'not-allowed' : 'pointer', opacity: (isSubmitting || secondsRemaining <= 0) ? 0.6 : 1 }}
                     >
-                      <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-lock"}></i> {isSubmitting ? 'Đang Xử Lý Đơn...' : isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}
+                      <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : secondsRemaining <= 0 ? "fa-solid fa-clock" : "fa-solid fa-lock"}></i> {isSubmitting ? 'Đang Xử Lý Đơn...' : secondsRemaining <= 0 ? 'Thời Gian Hết Hạn — Đặt Lại' : isSoldOut ? 'Ngày Này Đã Hết Chỗ' : `Tiến Hành Đặt Chỗ (${formatCurrencyVND(dueAmount)})`}
                     </button>
 
                     <div style={{ textAlign: 'center', margin: '0.85rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>

@@ -7,6 +7,7 @@ import { sanitizePhone, validatePhone } from '../../utils/formValidation';
 import { ETicketModal } from '../components/profile/ETicketModal';
 import { QuickPaymentModal } from '../components/profile/QuickPaymentModal';
 import { Link } from 'react-router-dom';
+import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 
 type ProfileTab = 'bookings' | 'settings' | 'loyalty';
 type BookingFilter = 'all' | 'confirmed' | 'pending' | 'completed' | 'cancelled';
@@ -69,12 +70,59 @@ export const ProfilePage: React.FC = () => {
     window.addEventListener('storage', handleSync);
     window.addEventListener('webtravel_booking_updated', handleSync);
 
+    // Supabase Realtime listener for cross-tab & cross-device instant sync
+    let dbChannel: any = null;
+    let broadcastChannel: any = null;
+
+    if (isSupabaseConfigured && supabase) {
+      dbChannel = supabase
+        .channel(`user_bookings_db_${user?.id || 'all'}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'bookings'
+          },
+          () => {
+            loadUserBookings();
+          }
+        )
+        .subscribe();
+
+      broadcastChannel = supabase
+        .channel('webtravel_realtime_bookings')
+        .on('broadcast', { event: 'booking_updated' }, () => {
+          loadUserBookings();
+        })
+        .subscribe();
+    }
+
     return () => {
       window.removeEventListener('focus', handleSync);
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('webtravel_booking_updated', handleSync);
+      if (dbChannel && supabase) supabase.removeChannel(dbChannel);
+      if (broadcastChannel && supabase) supabase.removeChannel(broadcastChannel);
     };
   }, [user]);
+
+  // Keep selectedETicket synchronized in real-time when bookings update
+  useEffect(() => {
+    if (selectedETicket) {
+      const freshBooking = bookings.find(
+        (b) => b.bookingCode === selectedETicket.bookingCode || (b.id && b.id === selectedETicket.id)
+      );
+      if (
+        freshBooking &&
+        (freshBooking.bookingStatus !== selectedETicket.bookingStatus ||
+          freshBooking.paymentStatus !== selectedETicket.paymentStatus ||
+          freshBooking.paidAmount !== selectedETicket.paidAmount)
+      ) {
+        setSelectedETicket(freshBooking);
+      }
+    }
+  }, [bookings, selectedETicket]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

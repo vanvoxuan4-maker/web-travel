@@ -119,12 +119,13 @@ export const couponService = {
             };
           }
 
-          // Dual-check: check bookings table directly (in case trigger hadn't fired)
+          // Dual-check: check bookings table directly (chỉ tính đơn ĐÃ THANH TOÁN thành công)
           const { data: bookingRows } = await supabase
             .from('bookings')
-            .select('id, booking_code, booking_status')
+            .select('id, booking_code, booking_status, payment_status')
             .eq('user_id', userId)
             .eq('coupon_code', cleanCode)
+            .in('payment_status', ['paid', 'partially_paid'])
             .neq('booking_status', 'cancelled')
             .limit(1);
 
@@ -166,6 +167,7 @@ export const couponService = {
             (b: any) =>
               b.userId === userId &&
               b.couponCode?.toUpperCase() === cleanCode &&
+              (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid') &&
               b.bookingStatus !== 'cancelled'
           );
           if (hasBookingWithCoupon) {
@@ -296,7 +298,7 @@ export const couponService = {
         const localBookingsRaw = localStorage.getItem(LOCAL_BOOKINGS_KEY);
         if (localBookingsRaw) {
           const localBookings = JSON.parse(localBookingsRaw);
-          if (localBookings.some((b: any) => b.userId === userId && b.couponCode?.toUpperCase() === code && b.bookingStatus !== 'cancelled')) {
+          if (localBookings.some((b: any) => b.userId === userId && b.couponCode?.toUpperCase() === code && (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid') && b.bookingStatus !== 'cancelled')) {
             return {
               valid: false,
               code,
@@ -387,13 +389,34 @@ export const couponService = {
     // 2. Save to Supabase
     if (isSupabaseConfigured && supabase) {
       try {
+        // Resolve valid UUID for booking_id (foreign key in Supabase)
+        let validBookingUuid: string | null = null;
+        const candidateId = params.bookingId || params.bookingCode;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        if (candidateId && uuidRegex.test(candidateId)) {
+          validBookingUuid = candidateId;
+        } else if (params.bookingCode || params.bookingId) {
+          const codeToFind = (params.bookingCode || params.bookingId)!.trim().toUpperCase();
+          const { data: bRow } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('booking_code', codeToFind)
+            .maybeSingle();
+          if (bRow?.id && uuidRegex.test(bRow.id)) {
+            validBookingUuid = bRow.id;
+          }
+        }
+
+        const validUserId = (params.userId && uuidRegex.test(params.userId)) ? params.userId : null;
+
         const { error } = await supabase
           .from('coupon_usages')
           .insert([
             {
               coupon_code: cleanCode,
-              user_id: params.userId || null,
-              booking_id: params.bookingId || null,
+              user_id: validUserId,
+              booking_id: validBookingUuid,
               discount_applied: params.discountApplied || 0,
               used_at: timestamp
             }
@@ -429,6 +452,7 @@ export const couponService = {
    */
   async refundCouponUsage(couponCode: string, bookingId: string): Promise<boolean> {
     const cleanCode = couponCode.trim().toUpperCase();
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     // 1. Remove from LocalStorage
     try {
@@ -436,7 +460,7 @@ export const couponService = {
       if (existingRaw) {
         const existing: CouponUsageRecord[] = JSON.parse(existingRaw);
         const updated = existing.filter(
-          item => !(item.coupon_code === cleanCode && item.booking_id === bookingId)
+          item => !(item.coupon_code === cleanCode && (item.booking_id === bookingId || item.booking_code === bookingId))
         );
         localStorage.setItem(LOCAL_COUPON_USAGES_KEY, JSON.stringify(updated));
       }
@@ -447,11 +471,27 @@ export const couponService = {
     // 2. Remove from Supabase
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
-          .from('coupon_usages')
-          .delete()
-          .eq('coupon_code', cleanCode)
-          .eq('booking_id', bookingId);
+        let validBookingUuid: string | null = null;
+        if (uuidRegex.test(bookingId)) {
+          validBookingUuid = bookingId;
+        } else {
+          const { data: bRow } = await supabase
+            .from('bookings')
+            .select('id')
+            .eq('booking_code', bookingId.trim().toUpperCase())
+            .maybeSingle();
+          if (bRow?.id && uuidRegex.test(bRow.id)) {
+            validBookingUuid = bRow.id;
+          }
+        }
+
+        if (validBookingUuid) {
+          await supabase
+            .from('coupon_usages')
+            .delete()
+            .eq('coupon_code', cleanCode)
+            .eq('booking_id', validBookingUuid);
+        }
 
         const { data: currentCoupon } = await supabase
           .from('coupons')
