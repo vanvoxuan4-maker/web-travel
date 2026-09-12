@@ -410,6 +410,20 @@ export const couponService = {
 
         const validUserId = (params.userId && uuidRegex.test(params.userId)) ? params.userId : null;
 
+        // Check if already recorded for this booking to prevent double-counting
+        if (validBookingUuid) {
+          const { data: existingUsage } = await supabase
+            .from('coupon_usages')
+            .select('id')
+            .eq('coupon_code', cleanCode)
+            .eq('booking_id', validBookingUuid)
+            .maybeSingle();
+
+          if (existingUsage) {
+            return true;
+          }
+        }
+
         const { error } = await supabase
           .from('coupon_usages')
           .insert([
@@ -581,6 +595,7 @@ export const couponService = {
     min_order_value?: number;
     usage_limit?: number;
     expires_at?: string;
+    is_active?: boolean;
   }): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured || !supabase) {
       return { success: true };
@@ -598,7 +613,7 @@ export const couponService = {
           usage_limit: coupon.usage_limit || 100,
           used_count: 0,
           expires_at: coupon.expires_at || null,
-          is_active: true
+          is_active: coupon.is_active !== undefined ? coupon.is_active : true
         });
 
       if (error) {
@@ -607,6 +622,123 @@ export const couponService = {
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to create coupon' };
+    }
+  },
+
+  /**
+   * Update an existing coupon
+   */
+  async updateCoupon(
+    code: string,
+    updates: {
+      description?: string;
+      discount_amount?: number;
+      discount_percent?: number;
+      min_order_value?: number;
+      usage_limit?: number;
+      expires_at?: string | null;
+      is_active?: boolean;
+    }
+  ): Promise<{ success: boolean; error?: string }> {
+    const cleanCode = code.toUpperCase().trim();
+
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+
+    try {
+      const payload: Record<string, any> = {
+        updated_at: new Date().toISOString()
+      };
+
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.discount_amount !== undefined) payload.discount_amount = updates.discount_amount;
+      if (updates.discount_percent !== undefined) payload.discount_percent = updates.discount_percent;
+      if (updates.min_order_value !== undefined) payload.min_order_value = updates.min_order_value;
+      if (updates.usage_limit !== undefined) payload.usage_limit = updates.usage_limit;
+      if (updates.expires_at !== undefined) payload.expires_at = updates.expires_at;
+      if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+
+      const { error } = await supabase
+        .from('coupons')
+        .update(payload)
+        .eq('code', cleanCode);
+
+      if (error) {
+        console.error('Error updating coupon:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Unexpected error updating coupon:', err);
+      return { success: false, error: err?.message || 'Lỗi cập nhật voucher' };
+    }
+  },
+
+  /**
+   * Quick toggle active status for a coupon (Hide / Unhide)
+   */
+  async toggleCouponActive(code: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
+    const cleanCode = code.toUpperCase().trim();
+
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('coupons')
+        .update({
+          is_active: isActive,
+          updated_at: new Date().toISOString()
+        })
+        .eq('code', cleanCode);
+
+      if (error) {
+        console.error('Error toggling coupon status:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Unexpected error toggling coupon status:', err);
+      return { success: false, error: err?.message || 'Lỗi cập nhật trạng thái voucher' };
+    }
+  },
+
+  /**
+   * Delete a coupon permanently (Super Admin only).
+   * Safely checks for foreign key references.
+   */
+  async deleteCoupon(code: string): Promise<{ success: boolean; error?: string }> {
+    const cleanCode = code.toUpperCase().trim();
+
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('code', cleanCode);
+
+      if (error) {
+        // Check for 23503 foreign key violation (referenced by bookings or coupon_usages)
+        if (error.code === '23503') {
+          return {
+            success: false,
+            error: 'Mã voucher này đã từng được khách hàng áp dụng trong đơn hàng. Để đảm bảo dữ liệu lịch sử, vui lòng dùng chức năng "Ẩn Voucher" thay vì xóa.'
+          };
+        }
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Unexpected error deleting coupon:', err);
+      return { success: false, error: err?.message || 'Lỗi xóa voucher' };
     }
   }
 };

@@ -95,4 +95,47 @@ export function removeVietnameseTones(str: string): string {
     .trim();
 }
 
+/**
+ * Convert any date string (DD/MM/YYYY, DD-MM-YYYY, or YYYY-MM-DD) into standardized ISO format: YYYY-MM-DD.
+ * Ensures PostgreSQL DATE compatibility and prevents out-of-range errors (code 22008).
+ */
+export function toIsoDate(dateStr: string): string {
+  if (!dateStr || typeof dateStr !== 'string') return new Date().toISOString().slice(0, 10);
+  const trimmed = dateStr.trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // DD/MM/YYYY
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('/');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // DD-MM-YYYY
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('-');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Fallback parsing
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return trimmed;
+}
+
+/**
+ * Format any ISO date (YYYY-MM-DD) into user-friendly Vietnamese display: DD/MM/YYYY
+ */
+export function formatDateVN(dateStr: string): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return trimmed;
+}
+
+
 

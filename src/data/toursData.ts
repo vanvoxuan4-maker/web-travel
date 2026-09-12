@@ -20,7 +20,7 @@ export const TOURS_DATA: Tour[] = [
     departureFrom: 'Hà Nội',
     seatsLeft: 12,
     departureSchedule: 'Thứ 3 & Thứ 7 hàng tuần',
-    availableDates: ['15/09/2026', '22/09/2026', '29/09/2026', '05/10/2026'],
+    availableDates: ['2026-09-15', '2026-09-22', '2026-09-29', '2026-10-05'],
     departureDates: [
       { date: '2026-09-15', seats: 12, priceAdult: 4590000, priceChild: 3442500, priceToddler: 2295000, priceInfant: 500000, singleRoomSurcharge: 1500000, label: 'Chuyến Gần Nhất' },
       { date: '2026-09-22', seats: 8, priceAdult: 4590000, priceChild: 3442500, priceToddler: 2295000, priceInfant: 500000, singleRoomSurcharge: 1500000, label: null },
@@ -110,7 +110,7 @@ export const TOURS_DATA: Tour[] = [
     departureFrom: 'Hà Nội',
     seatsLeft: 18,
     departureSchedule: 'Thứ 6 hàng tuần',
-    availableDates: ['18/09/2026', '25/09/2026', '02/10/2026'],
+    availableDates: ['2026-09-18', '2026-09-25', '2026-10-02'],
     departureDates: [
       { date: '2026-09-18', seats: 18, priceAdult: 3890000, priceChild: 2917500, priceToddler: 1945000, priceInfant: 400000, singleRoomSurcharge: 1200000, label: 'Chuyến Gần Nhất' },
       { date: '2026-09-25', seats: 10, priceAdult: 3890000, priceChild: 2917500, priceToddler: 1945000, priceInfant: 400000, singleRoomSurcharge: 1200000, label: null },
@@ -195,7 +195,7 @@ export const TOURS_DATA: Tour[] = [
     departureFrom: 'Hà Nội / TP.HCM',
     seatsLeft: 10,
     departureSchedule: 'Thứ 7 hàng tuần',
-    availableDates: ['10/10/2026', '24/10/2026', '15/11/2026'],
+    availableDates: ['2026-10-10', '2026-10-24', '2026-11-15'],
     departureDates: [
       { date: '2026-10-10', seats: 10, priceAdult: 28900000, priceChild: 24565000, priceToddler: 17340000, priceInfant: 3000000, singleRoomSurcharge: 6000000, label: 'Chuyến Gần Nhất' },
       { date: '2026-10-24', seats: 6, priceAdult: 28900000, priceChild: 24565000, priceToddler: 17340000, priceInfant: 3000000, singleRoomSurcharge: 6000000, label: 'Sắp Hết Chỗ' },

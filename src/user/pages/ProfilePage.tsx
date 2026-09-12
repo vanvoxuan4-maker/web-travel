@@ -6,6 +6,7 @@ import { formatCurrencyVND } from '../../utils/formatters';
 import { sanitizePhone, validatePhone } from '../../utils/formValidation';
 import { ETicketModal } from '../components/profile/ETicketModal';
 import { QuickPaymentModal } from '../components/profile/QuickPaymentModal';
+import { UserBookingDetailModal } from '../components/profile/UserBookingDetailModal';
 import { Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
 
@@ -13,7 +14,7 @@ type ProfileTab = 'bookings' | 'settings' | 'loyalty';
 type BookingFilter = 'all' | 'confirmed' | 'pending' | 'completed' | 'cancelled';
 
 export const ProfilePage: React.FC = () => {
-  const { user, refreshProfile, signOut, isAdmin } = useAuth();
+  const { user, refreshProfile, signOut, isAdmin, changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>('bookings');
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>('all');
 
@@ -22,6 +23,7 @@ export const ProfilePage: React.FC = () => {
   const [isLoadingBookings, setIsLoadingBookings] = useState<boolean>(true);
   const [selectedETicket, setSelectedETicket] = useState<BookingPayload | null>(null);
   const [paymentModalBooking, setPaymentModalBooking] = useState<BookingPayload | null>(null);
+  const [selectedDetailBooking, setSelectedDetailBooking] = useState<BookingPayload | null>(null);
 
   // Cancellation Modal state
   const [cancellingBooking, setCancellingBooking] = useState<BookingPayload | null>(null);
@@ -36,6 +38,17 @@ export const ProfilePage: React.FC = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [saveErrorMsg, setSaveErrorMsg] = useState('');
+
+  // Change Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordSuccessMsg, setChangePasswordSuccessMsg] = useState('');
+  const [changePasswordErrorMsg, setChangePasswordErrorMsg] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -178,6 +191,64 @@ export const ProfilePage: React.FC = () => {
       alert('Không thể hủy đơn, vui lòng thử lại hoặc liên hệ tổng đài 1800 646 888.');
     } finally {
       setIsProcessingCancel(false);
+    }
+  };
+
+  const getPasswordStrength = (pw: string) => {
+    if (!pw) return { score: 0, label: '', color: '#e2e8f0' };
+    let score = 0;
+    if (pw.length >= 6) score += 1;
+    if (pw.length >= 8) score += 1;
+    if (/[A-Z]/.test(pw)) score += 1;
+    if (/[0-9]/.test(pw)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+
+    if (score <= 2) return { score, label: 'Mật khẩu yếu', color: '#ef4444' };
+    if (score <= 3) return { score, label: 'Mật khẩu trung bình', color: '#f59e0b' };
+    return { score, label: 'Mật khẩu mạnh & an toàn', color: '#10b981' };
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordSuccessMsg('');
+    setChangePasswordErrorMsg('');
+
+    if (!currentPassword) {
+      setChangePasswordErrorMsg('Vui lòng nhập mật khẩu hiện tại.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setChangePasswordErrorMsg('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setChangePasswordErrorMsg('Mật khẩu xác nhận không trùng khớp với mật khẩu mới.');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setChangePasswordErrorMsg('Mật khẩu mới không được trùng với mật khẩu hiện tại.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await changePassword(currentPassword, newPassword);
+      if (res.success) {
+        setChangePasswordSuccessMsg('Đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới của bạn.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setChangePasswordSuccessMsg(''), 6000);
+      } else {
+        setChangePasswordErrorMsg(res.error || 'Đổi mật khẩu không thành công.');
+      }
+    } catch (err: any) {
+      setChangePasswordErrorMsg(err?.message || 'Có lỗi xảy ra khi đổi mật khẩu.');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -794,6 +865,29 @@ export const ProfilePage: React.FC = () => {
 
                           {/* Row 2: Action buttons — always aligned right */}
                           <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: '0.65rem' }}>
+                            {/* Nút Xem Chi Tiết Đơn Hàng (Luôn hiển thị cho mọi đơn) */}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDetailBooking(booking)}
+                              style={{
+                                background: '#ffffff',
+                                color: '#0f172a',
+                                border: '1.5px solid #cbd5e1',
+                                borderRadius: '10px',
+                                padding: '0.6rem 1rem',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.45rem',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <i className="fa-solid fa-circle-info" style={{ color: '#0284c7' }} />
+                              Xem Chi Tiết
+                            </button>
+
                             {/* 1. Pending: Thanh Toán Ngay (blue) + Phiếu Giữ Chỗ (gray outline) */}
                             {uiStatus === 'pending' && (
                               <>
@@ -951,15 +1045,16 @@ export const ProfilePage: React.FC = () => {
 
             {/* ================= TAB 2 CONTEXT: THÔNG TIN CÁ NHÂN ================= */}
             {activeTab === 'settings' && (
-              <div
-                style={{
-                  background: '#ffffff',
-                  borderRadius: '20px',
-                  border: '1px solid #e2e8f0',
-                  padding: '2rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                }}
-              >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: '20px',
+                    border: '1px solid #e2e8f0',
+                    padding: '2rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}
+                >
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                   <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>
                     Thông Tin Cá Nhân &amp; Tài Khoản
@@ -1123,6 +1218,229 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 </form>
               </div>
+
+              {/* Card 2: Đổi Mật Khẩu & Bảo Mật */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '20px',
+                  border: '1px solid #e2e8f0',
+                  padding: '2rem',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                  marginTop: '1.5rem'
+                }}
+              >
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: '0 0 0.35rem', fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <i className="fa-solid fa-shield-halved" style={{ color: '#047857' }}></i>
+                    Đổi Mật Khẩu &amp; Bảo Mật Tài Khoản
+                  </h3>
+                  <p style={{ margin: 0, color: '#64748b', fontSize: '0.88rem' }}>
+                    Để bảo vệ tài khoản, hãy sử dụng mật khẩu an toàn có ít nhất 6 ký tự và không chia sẻ cho người khác
+                  </p>
+                </div>
+
+                {changePasswordSuccessMsg && (
+                  <div style={{ padding: '0.85rem 1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#047857', borderRadius: '12px', marginBottom: '1.25rem', fontSize: '0.88rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fa-solid fa-circle-check"></i>
+                    <span>{changePasswordSuccessMsg}</span>
+                  </div>
+                )}
+
+                {changePasswordErrorMsg && (
+                  <div style={{ padding: '0.85rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '12px', marginBottom: '1.25rem', fontSize: '0.88rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fa-solid fa-circle-exclamation"></i>
+                    <span>{changePasswordErrorMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '540px' }}>
+                  {/* Current Password */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                      Mật Khẩu Hiện Tại <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        required
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Nhập mật khẩu bạn đang sử dụng"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 2.75rem 0.75rem 1rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '0.85rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          fontSize: '0.95rem'
+                        }}
+                      >
+                        <i className={`fa-solid ${showCurrentPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                      Mật Khẩu Mới <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Tối thiểu 6 ký tự"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 2.75rem 0.75rem 1rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '0.85rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          fontSize: '0.95rem'
+                        }}
+                      >
+                        <i className={`fa-solid ${showNewPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                      </button>
+                    </div>
+
+                    {/* Password Strength Indicator */}
+                    {newPassword && (
+                      <div style={{ marginTop: '0.45rem' }}>
+                        {(() => {
+                          const strength = getPasswordStrength(newPassword);
+                          return (
+                            <div>
+                              <div style={{ display: 'flex', gap: '4px', height: '4px', marginBottom: '0.3rem' }}>
+                                <div style={{ flex: 1, background: strength.score >= 1 ? strength.color : '#e2e8f0', borderRadius: '2px' }}></div>
+                                <div style={{ flex: 1, background: strength.score >= 2 ? strength.color : '#e2e8f0', borderRadius: '2px' }}></div>
+                                <div style={{ flex: 1, background: strength.score >= 3 ? strength.color : '#e2e8f0', borderRadius: '2px' }}></div>
+                                <div style={{ flex: 1, background: strength.score >= 4 ? strength.color : '#e2e8f0', borderRadius: '2px' }}></div>
+                              </div>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: strength.color }}>
+                                {strength.label}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                      Xác Nhận Mật Khẩu Mới <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Nhập lại mật khẩu mới"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem 2.75rem 0.75rem 1rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '0.85rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          fontSize: '0.95rem'
+                        }}
+                      >
+                        <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                      </button>
+                    </div>
+                    {confirmPassword && newPassword !== confirmPassword && (
+                      <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600, marginTop: '0.25rem', display: 'block' }}>
+                        Mật khẩu xác nhận chưa khớp với mật khẩu mới.
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={isChangingPassword}
+                      style={{
+                        background: '#0f172a',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '10px',
+                        padding: '0.75rem 1.75rem',
+                        fontSize: '0.9rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.25)'
+                      }}
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <i className="fa-solid fa-spinner fa-spin"></i> Đang Cập Nhật...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fa-solid fa-key"></i> Cập Nhật Mật Khẩu
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
             )}
 
             {/* ================= TAB 3 CONTEXT: ĐIỂM THƯỞNG & VOUCHER ================= */}
@@ -1254,6 +1572,17 @@ export const ProfilePage: React.FC = () => {
         <ETicketModal
           booking={selectedETicket}
           onClose={() => setSelectedETicket(null)}
+        />
+      )}
+
+      {/* ================= USER BOOKING DETAIL MODAL ================= */}
+      {selectedDetailBooking && (
+        <UserBookingDetailModal
+          booking={selectedDetailBooking}
+          onClose={() => setSelectedDetailBooking(null)}
+          onOpenETicket={(b) => setSelectedETicket(b)}
+          onOpenPayment={(b) => setPaymentModalBooking(b)}
+          onCancelBooking={(b) => setCancellingBooking(b)}
         />
       )}
 

@@ -20,13 +20,15 @@ import { ToursModule } from './modules/ToursModule';
 import { CustomersModule } from './modules/CustomersModule';
 import { StaffModule } from './modules/StaffModule';
 import { CouponsModule } from './modules/CouponsModule';
+import { AccountModule } from './modules/AccountModule';
 import { EditPriceModal } from './modals/EditPriceModal';
 import { AddTourModal } from './modals/AddTourModal';
 import { AddCouponModal } from './modals/AddCouponModal';
+import { EditCouponModal } from './modals/EditCouponModal';
 import { IdleWarningModal } from './components/IdleWarningModal';
 import { useAdminIdleTimeout } from '../hooks/useAdminIdleTimeout';
 
-const VALID_TABS: AdminTab[] = ['overview', 'bookings', 'payments', 'tours', 'customers', 'staff', 'coupons'];
+const VALID_TABS: AdminTab[] = ['overview', 'bookings', 'payments', 'tours', 'customers', 'staff', 'coupons', 'profile'];
 
 export const AdminPortal: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -107,6 +109,7 @@ export const AdminPortal: React.FC = () => {
   const [editingTour, setEditingTour] = useState<Tour | null>(null);
   const [isAddTourOpen, setIsAddTourOpen] = useState(false);
   const [isAddCouponOpen, setIsAddCouponOpen] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<CouponRecord | null>(null);
 
   // Fetch real data from Supabase
   const loadDatabaseData = useCallback(async () => {
@@ -185,23 +188,6 @@ export const AdminPortal: React.FC = () => {
             };
           });
           setBookings(mappedBookings);
-
-          // Tự động đồng bộ các đơn có coupon đã hoàn thành vào coupon_usages nếu chưa có
-          const completedCouponBookings = mappedBookings.filter(
-            b => (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid') && b.couponCode
-          );
-          completedCouponBookings.forEach(pb => {
-            couponService.recordCouponUsage({
-              couponCode: pb.couponCode!,
-              userId: pb.userId || null,
-              bookingId: pb.id,
-              bookingCode: pb.bookingCode,
-              discountApplied: pb.couponDiscount || 0,
-              customerName: pb.customerName,
-              customerEmail: pb.email,
-              customerPhone: pb.phone
-            }).catch(() => {});
-          });
         } else {
           // Read from LocalStorage fallback when Supabase has no records or fails
           try {
@@ -264,14 +250,24 @@ export const AdminPortal: React.FC = () => {
         // 3. Fetch Real Coupons
         const couponRows = await couponService.getAllCoupons();
         if (couponRows && couponRows.length > 0) {
-          const mappedCoupons: CouponRecord[] = couponRows.map((cp) => ({
-            code: cp.code,
-            discountType: (cp.discount_percent || 0) > 0 ? 'percentage' : 'fixed',
-            value: (cp.discount_percent || 0) > 0 ? cp.discount_percent! : Number(cp.discount_amount) || 0,
-            usageCount: cp.used_count || 0,
-            expiryDate: cp.expires_at ? new Date(cp.expires_at).toLocaleDateString('vi-VN') : 'Không giới hạn',
-            status: cp.is_active ? 'active' : 'expired'
-          }));
+          const mappedCoupons: CouponRecord[] = couponRows.map((cp) => {
+            const isPct = (cp.discount_percent || 0) > 0;
+            const isActive = cp.is_active !== false;
+            const isExpired = cp.expires_at ? new Date(cp.expires_at).getTime() < Date.now() : false;
+            return {
+              code: cp.code,
+              description: cp.description || '',
+              discountType: isPct ? 'percentage' : 'fixed',
+              value: isPct ? cp.discount_percent! : Number(cp.discount_amount) || 0,
+              minOrderValue: Number(cp.min_order_value) || 0,
+              usageLimit: cp.usage_limit ?? 100,
+              usageCount: cp.used_count || 0,
+              expiryDate: cp.expires_at ? new Date(cp.expires_at).toLocaleDateString('vi-VN') : 'Không giới hạn',
+              rawExpiryDate: cp.expires_at || '',
+              isActive: isActive,
+              status: !isActive ? 'inactive' : isExpired ? 'expired' : 'active'
+            };
+          });
           setCoupons(mappedCoupons);
         }
 
@@ -389,7 +385,15 @@ export const AdminPortal: React.FC = () => {
       const totalAmt = currentBooking ? currentBooking.totalAmount : 0;
       const paidAmt = newStatus === 'confirmed' ? totalAmt : newStatus === 'deposit' ? Math.round(totalAmt * 0.5) : 0;
 
-      await bookingService.updateBookingAdminStatus(bookingId, newStatus);
+      const res = await bookingService.updateBookingAdminStatus(bookingId, newStatus);
+      if (!res.success) {
+        setActionFeedback({
+          type: 'error',
+          message: `Không thể lưu trạng thái vào database: ${res.error || 'Lỗi cập nhật'}`
+        });
+        return;
+      }
+
       setBookings(bookings.map((b) => (b.id === bookingId || b.bookingCode === bookingId ? { ...b, status: newStatus, paymentStatus, bookingStatus, paidAmount: paidAmt } : b)));
       
       // Auto refresh transactions ledger
@@ -523,8 +527,12 @@ export const AdminPortal: React.FC = () => {
     }
     const result = await couponService.createCoupon({
       code: newCoupon.code,
+      description: newCoupon.description,
       discount_amount: newCoupon.discountType === 'fixed' ? newCoupon.value : 0,
-      discount_percent: newCoupon.discountType === 'percentage' ? newCoupon.value : 0
+      discount_percent: newCoupon.discountType === 'percentage' ? newCoupon.value : 0,
+      min_order_value: newCoupon.minOrderValue || 0,
+      usage_limit: newCoupon.usageLimit || 100,
+      expires_at: newCoupon.rawExpiryDate || undefined
     });
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi tạo voucher' });
@@ -532,6 +540,125 @@ export const AdminPortal: React.FC = () => {
     }
     setCoupons([newCoupon, ...coupons]);
     setActionFeedback({ type: 'success', message: `Đã tạo voucher thành công: ${newCoupon.code}` });
+  };
+
+  // Handler: Update Coupon
+  const handleUpdateCoupon = async (updatedCoupon: CouponRecord) => {
+    if (!hasPermission(user?.role, 'coupon:edit')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền chỉnh sửa voucher.' });
+      return;
+    }
+    const result = await couponService.updateCoupon(updatedCoupon.code, {
+      description: updatedCoupon.description,
+      discount_amount: updatedCoupon.discountType === 'fixed' ? updatedCoupon.value : 0,
+      discount_percent: updatedCoupon.discountType === 'percentage' ? updatedCoupon.value : 0,
+      min_order_value: updatedCoupon.minOrderValue || 0,
+      usage_limit: updatedCoupon.usageLimit || 100,
+      expires_at: updatedCoupon.rawExpiryDate || null,
+      is_active: updatedCoupon.isActive
+    });
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật voucher' });
+      return;
+    }
+    setCoupons((prev) => prev.map((c) => (c.code === updatedCoupon.code ? updatedCoupon : c)));
+    setActionFeedback({ type: 'success', message: `Đã cập nhật thông tin voucher ${updatedCoupon.code} thành công!` });
+  };
+
+  // Handler: Toggle Coupon Active / Inactive (Hide / Unhide)
+  const handleToggleCouponActive = async (code: string, currentStatus: boolean) => {
+    if (!hasPermission(user?.role, 'coupon:toggle_active')) {
+      setActionFeedback({ type: 'error', message: 'Bạn không có quyền ẩn hoặc mở lại voucher.' });
+      return;
+    }
+    const nextStatus = !currentStatus;
+    const result = await couponService.toggleCouponActive(code, nextStatus);
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi đổi trạng thái voucher' });
+      return;
+    }
+    setCoupons((prev) =>
+      prev.map((c) => {
+        if (c.code === code) {
+          return {
+            ...c,
+            isActive: nextStatus,
+            status: !nextStatus
+              ? 'inactive'
+              : c.rawExpiryDate && new Date(c.rawExpiryDate).getTime() < Date.now()
+              ? 'expired'
+              : 'active'
+          };
+        }
+        return c;
+      })
+    );
+    setActionFeedback({
+      type: 'success',
+      message: nextStatus
+        ? `Đã kích hoạt lại voucher ${code}. Khách hàng có thể sử dụng.`
+        : `Đã ẩn voucher ${code}. Khách hàng sẽ không thể áp dụng mã này.`
+    });
+  };
+
+  // Handler: Delete Coupon (Super Admin only)
+  const handleDeleteCoupon = async (code: string) => {
+    if (!hasPermission(user?.role, 'coupon:delete')) {
+      setActionFeedback({ type: 'error', message: 'Chỉ Tổng Quản Trị (Super Admin) mới có quyền xóa voucher!' });
+      return;
+    }
+    const result = await couponService.deleteCoupon(code);
+    if (!result.success) {
+      setActionFeedback({ type: 'error', message: result.error || 'Lỗi khi xóa voucher' });
+      return;
+    }
+    setCoupons((prev) => prev.filter((c) => c.code !== code));
+    setActionFeedback({ type: 'success', message: `Đã xóa vĩnh viễn voucher ${code} khỏi hệ thống!` });
+  };
+
+  // Handler: Hard Delete Bookings (Super Admin & Admin only)
+  const handleDeleteBookings = async (bookingIds: string[]): Promise<{ success: boolean; error?: string }> => {
+    if (!hasPermission(user?.role, 'booking:delete')) {
+      setActionFeedback({ type: 'error', message: 'Chỉ Quản Trị Viên (Admin / Super Admin) mới có quyền xóa cứng đơn hàng!' });
+      return { success: false, error: 'Bạn không có quyền xóa đơn hàng.' };
+    }
+
+    try {
+      let failCount = 0;
+      let lastError = '';
+      for (const bId of bookingIds) {
+        const res = await bookingService.deleteBooking(bId);
+        if (!res.success) {
+          failCount++;
+          lastError = res.error || 'Lỗi xóa đơn';
+        }
+      }
+
+      if (failCount > 0 && failCount === bookingIds.length) {
+        setActionFeedback({ type: 'error', message: `Không thể xóa đơn hàng: ${lastError}` });
+        return { success: false, error: lastError };
+      }
+
+      // Cập nhật lại state bookings trong AdminPortal
+      setBookings((prev) =>
+        prev.filter((b) => !bookingIds.includes(b.id) && !bookingIds.includes(b.bookingCode))
+      );
+
+      // Tự động làm mới danh sách đối soát giao dịch
+      bookingService.getAllTransactions().then(setTransactions).catch(() => {});
+
+      const successCount = bookingIds.length - failCount;
+      const msg =
+        bookingIds.length === 1
+          ? `Đã xóa cứng vĩnh viễn đơn hàng ${bookingIds[0]} khỏi hệ thống!`
+          : `Đã xóa cứng vĩnh viễn ${successCount} đơn hàng đã chọn khỏi hệ thống!`;
+
+      setActionFeedback({ type: 'success', message: msg });
+      return { success: true };
+    } catch (err: any) {
+      setActionFeedback({ type: 'error', message: err?.message || 'Lỗi khi xóa đơn hàng' });
+      return { success: false, error: err?.message };
+    }
   };
 
   // Filtered lists by search query
@@ -599,6 +726,7 @@ export const AdminPortal: React.FC = () => {
           onRefresh={loadDatabaseData}
           onOpenAddTour={() => setIsAddTourOpen(true)}
           onOpenAddCoupon={() => setIsAddCouponOpen(true)}
+          onOpenProfile={() => setActiveTab('profile')}
         />
 
         {/* Action Flash Feedback Message */}
@@ -638,6 +766,8 @@ export const AdminPortal: React.FC = () => {
             <BookingsModule
               bookings={filteredBookings}
               onStatusChange={handleStatusChange}
+              onDeleteBookings={handleDeleteBookings}
+              canDelete={hasPermission(user?.role, 'booking:delete')}
             />
           )}
 
@@ -672,8 +802,16 @@ export const AdminPortal: React.FC = () => {
           {activeTab === 'customers' && isTabAllowed(user?.role, 'customers') && (
             <CustomersModule
               customers={filteredCustomers}
+              bookings={bookings}
               onRoleChange={handleRoleChange}
               onToggleStatus={handleToggleCustomerStatus}
+              onCustomerUpdated={(updated) => {
+                setCustomers((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+                setActionFeedback({
+                  type: 'success',
+                  message: `Đã cập nhật thông tin khách hàng ${updated.name} thành công!`
+                });
+              }}
             />
           )}
 
@@ -689,7 +827,14 @@ export const AdminPortal: React.FC = () => {
             <CouponsModule
               coupons={coupons}
               onOpenAddCoupon={() => setIsAddCouponOpen(true)}
+              onEditCoupon={(cp) => setEditingCoupon(cp)}
+              onToggleActive={handleToggleCouponActive}
+              onDeleteCoupon={handleDeleteCoupon}
             />
+          )}
+
+          {activeTab === 'profile' && isTabAllowed(user?.role, 'profile') && (
+            <AccountModule />
           )}
 
           {/* Access Denied Guard Fallback */}
@@ -770,6 +915,14 @@ export const AdminPortal: React.FC = () => {
           isOpen={isAddCouponOpen}
           onClose={() => setIsAddCouponOpen(false)}
           onAddCoupon={handleAddCoupon}
+        />
+      )}
+
+      {editingCoupon && (
+        <EditCouponModal
+          coupon={editingCoupon}
+          onClose={() => setEditingCoupon(null)}
+          onSaveCoupon={handleUpdateCoupon}
         />
       )}
 

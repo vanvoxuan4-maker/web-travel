@@ -1,24 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { CustomerRecord } from '../admin.types';
+import { Link } from 'react-router-dom';
+import { CustomerRecord, BookingRecord } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
 import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
 import { ConfirmLockModal } from '../modals/ConfirmLockModal';
+import { CustomerDetailModal } from '../modals/CustomerDetailModal';
 import { exportCustomersToCSV } from '../../utils/exportUtils';
 
 interface CustomersModuleProps {
   customers: CustomerRecord[];
+  bookings?: BookingRecord[];
   onRoleChange: (customerId: string, newRole: UserRole) => Promise<void>;
   onToggleStatus: (customerId: string, currentStatus: 'active' | 'banned' | 'deleted') => Promise<void>;
+  onCustomerUpdated?: (updatedCustomer: CustomerRecord) => void;
 }
 
 export const CustomersModule: React.FC<CustomersModuleProps> = ({
   customers,
+  bookings = [],
   onRoleChange,
-  onToggleStatus
+  onToggleStatus,
+  onCustomerUpdated
 }) => {
   const { user: currentUser, isSuperAdmin: currentUserIsSuperAdmin } = useAuth();
+  const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<CustomerRecord | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<{
     customer: CustomerRecord;
     targetRole: 'admin' | 'super_admin';
@@ -315,11 +322,7 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
 
                     {/* Actions: Role Selector & Lock */}
                     <td style={{ padding: '0.9rem 1rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {currentUser?.role === 'staff' ? (
-                        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                          Chỉ xem
-                        </span>
-                      ) : isCurrentSelf ? (
+                      {isCurrentSelf ? (
                         <span
                           style={{
                             fontSize: '0.76rem',
@@ -354,46 +357,72 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                           <i className="fa-solid fa-lock"></i> {c.role === 'super_admin' ? 'Super Admin' : 'Quản Trị Viên'}
                         </span>
                       ) : (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {/* Role Selector Dropdown (Filtered by actor authority) */}
-                          <select
-                            value={c.role}
-                            onChange={(e) => handleRoleSelect(c, e.target.value as UserRole)}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                          {/* Button Chi Tiết / Sửa -> Mọi vai trò (Staff, Admin, Super Admin) đều có thể xem */}
+                          <Link
+                            to={`/admin/customers/${c.id}`}
                             style={{
                               padding: '0.35rem 0.65rem',
+                              background: '#f0fdf4',
+                              color: '#047857',
+                              border: '1px solid #bbf7d0',
                               borderRadius: '8px',
-                              border: '1.5px solid #cbd5e1',
-                              fontSize: '0.78rem',
+                              fontSize: '0.76rem',
                               fontWeight: 700,
-                              outline: 'none',
                               cursor: 'pointer',
-                              background:
-                                c.role === 'super_admin'
-                                  ? '#fef3c7'
-                                  : c.role === 'admin'
-                                  ? '#ecfdf5'
-                                  : c.role === 'staff'
-                                  ? '#eff6ff'
-                                  : '#ffffff',
-                              color:
-                                c.role === 'super_admin'
-                                  ? '#b45309'
-                                  : c.role === 'admin'
-                                  ? '#047857'
-                                  : c.role === 'staff'
-                                  ? '#1d4ed8'
-                                  : '#334155'
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              textDecoration: 'none',
+                              transition: 'all 0.15s ease'
                             }}
+                            title="Xem chi tiết hồ sơ khách hàng & lịch sử đơn tour"
                           >
-                            <option value="customer">👤 Khách Hàng</option>
-                            <option value="staff">🧑‍💼 Nhân Viên</option>
-                            {currentUserIsSuperAdmin && (
-                              <>
-                                <option value="admin">🛡️ Quản Trị Viên</option>
-                                <option value="super_admin">👑 Super Admin</option>
-                              </>
-                            )}
-                          </select>
+                            <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                            Chi Tiết
+                          </Link>
+
+                          {/* Role Selector Dropdown (Chỉ Quản Trị Viên & Super Admin) */}
+                          {currentUser?.role !== 'staff' && (
+                            <select
+                              value={c.role}
+                              onChange={(e) => handleRoleSelect(c, e.target.value as UserRole)}
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                borderRadius: '8px',
+                                border: '1.5px solid #cbd5e1',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                outline: 'none',
+                                cursor: 'pointer',
+                                background:
+                                  c.role === 'super_admin'
+                                    ? '#fef3c7'
+                                    : c.role === 'admin'
+                                    ? '#ecfdf5'
+                                    : c.role === 'staff'
+                                    ? '#eff6ff'
+                                    : '#ffffff',
+                                color:
+                                  c.role === 'super_admin'
+                                    ? '#b45309'
+                                    : c.role === 'admin'
+                                    ? '#047857'
+                                    : c.role === 'staff'
+                                    ? '#1d4ed8'
+                                    : '#334155'
+                              }}
+                            >
+                              <option value="customer">👤 Khách Hàng</option>
+                              <option value="staff">🧑‍💼 Nhân Viên</option>
+                              {currentUserIsSuperAdmin && (
+                                <>
+                                  <option value="admin">🛡️ Quản Trị Viên</option>
+                                  <option value="super_admin">👑 Super Admin</option>
+                                </>
+                              )}
+                            </select>
+                          )}
 
                           {/* Toggle Lock / Unlock (Admin / Super Admin only) */}
                           {hasPermission(currentUser?.role, 'customer:ban') && (
@@ -446,6 +475,21 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
           isOpen={!!pendingPromotion}
           onClose={() => setPendingPromotion(null)}
           onConfirmPromotion={handleConfirmPromotion}
+        />
+      )}
+
+      {/* Customer Detail Modal (Edit profile & Password reset) */}
+      {selectedCustomerForDetail && (
+        <CustomerDetailModal
+          customer={selectedCustomerForDetail}
+          bookings={bookings}
+          onClose={() => setSelectedCustomerForDetail(null)}
+          onCustomerUpdated={(updated) => {
+            if (onCustomerUpdated) {
+              onCustomerUpdated(updated);
+            }
+            setSelectedCustomerForDetail(updated);
+          }}
         />
       )}
     </div>

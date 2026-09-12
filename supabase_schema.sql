@@ -286,7 +286,8 @@ CREATE TABLE IF NOT EXISTS public.coupons (
     used_count INTEGER DEFAULT 0 CHECK (used_count >= 0),
     expires_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- ==============================================================================

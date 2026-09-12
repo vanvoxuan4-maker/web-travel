@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { TOURS_DATA } from '../../../data/toursData';
 import { DepartureDate } from '../../../types/tour.types';
 import { getDateDetails, deductSeats, restoreSeats, getRemainingSeats } from '../../../utils/inventoryManager';
-import { formatCurrencyVND, getDayOfWeekVN } from '../../../utils/formatters';
+import { formatCurrencyVND, getDayOfWeekVN, formatDateVN, toIsoDate } from '../../../utils/formatters';
 import { useAuth } from '../../../auth/useAuth';
 import { bookingService } from '../../../services/bookingService';
 import { couponService } from '../../../services/couponService';
@@ -27,8 +27,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
     if (!tour) return [];
     return tour.departureDates && tour.departureDates.length > 0
       ? tour.departureDates
-      : (tour.availableDates || ['12/09/2026', '19/09/2026', '26/09/2026', '10/10/2026']).map(d => ({
-          date: d,
+      : (tour.availableDates || ['2026-09-15', '2026-09-22', '2026-09-29', '2026-10-05']).map(d => ({
+          date: toIsoDate(d),
           seats: 5,
           priceAdult: tour.priceAdult,
           label: null
@@ -36,7 +36,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
   }, [tour]);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return initialDate || (departureList[0]?.date) || '12/09/2026';
+    return toIsoDate(initialDate || (departureList[0]?.date) || '2026-09-15');
   });
 
   const [showAllDates, setShowAllDates] = useState<boolean>(false);
@@ -92,9 +92,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
 
   const handleSelectDate = (dateStr: string) => {
     if (!tour) return;
-    const seats = getRemainingSeats(tour.id, dateStr);
+    const isoDate = toIsoDate(dateStr);
+    const seats = getRemainingSeats(tour.id, isoDate);
     if (seats <= 0) return;
-    setSelectedDate(dateStr);
+    setSelectedDate(isoDate);
     setShowAllDates(false);
     if (adults + children + toddlers > seats) {
       setAdults(Math.max(1, Math.min(2, seats)));
@@ -107,8 +108,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
 
   useEffect(() => {
     if (initialDate && tour) {
-      const s = getRemainingSeats(tour.id, initialDate);
-      setSelectedDate(initialDate);
+      const isoDate = toIsoDate(initialDate);
+      const s = getRemainingSeats(tour.id, isoDate);
+      setSelectedDate(isoDate);
       if (s <= 0) {
         setAdults(0);
         setChildren(0);
@@ -218,7 +220,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
         tourId: tour.id,
         tourTitle: tour.title,
         tourImage: tour.image,
-        departureDate: selectedDate,
+        departureDate: toIsoDate(selectedDate),
         customerName: customerName || 'Khách hàng',
         customerPhone: customerPhone || '0901234567',
         customerEmail: customerEmail || 'guest@webtravel.vn',
@@ -368,7 +370,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({ tourId, initialDate,
                             Ngày khởi hành đã chọn:
                           </div>
                           <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>{getDayOfWeekVN(selectedDate)}, {selectedDate}</span>
+                            <span>{getDayOfWeekVN(selectedDate)}, {formatDateVN(selectedDate)}</span>
                             <span style={{ fontSize: '0.92rem', color: 'var(--accent-forest)' }}>({formatCurrencyVND(priceAdultUnit)}/khách)</span>
                             {currentDetails?.label && (
                               <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: '#ecfdf5', color: '#047857' }}>

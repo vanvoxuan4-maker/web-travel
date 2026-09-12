@@ -10,7 +10,7 @@ import {
   subscribeToSeatUpdates,
   syncAllSeatsFromSupabase
 } from '../../utils/inventoryManager';
-import { formatCurrencyVND, getDayOfWeekVN } from '../../utils/formatters';
+import { formatCurrencyVND, getDayOfWeekVN, formatDateVN, toIsoDate } from '../../utils/formatters';
 import { bookingService, PaymentMethod } from '../../services/bookingService';
 import { couponService } from '../../services/couponService';
 import { useAuth } from '../../auth/useAuth';
@@ -46,8 +46,8 @@ export const CheckoutPage: React.FC = () => {
     if (!tour) return [];
     return tour.departureDates && tour.departureDates.length > 0
       ? tour.departureDates
-      : (tour.availableDates || ['12/09/2026', '19/09/2026', '26/09/2026', '10/10/2026']).map(d => ({
-          date: d,
+      : (tour.availableDates || ['2026-09-15', '2026-09-22', '2026-09-29', '2026-10-05']).map(d => ({
+          date: toIsoDate(d),
           seats: 5,
           priceAdult: tour.priceAdult,
           label: null
@@ -55,13 +55,14 @@ export const CheckoutPage: React.FC = () => {
   }, [tour]);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return initialDateFromQuery || (departureList[0]?.date) || '12/09/2026';
+    const firstDate = initialDateFromQuery || (departureList[0]?.date) || '2026-09-15';
+    return toIsoDate(firstDate);
   });
 
   useEffect(() => {
     if (tour && !initialDateFromQuery) {
-      const first = tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '12/09/2026';
-      setSelectedDate(first);
+      const first = tour.departureDates?.[0]?.date || tour.availableDates?.[0] || '2026-09-15';
+      setSelectedDate(toIsoDate(first));
     }
   }, [tour, initialDateFromQuery]);
 
@@ -130,8 +131,9 @@ export const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     if (initialDateFromQuery && tour) {
-      setSelectedDate(initialDateFromQuery);
-      const s = getRemainingSeats(tour.id, initialDateFromQuery);
+      const isoQueryDate = toIsoDate(initialDateFromQuery);
+      setSelectedDate(isoQueryDate);
+      const s = getRemainingSeats(tour.id, isoQueryDate);
       if (s <= 0) {
         setAdults(0);
       } else {
@@ -202,9 +204,10 @@ export const CheckoutPage: React.FC = () => {
 
   const handleSelectDate = (dateStr: string) => {
     if (!tour) return;
-    const seats = getRemainingSeats(tour.id, dateStr);
+    const isoDate = toIsoDate(dateStr);
+    const seats = getRemainingSeats(tour.id, isoDate);
     if (seats <= 0) return;
-    setSelectedDate(dateStr);
+    setSelectedDate(isoDate);
     setRealtimeSoldOut(false);
     setShowAllDates(false);
     if (adults + children + toddlers > seats) {
@@ -330,7 +333,7 @@ export const CheckoutPage: React.FC = () => {
         tourId: tour.id,
         tourTitle: tour.title,
         tourImage: tour.image,
-        departureDate: selectedDate,
+        departureDate: toIsoDate(selectedDate),
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail: customerEmail.trim(),
@@ -441,7 +444,7 @@ export const CheckoutPage: React.FC = () => {
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Số điện thoại (Zalo):</strong> {customerPhone}</p>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Email nhận hợp đồng:</strong> {customerEmail}</p>
                 {customerAddress && <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Địa chỉ liên hệ:</strong> {customerAddress}</p>}
-                <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Ngày khởi hành:</strong> {selectedDate} ({getDayOfWeekVN(selectedDate)})</p>
+                <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}><strong>Ngày khởi hành:</strong> {formatDateVN(selectedDate)} ({getDayOfWeekVN(selectedDate)})</p>
                 <p style={{ margin: '0.5rem 0', fontSize: '0.92rem' }}>
                   <strong>Số lượng khách ({bookedPax + infants} người):</strong> {adults} Người lớn {children > 0 ? `, ${children} Trẻ em` : ''} {toddlers > 0 ? `, ${toddlers} Trẻ nhỏ` : ''} {infants > 0 ? `, ${infants} Em bé` : ''}
                 </p>
@@ -676,7 +679,7 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                     <div>
                       <strong style={{ color: '#92400e', fontSize: '1.05rem', display: 'block', marginBottom: '0.2rem' }}>
-                        Ngày khởi hành {selectedDate} vừa được khách khác đặt hết!
+                        Ngày khởi hành {formatDateVN(selectedDate)} vừa được khách khác đặt hết!
                       </strong>
                       <span style={{ color: '#78350f', fontSize: '0.88rem', lineHeight: 1.4 }}>
                         Toàn bộ thông tin quý khách vừa điền vẫn được giữ nguyên vẹn. Vui lòng chọn một ngày khởi hành khác còn chỗ bên dưới:
@@ -764,7 +767,7 @@ export const CheckoutPage: React.FC = () => {
                             Ngày khởi hành đã chọn:
                           </div>
                           <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <span>{getDayOfWeekVN(selectedDate)}, {selectedDate}</span>
+                            <span>{getDayOfWeekVN(selectedDate)}, {formatDateVN(selectedDate)}</span>
                             <span style={{ fontSize: '0.95rem', color: 'var(--accent-forest)' }}>({formatCurrencyVND(priceAdultUnit)}/khách)</span>
                             {currentDetails?.label && (
                               <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: '#ecfdf5', color: '#047857' }}>
@@ -860,7 +863,7 @@ export const CheckoutPage: React.FC = () => {
                                   {dayOfWeek}
                                 </span>
                                 <span style={{ fontSize: '1rem', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
-                                  {dep.date}
+                                  {formatDateVN(dep.date)}
                                 </span>
                               </div>
 

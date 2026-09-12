@@ -1,4 +1,4 @@
-export type AdminTab = 'overview' | 'bookings' | 'payments' | 'tours' | 'customers' | 'staff' | 'coupons';
+export type AdminTab = 'overview' | 'bookings' | 'payments' | 'tours' | 'customers' | 'staff' | 'coupons' | 'profile';
 
 export interface BookingRecord {
   id: string;
@@ -41,6 +41,7 @@ export interface CustomerRecord {
   role: 'super_admin' | 'admin' | 'staff' | 'customer';
   status: 'active' | 'banned' | 'deleted';
   joinedDate: string;
+  avatarUrl?: string;
 }
 
 export interface StaffRecord extends CustomerRecord {
@@ -50,11 +51,16 @@ export interface StaffRecord extends CustomerRecord {
 
 export interface CouponRecord {
   code: string;
+  description?: string;
   discountType: 'percentage' | 'fixed';
   value: number;
+  minOrderValue?: number;
+  usageLimit?: number;
   usageCount: number;
   expiryDate: string;
-  status: 'active' | 'expired';
+  rawExpiryDate?: string;
+  isActive: boolean;
+  status: 'active' | 'inactive' | 'expired';
 }
 
 export interface ActionFeedback {

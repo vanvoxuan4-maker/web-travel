@@ -1,6 +1,6 @@
 import React from 'react';
 import { AdminTab } from '../admin.types';
-import { PermissionGate } from '../../auth';
+import { PermissionGate, useAuth } from '../../auth';
 
 interface AdminTopbarProps {
   activeTab: AdminTab;
@@ -10,6 +10,7 @@ interface AdminTopbarProps {
   onRefresh: () => void;
   onOpenAddTour: () => void;
   onOpenAddCoupon: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const AdminTopbar: React.FC<AdminTopbarProps> = ({
@@ -19,8 +20,10 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
   isLoading,
   onRefresh,
   onOpenAddTour,
-  onOpenAddCoupon
+  onOpenAddCoupon,
+  onOpenProfile
 }) => {
+  const { user } = useAuth();
   const getTabTitle = () => {
     switch (activeTab) {
       case 'overview':
@@ -37,6 +40,8 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
         return { breadcrumb: 'Đội Ngũ Nhân Sự', title: 'Quản Lý Cán Bộ & Phân Quyền Vận Hành' };
       case 'coupons':
         return { breadcrumb: 'Mã Khuyến Mãi', title: 'Cấu Hình Mã Khuyến Mãi' };
+      case 'profile':
+        return { breadcrumb: 'Tài Khoản & Bảo Mật', title: 'Hồ Sơ Cá Nhân & Quản Trị Viên' };
       default:
         return { breadcrumb: 'Quản Trị', title: 'Hệ Thống Quản Trị' };
     }
@@ -186,6 +191,52 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
               <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
             </button>
           </PermissionGate>
+        )}
+
+        {/* Quick Profile Access Button */}
+        {onOpenProfile && (
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="Xem chi tiết tài khoản & đổi mật khẩu"
+            style={{
+              padding: '0.45rem 0.75rem',
+              background: activeTab === 'profile' ? '#ecfdf5' : '#f8fafc',
+              border: activeTab === 'profile' ? '1.5px solid #059669' : '1px solid #e2e8f0',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: activeTab === 'profile' ? '#047857' : '#334155',
+              fontWeight: 700,
+              fontSize: '0.82rem',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: '#047857',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                overflow: 'hidden'
+              }}
+            >
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              ) : (
+                (user?.fullName || 'A').charAt(0).toUpperCase()
+              )}
+            </div>
+            <span>Hồ Sơ</span>
+          </button>
         )}
       </div>
     </header>

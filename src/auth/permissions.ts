@@ -35,6 +35,7 @@ export const TAB_PERMISSIONS: Record<AdminTab, readonly UserRole[]> = {
   customers: ['staff', 'admin', 'super_admin'],
   staff: ['admin', 'super_admin'],
   coupons: ['admin', 'super_admin'],
+  profile: ['staff', 'admin', 'super_admin'],
 };
 
 /**
@@ -77,6 +78,8 @@ export const PERMISSIONS = {
   // Promotions & Coupons
   'coupon:view': ['admin', 'super_admin'],
   'coupon:create': ['admin', 'super_admin'],
+  'coupon:edit': ['admin', 'super_admin'],
+  'coupon:toggle_active': ['admin', 'super_admin'],
   'coupon:delete': ['super_admin'],
 
   // User-facing features

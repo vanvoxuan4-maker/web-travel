@@ -3,24 +3,34 @@ import { Link } from 'react-router-dom';
 import { BookingRecord } from '../admin.types';
 import { formatCurrencyVND, removeVietnameseTones } from '../../utils/formatters';
 import { ETicketModal } from '../../user/components/profile/ETicketModal';
+import { DeleteBookingModal } from '../modals/DeleteBookingModal';
 import { BookingPayload } from '../../services/bookingService';
 import { exportBookingsToCSV } from '../../utils/exportUtils';
 
 interface BookingsModuleProps {
   bookings: BookingRecord[];
   onStatusChange: (bookingId: string, newStatus: 'confirmed' | 'deposit' | 'pending' | 'cancelled') => Promise<void>;
+  onDeleteBookings?: (bookingIds: string[]) => Promise<{ success: boolean; error?: string } | void>;
+  canDelete?: boolean;
 }
 
 type FilterTab = 'all' | 'pending' | 'deposit' | 'confirmed' | 'cancelled';
 
 export const BookingsModule: React.FC<BookingsModuleProps> = ({
   bookings,
-  onStatusChange
+  onStatusChange,
+  onDeleteBookings,
+  canDelete = true
 }) => {
   const [selectedTab, setSelectedTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeBookingForETicket, setActiveBookingForETicket] = useState<BookingRecord | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    bookings: BookingRecord[];
+  }>({ isOpen: false, bookings: [] });
 
   // 1. Calculate KPI Metrics
   const stats = useMemo(() => {
@@ -126,6 +136,35 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
   // Export CSV Helper
   const handleExportCSV = () => {
     exportBookingsToCSV(filteredBookings);
+  };
+
+  // Selection & Batch Delete Helpers
+  const isAllSelected = filteredBookings.length > 0 && filteredBookings.every((b) => selectedIds.includes(b.id || b.bookingCode));
+  const isSomeSelected = selectedIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredBookings.map((b) => b.id || b.bookingCode));
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleOpenBatchDelete = () => {
+    const toDelete = bookings.filter((b) => selectedIds.includes(b.id || b.bookingCode));
+    if (toDelete.length > 0) {
+      setDeleteModalState({ isOpen: true, bookings: toDelete });
+    }
+  };
+
+  const handleOpenSingleDelete = (booking: BookingRecord) => {
+    setDeleteModalState({ isOpen: true, bookings: [booking] });
   };
 
   return (
@@ -307,212 +346,448 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
           </div>
         </div>
 
-        {/* ── 3. Bookings Table ── */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+        {/* ── Bulk Actions Banner (Khi có đơn được tick chọn) ── */}
+        {selectedIds.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.65rem 1.15rem',
+              marginBottom: '1rem',
+              background: '#fef2f2',
+              border: '1.5px solid #fecaca',
+              borderRadius: '12px',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#991b1b', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                <i className="fa-solid fa-circle-check" style={{ color: '#dc2626' }} />
+                Đã chọn {selectedIds.length} / {filteredBookings.length} đơn hàng
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: '0.78rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '0 0.25rem'
+                }}
+              >
+                Bỏ chọn tất cả
+              </button>
+            </div>
+
+            {canDelete && (
+              <button
+                type="button"
+                onClick={handleOpenBatchDelete}
+                style={{
+                  padding: '0.45rem 1.15rem',
+                  borderRadius: '8px',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  boxShadow: '0 3px 10px rgba(220, 38, 38, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
+              >
+                <i className="fa-solid fa-trash-can" />
+                Xóa Cứng ({selectedIds.length} Đơn)
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── 3. Bookings Table (Compact Pro) ── */}
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <table style={{ width: '100%', minWidth: '960px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1.5px solid #e2e8f0', color: '#64748b', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '0.85rem 1rem' }}>Mã Đơn / Ngày Tạo</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Khách Hàng</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Tour &amp; Ngày Đi</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Số Khách</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Tổng Tiền</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Trạng Thái</th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>Thao Tác</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569', fontSize: '0.73rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {canDelete && (
+                  <th style={{ padding: '0.65rem 0.65rem', width: '38px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#dc2626' }}
+                      title="Chọn tất cả các đơn đang hiển thị"
+                    />
+                  </th>
+                )}
+                <th style={{ padding: '0.65rem 0.85rem', minWidth: '160px', whiteSpace: 'nowrap' }}>Mã Đơn / Ngày Tạo</th>
+                <th style={{ padding: '0.65rem 0.85rem', minWidth: '170px' }}>Khách Hàng</th>
+                <th style={{ padding: '0.65rem 0.85rem', minWidth: '200px' }}>Tour &amp; Ngày Đi</th>
+                <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center', minWidth: '85px', whiteSpace: 'nowrap' }}>Số Khách</th>
+                <th style={{ padding: '0.65rem 0.85rem', textAlign: 'right', minWidth: '120px', whiteSpace: 'nowrap' }}>Tổng Tiền</th>
+                <th style={{ padding: '0.65rem 0.85rem', textAlign: 'center', minWidth: '125px', whiteSpace: 'nowrap' }}>Trạng Thái</th>
+                <th style={{ padding: '0.65rem 0.85rem', textAlign: 'center', minWidth: '185px', whiteSpace: 'nowrap' }}>Thao Tác</th>
               </tr>
             </thead>
             <tbody>
               {filteredBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={canDelete ? 8 : 7} style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                     <i className="fa-solid fa-inbox" style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem', opacity: 0.5 }} />
                     Không tìm thấy đơn đặt tour nào phù hợp
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map((b) => (
-                  <tr key={b.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
-                    
-                    {/* Mã Đơn & Ngày tạo */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Link
-                          to={`/admin/bookings/${b.bookingCode || b.id}`}
-                          style={{ fontWeight: 800, color: '#047857', textDecoration: 'underline', textUnderlineOffset: '2px' }}
-                          title="Bấm để mở trang chi tiết đơn"
-                        >
-                          {b.bookingCode || b.id}
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(b.bookingCode || b.id)}
-                          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, fontSize: '0.78rem' }}
-                          title="Sao chép mã đơn"
-                        >
-                          <i className={copiedId === (b.bookingCode || b.id) ? 'fa-solid fa-check text-emerald-600' : 'fa-regular fa-copy'} />
-                        </button>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
-                        {b.createdAt}
-                      </div>
-                    </td>
-
-                    {/* Khách hàng */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{b.customerName}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600, marginTop: '0.15rem' }}>
-                        <i className="fa-solid fa-phone" style={{ fontSize: '0.7rem', marginRight: '0.3rem' }} />{b.phone}
-                      </div>
-                      {b.email && (
-                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>{b.email}</div>
+                filteredBookings.map((b) => {
+                  const isChecked = selectedIds.includes(b.id || b.bookingCode);
+                  return (
+                    <tr
+                      key={b.id || b.bookingCode}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        transition: 'background 0.15s',
+                        background: isChecked ? '#fef2f2' : 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isChecked) e.currentTarget.style.background = '#f8fafc';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = isChecked ? '#fef2f2' : 'transparent';
+                      }}
+                    >
+                      {/* Cột Checkbox chọn đơn */}
+                      {canDelete && (
+                        <td style={{ padding: '0.65rem 0.65rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleSelectOne(b.id || b.bookingCode)}
+                            style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#dc2626' }}
+                            title="Chọn đơn này"
+                          />
+                        </td>
                       )}
-                    </td>
+                      
+                      {/* Cột 1: Mã Đơn & Ngày tạo (Cố định 1 dòng, chống ngắt gãy chữ) */}
+                      <td style={{ padding: '0.65rem 0.85rem', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Link
+                            to={`/admin/bookings/${b.bookingCode || b.id}`}
+                            style={{
+                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                              fontWeight: 700,
+                              fontSize: '0.82rem',
+                              color: '#047857',
+                              textDecoration: 'none',
+                              letterSpacing: '0.01em'
+                            }}
+                            title="Bấm để mở trang chi tiết đơn"
+                            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+                          >
+                            {b.bookingCode || b.id}
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(b.bookingCode || b.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: copiedId === (b.bookingCode || b.id) ? '#059669' : '#94a3b8',
+                              cursor: 'pointer',
+                              padding: '2px',
+                              fontSize: '0.75rem',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}
+                            title={copiedId === (b.bookingCode || b.id) ? 'Đã sao chép!' : 'Sao chép mã đơn'}
+                          >
+                            <i className={copiedId === (b.bookingCode || b.id) ? 'fa-solid fa-check text-emerald-600' : 'fa-regular fa-copy'} />
+                          </button>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <i className="fa-regular fa-clock" style={{ fontSize: '0.68rem', color: '#94a3b8' }} />
+                          {b.createdAt}
+                        </div>
+                      </td>
 
-                    {/* Tour & Ngày Khởi Hành */}
-                    <td style={{ padding: '1rem', maxWidth: '240px' }}>
-                      <div style={{ fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={b.tourTitle}>
-                        {b.tourTitle}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <i className="fa-regular fa-calendar" style={{ color: '#047857' }} />
-                        <strong>{b.departureDate}</strong>
-                      </div>
-                    </td>
+                      {/* Cột 2: Khách hàng (Tên + SĐT rõ nét, Email rút gọn chống bung cột) */}
+                      <td style={{ padding: '0.65rem 0.85rem' }}>
+                        <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.84rem' }}>{b.customerName}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem', flexWrap: 'nowrap' }}>
+                          <span style={{ fontSize: '0.76rem', color: '#047857', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
+                            <i className="fa-solid fa-phone" style={{ fontSize: '0.65rem' }} />{b.phone}
+                          </span>
+                          {b.email && (
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                color: '#64748b',
+                                maxWidth: '125px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block'
+                              }}
+                              title={b.email}
+                            >
+                              • {b.email}
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-                    {/* Số khách */}
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ fontWeight: 700, color: '#0f172a', background: '#f8fafc', padding: '0.25rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
-                        {b.paxCount} Khách
-                      </span>
-                    </td>
-
-                    {/* Tổng tiền */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ fontWeight: 900, color: '#047857', fontSize: '0.98rem' }}>
-                        {formatCurrencyVND(b.totalAmount)}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '0.15rem' }}>
-                        {b.paymentMethod.toUpperCase()}
-                      </div>
-                    </td>
-
-                    {/* Trạng thái thanh toán */}
-                    <td style={{ padding: '1rem' }}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '0.3rem 0.75rem',
-                          borderRadius: '20px',
-                          fontSize: '0.78rem',
-                          fontWeight: 800,
-                          background:
-                            b.status === 'confirmed'
-                              ? '#ecfdf5'
-                              : b.status === 'deposit'
-                              ? '#fef3c7'
-                              : b.status === 'pending'
-                              ? '#eff6ff'
-                              : '#fee2e2',
-                          color:
-                            b.status === 'confirmed'
-                              ? '#047857'
-                              : b.status === 'deposit'
-                              ? '#b45309'
-                              : b.status === 'pending'
-                              ? '#1d4ed8'
-                              : '#b91c1c',
-                          border:
-                            b.status === 'confirmed'
-                              ? '1px solid #a7f3d0'
-                              : b.status === 'deposit'
-                              ? '1px solid #fde68a'
-                              : b.status === 'pending'
-                              ? '1px solid #bfdbfe'
-                              : '1px solid #fecaca'
-                        }}
-                      >
-                        {b.status === 'confirmed'
-                          ? 'ĐÃ XONG 100%'
-                          : b.status === 'deposit'
-                          ? 'ĐÃ CỌC 50%'
-                          : b.status === 'pending'
-                          ? 'CHỜ DUYỆT'
-                          : 'ĐÃ HỦY'}
-                      </span>
-                    </td>
-
-                    {/* Thao tác */}
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {/* Chi tiết trang riêng */}
-                        <Link
-                          to={`/admin/bookings/${b.bookingCode || b.id}`}
+                      {/* Cột 3: Tour & Ngày Khởi Hành */}
+                      <td style={{ padding: '0.65rem 0.85rem', maxWidth: '230px' }}>
+                        <div
                           style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '8px',
-                            background: '#f0fdf4',
-                            border: '1px solid #bbf7d0',
-                            color: '#047857',
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            textDecoration: 'none'
+                            fontWeight: 600,
+                            color: '#1e293b',
+                            fontSize: '0.84rem',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
                           }}
-                          title="Xem hồ sơ & đối soát tiền trên trang riêng"
+                          title={b.tourTitle}
                         >
-                          <i className="fa-solid fa-arrow-up-right-from-square" /> Chi Tiết
-                        </Link>
+                          {b.tourTitle}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <i className="fa-regular fa-calendar" style={{ color: '#047857', fontSize: '0.72rem' }} />
+                          <strong>{b.departureDate}</strong>
+                        </div>
+                      </td>
 
-                        {/* Xuất vé E-Ticket */}
-                        <button
-                          type="button"
-                          onClick={() => setActiveBookingForETicket(b)}
+                      {/* Cột 4: Số khách (Pill nhỏ gọn) */}
+                      <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span
                           style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: '8px',
-                            background: '#f8fafc',
-                            border: '1px solid #cbd5e1',
-                            color: '#334155',
-                            fontSize: '0.8rem',
                             fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
+                            color: '#334155',
+                            background: '#f1f5f9',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '6px',
+                            border: '1px solid #e2e8f0',
+                            fontSize: '0.76rem',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '0.3rem'
                           }}
-                          title="In vé điện tử E-Ticket QR"
                         >
-                          <i className="fa-solid fa-qrcode" style={{ color: '#047857' }} /> Vé
-                        </button>
+                          <i className="fa-solid fa-user-group" style={{ fontSize: '0.65rem', color: '#64748b' }} />
+                          {b.paxCount} khách
+                        </span>
+                      </td>
 
-                        {/* Quick Select Status */}
-                        <select
-                          value={b.status}
-                          onChange={(e) => onStatusChange(b.id, e.target.value as any)}
+                      {/* Cột 5: Tổng tiền & Phương thức */}
+                      <td style={{ padding: '0.65rem 0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 800, color: '#047857', fontSize: '0.92rem' }}>
+                          {formatCurrencyVND(b.totalAmount)}
+                        </div>
+                        <div style={{ marginTop: '0.15rem' }}>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              color: '#64748b',
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '4px',
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            {b.paymentMethod}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Cột 6: Trạng thái thanh toán (Pill dot tinh tế) */}
+                      <td style={{ padding: '0.65rem 0.85rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span
                           style={{
-                            padding: '0.35rem 0.5rem',
-                            borderRadius: '8px',
-                            border: '1.5px solid #cbd5e1',
-                            fontSize: '0.78rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.22rem 0.65rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.74rem',
                             fontWeight: 700,
-                            outline: 'none',
-                            cursor: 'pointer',
-                            background: '#ffffff'
+                            background:
+                              b.status === 'confirmed'
+                                ? '#ecfdf5'
+                                : b.status === 'deposit'
+                                ? '#fffbeb'
+                                : b.status === 'pending'
+                                ? '#eff6ff'
+                                : '#fef2f2',
+                            color:
+                              b.status === 'confirmed'
+                                ? '#047857'
+                                : b.status === 'deposit'
+                                ? '#b45309'
+                                : b.status === 'pending'
+                                ? '#1d4ed8'
+                                : '#b91c1c',
+                            border:
+                              b.status === 'confirmed'
+                                ? '1px solid #a7f3d0'
+                                : b.status === 'deposit'
+                                ? '1px solid #fde68a'
+                                : b.status === 'pending'
+                                ? '1px solid #bfdbfe'
+                                : '1px solid #fecaca'
                           }}
-                          title="Chuyển trạng thái nhanh"
                         >
-                          <option value="pending">Chờ Duyệt</option>
-                          <option value="deposit">Cọc 50%</option>
-                          <option value="confirmed">100% Xong</option>
-                          <option value="cancelled">Hủy Đơn</option>
-                        </select>
-                      </div>
-                    </td>
+                          <span
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background:
+                                b.status === 'confirmed'
+                                  ? '#10b981'
+                                  : b.status === 'deposit'
+                                  ? '#f59e0b'
+                                  : b.status === 'pending'
+                                  ? '#3b82f6'
+                                  : '#ef4444'
+                            }}
+                          />
+                          {b.status === 'confirmed'
+                            ? 'Đã Xong 100%'
+                            : b.status === 'deposit'
+                            ? 'Đã Cọc 50%'
+                            : b.status === 'pending'
+                            ? 'Chờ Duyệt'
+                            : 'Đã Hủy'}
+                        </span>
+                      </td>
 
-                  </tr>
-                ))
+                      {/* Cột 7: Thao tác (Gọn gàng, không tràn mép bảng) */}
+                      <td style={{ padding: '0.65rem 0.85rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          {/* Dropdown đổi trạng thái nhanh */}
+                          <select
+                            value={b.status}
+                            onChange={(e) => onStatusChange(b.id, e.target.value as any)}
+                            style={{
+                              padding: '0.28rem 0.45rem',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              outline: 'none',
+                              cursor: 'pointer',
+                              background: '#ffffff',
+                              color: '#334155'
+                            }}
+                            title="Chuyển trạng thái đơn"
+                          >
+                            <option value="pending">Chờ Duyệt</option>
+                            <option value="deposit">Cọc 50%</option>
+                            <option value="confirmed">100% Xong</option>
+                            <option value="cancelled">Hủy Đơn</option>
+                          </select>
+
+                          {/* Nút Xem chi tiết hồ sơ đơn */}
+                          <Link
+                            to={`/admin/bookings/${b.bookingCode || b.id}`}
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              background: '#f0fdf4',
+                              border: '1px solid #bbf7d0',
+                              color: '#047857',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              textDecoration: 'none',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Xem chi tiết hồ sơ & thanh toán"
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#dcfce7')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = '#f0fdf4')}
+                          >
+                            <i className="fa-solid fa-arrow-up-right-from-square" />
+                          </Link>
+
+                          {/* Nút In vé E-Ticket */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveBookingForETicket(b)}
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              background: '#f8fafc',
+                              border: '1px solid #cbd5e1',
+                              color: '#334155',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Xuất vé điện tử E-Ticket QR"
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                          >
+                            <i className="fa-solid fa-qrcode" style={{ color: '#047857' }} />
+                          </button>
+
+                          {/* Nút Xóa Cứng Đơn Hàng */}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSingleDelete(b)}
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '6px',
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                color: '#dc2626',
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title="Xóa cứng đơn hàng này vĩnh viễn"
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#dc2626';
+                                e.currentTarget.style.color = '#ffffff';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#fef2f2';
+                                e.currentTarget.style.color = '#dc2626';
+                              }}
+                            >
+                              <i className="fa-solid fa-trash-can" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -526,6 +801,19 @@ export const BookingsModule: React.FC<BookingsModuleProps> = ({
           onClose={() => setActiveBookingForETicket(null)}
         />
       )}
+
+      {/* Hard Delete Confirmation Modal */}
+      <DeleteBookingModal
+        isOpen={deleteModalState.isOpen}
+        bookings={deleteModalState.bookings}
+        onClose={() => setDeleteModalState({ isOpen: false, bookings: [] })}
+        onConfirmDelete={async (ids) => {
+          if (onDeleteBookings) {
+            await onDeleteBookings(ids);
+            setSelectedIds((prev) => prev.filter((id) => !ids.includes(id)));
+          }
+        }}
+      />
 
     </div>
   );

@@ -191,6 +191,9 @@ $$;
 -- Vấn đề cũ: Tăng used_count ngay khi INSERT booking (dù chưa thanh toán đồng nào)
 -- Giải pháp: Chỉ ghi nhận voucher khi payment_status chuyển sang paid / partially_paid
 -- ==============================================================================
+ALTER TABLE IF EXISTS public.coupons 
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
+
 CREATE OR REPLACE FUNCTION public.fn_manage_coupon_usage()
 RETURNS TRIGGER AS $$
 DECLARE

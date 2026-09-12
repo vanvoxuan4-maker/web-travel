@@ -2,6 +2,7 @@ import { TOURS_DATA } from '../data/toursData';
 import { DepartureDate } from '../types/tour.types';
 import { tourService } from '../services/tourService';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { toIsoDate } from './formatters';
 
 const INVENTORY_STORAGE_KEY = 'webtravel_tours_inventory_v1';
 let inMemoryStore: Record<string, Record<string, number>> | null = null;
@@ -83,17 +84,19 @@ export function updateTourInventory(tourId: string, departureDates: DepartureDat
  */
 export function getRemainingSeats(tourId: string, date: string, tourObj?: any): number {
   const store = getInventoryStore();
-  if (store[tourId] && store[tourId][date] !== undefined) {
-    return store[tourId][date];
+  const isoDate = toIsoDate(date);
+  if (store[tourId]) {
+    if (store[tourId][isoDate] !== undefined) return store[tourId][isoDate];
+    if (store[tourId][date] !== undefined) return store[tourId][date];
   }
 
   // Fallback: check departureDates directly from tour object or tour cache
   const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (tour && tour.departureDates && tour.departureDates.length > 0) {
-    const matched = tour.departureDates.find((d: any) => d.date === date);
+    const matched = tour.departureDates.find((d: any) => toIsoDate(d.date) === isoDate || d.date === date);
     if (matched && matched.seats !== undefined) {
       if (!store[tourId]) store[tourId] = {};
-      store[tourId][date] = matched.seats;
+      store[tourId][isoDate] = matched.seats;
       saveInventoryStore(store);
       return matched.seats;
     }
@@ -109,7 +112,8 @@ export function getDatePrice(tourId: string, date: string, tourObj?: any): numbe
   const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return 13590000;
   if (tour.departureDates && tour.departureDates.length > 0) {
-    const matched = tour.departureDates.find((d: any) => d.date === date);
+    const isoDate = toIsoDate(date);
+    const matched = tour.departureDates.find((d: any) => toIsoDate(d.date) === isoDate || d.date === date);
     if (matched && matched.priceAdult) {
       return matched.priceAdult;
     }
@@ -123,7 +127,8 @@ export function getDatePrice(tourId: string, date: string, tourObj?: any): numbe
 export function getDateLabel(tourId: string, date: string, tourObj?: any): string | null {
   const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour || !tour.departureDates) return null;
-  const matched = tour.departureDates.find((d: any) => d.date === date);
+  const isoDate = toIsoDate(date);
+  const matched = tour.departureDates.find((d: any) => toIsoDate(d.date) === isoDate || d.date === date);
   return matched ? matched.label : null;
 }
 
@@ -146,9 +151,10 @@ export function getDateDetails(tourId: string, date: string, tourObj?: any): Dat
   const tour = tourObj || tourService.getTourByIdSync(tourId) || TOURS_DATA.find(t => t.id === tourId);
   if (!tour) return null;
   
+  const isoDate = toIsoDate(date);
   let matched: DepartureDate | undefined = undefined;
   if (tour.departureDates && tour.departureDates.length > 0) {
-    matched = tour.departureDates.find((d: any) => d.date === date);
+    matched = tour.departureDates.find((d: any) => toIsoDate(d.date) === isoDate || d.date === date);
   }
 
   const priceAdult = (matched && matched.priceAdult) || tour.priceAdult || 5800000;
@@ -189,14 +195,18 @@ export function getDateDetails(tourId: string, date: string, tourObj?: any): Dat
 export function deductSeats(tourId: string, date: string, count: number): boolean {
   const store = getInventoryStore();
   if (!store[tourId]) store[tourId] = {};
-  const current = store[tourId][date] !== undefined ? store[tourId][date] : 5;
+  const isoDate = toIsoDate(date);
+  const current = store[tourId][isoDate] !== undefined
+    ? store[tourId][isoDate]
+    : (store[tourId][date] !== undefined ? store[tourId][date] : 5);
   const newCount = Math.max(0, current - count);
+  store[tourId][isoDate] = newCount;
   store[tourId][date] = newCount;
   saveInventoryStore(store);
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('webtravel:realtime_seats', {
-      detail: { tourId, date, seats: newCount }
+      detail: { tourId, date: isoDate, seats: newCount }
     }));
   }
 
@@ -215,14 +225,18 @@ export function restoreSeats(tourId: string, date: string, count: number): boole
   if (!tourId || !date || count <= 0) return false;
   const store = getInventoryStore();
   if (!store[tourId]) store[tourId] = {};
-  const current = store[tourId][date] !== undefined ? store[tourId][date] : 0;
+  const isoDate = toIsoDate(date);
+  const current = store[tourId][isoDate] !== undefined
+    ? store[tourId][isoDate]
+    : (store[tourId][date] !== undefined ? store[tourId][date] : 0);
   const newCount = current + count;
+  store[tourId][isoDate] = newCount;
   store[tourId][date] = newCount;
   saveInventoryStore(store);
 
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('webtravel:realtime_seats', {
-      detail: { tourId, date, seats: newCount }
+      detail: { tourId, date: isoDate, seats: newCount }
     }));
   }
 
@@ -246,6 +260,8 @@ export function resetInventory(): Record<string, Record<string, number>> {
 export async function syncSeatsToSupabase(tourId: string, date: string, seats: number): Promise<boolean> {
   const store = getInventoryStore();
   if (!store[tourId]) store[tourId] = {};
+  const isoDate = toIsoDate(date);
+  store[tourId][isoDate] = Math.max(0, seats);
   store[tourId][date] = Math.max(0, seats);
   saveInventoryStore(store);
 
@@ -255,7 +271,7 @@ export async function syncSeatsToSupabase(tourId: string, date: string, seats: n
         .from('departure_dates')
         .select('id')
         .eq('tour_id', tourId)
-        .eq('date', date)
+        .eq('date', isoDate)
         .maybeSingle();
 
       if (!error && data) {
@@ -281,18 +297,20 @@ export async function syncSeatsToSupabase(tourId: string, date: string, seats: n
  * Fetch real-time available seats from Supabase, with local fallback
  */
 export async function fetchSeatsFromSupabase(tourId: string, date: string): Promise<number> {
+  const isoDate = toIsoDate(date);
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
         .from('departure_dates')
         .select('available_seats')
         .eq('tour_id', tourId)
-        .eq('date', date)
+        .eq('date', isoDate)
         .maybeSingle();
 
       if (!error && data && typeof data.available_seats === 'number') {
         const store = getInventoryStore();
         if (!store[tourId]) store[tourId] = {};
+        store[tourId][isoDate] = data.available_seats;
         store[tourId][date] = data.available_seats;
         saveInventoryStore(store);
         return data.available_seats;

@@ -52,6 +52,8 @@ export const profileService = {
       phone?: string;
       address?: string;
       avatarUrl?: string;
+      loyaltyPoints?: number;
+      status?: UserStatus;
     }
   ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured || !supabase) {
@@ -66,6 +68,8 @@ export const profileService = {
       if (updates.phone !== undefined) dbPayload.phone = updates.phone;
       if (updates.address !== undefined) dbPayload.address = updates.address;
       if (updates.avatarUrl !== undefined) dbPayload.avatar_url = updates.avatarUrl;
+      if (updates.loyaltyPoints !== undefined) dbPayload.loyalty_points = updates.loyaltyPoints;
+      if (updates.status !== undefined) dbPayload.status = updates.status;
 
       const { error } = await supabase
         .from('profiles')
@@ -124,6 +128,54 @@ export const profileService = {
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Failed to update status' };
+    }
+  },
+
+  /**
+   * Gửi email đặt lại mật khẩu cho khách hàng (Supabase Auth reset email)
+   */
+  async sendCustomerPasswordResetEmail(email: string): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/login'
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Không thể gửi email đặt lại mật khẩu' };
+    }
+  },
+
+  /**
+   * Đặt lại mật khẩu trực tiếp cho khách hàng (gọi RPC admin_reset_user_password nếu có)
+   */
+  async adminResetCustomerPassword(userId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured || !supabase) {
+      return { success: true };
+    }
+    try {
+      const { error } = await supabase.rpc('admin_reset_user_password', {
+        target_user_id: userId,
+        new_password: newPassword
+      });
+
+      if (error) {
+        if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+          return {
+            success: false,
+            error: 'Hàm admin_reset_user_password chưa được tạo trong database Supabase. Quý khách vui lòng chọn "Gửi Link Reset Mật Khẩu Qua Email" hoặc chạy file supabase_admin_reset_password.sql trong Supabase SQL Editor.'
+          };
+        }
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Có lỗi xảy ra khi cập nhật mật khẩu' };
     }
   }
 };

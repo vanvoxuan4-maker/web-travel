@@ -18,6 +18,7 @@ export interface AuthContextType {
   signUp: (data: { email: string; password: string; fullName: string; phone?: string; address?: string }) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const LOCAL_USER_KEY = 'webtravel_auth_user';
@@ -338,6 +339,68 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      return { success: false, error: 'Bạn chưa đăng nhập.' };
+    }
+
+    if (!currentPassword) {
+      return { success: false, error: 'Vui lòng nhập mật khẩu hiện tại.' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' };
+    }
+
+    if (currentPassword === newPassword) {
+      return { success: false, error: 'Mật khẩu mới không được trùng với mật khẩu hiện tại.' };
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      // Mock mode fallback
+      return { success: true };
+    }
+
+    try {
+      // 1. Re-authenticate with current password to ensure user is rightful owner
+      if (user.email) {
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword
+        });
+
+        if (verifyError) {
+          return {
+            success: false,
+            error: 'Mật khẩu hiện tại không chính xác. Vui lòng kiểm tra lại.'
+          };
+        }
+      }
+
+      // 2. Update to new password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        return {
+          success: false,
+          error: translateAuthError(updateError.message)
+        };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Không thể đổi mật khẩu. Vui lòng thử lại sau.'
+      };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -354,7 +417,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         signIn,
         signUp,
         signOut,
-        refreshProfile
+        refreshProfile,
+        changePassword
       }}
     >
       {children}

@@ -73,17 +73,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
         </div>
 
-        {/* Admin User Profile Card */}
+        {/* User Card with Quick Profile Access */}
         <div
+          onClick={() => setActiveTab('profile')}
+          title="Bấm để xem hồ sơ cá nhân và đổi mật khẩu"
           style={{
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: activeTab === 'profile' ? 'rgba(5, 150, 105, 0.35)' : 'rgba(255, 255, 255, 0.08)',
             borderRadius: '14px',
             padding: '0.75rem 0.9rem',
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
             marginBottom: '1.75rem',
-            border: '1px solid rgba(255, 255, 255, 0.12)'
+            border: activeTab === 'profile' ? '1.5px solid #34d399' : '1px solid rgba(255, 255, 255, 0.12)',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
           }}
         >
           <div
@@ -98,12 +102,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '1rem',
-              flexShrink: 0
+              flexShrink: 0,
+              overflow: 'hidden'
             }}
           >
-            {(user?.fullName || 'A').charAt(0).toUpperCase()}
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="Avatar"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              (user?.fullName || 'A').charAt(0).toUpperCase()
+            )}
           </div>
-          <div style={{ overflow: 'hidden' }}>
+          <div style={{ overflow: 'hidden', flex: 1 }}>
             <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
               {user?.fullName || 'Võ Xuân Văn'}
             </div>
@@ -117,6 +133,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   : '🧑‍💼 Nhân Viên Vận Hành'}
               </span>
             </div>
+          </div>
+          <div style={{ color: activeTab === 'profile' ? '#34d399' : '#6ee7b7', fontSize: '0.75rem', opacity: 0.85 }}>
+            <i className="fa-solid fa-gear"></i>
           </div>
         </div>
 
@@ -339,6 +358,33 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             >
               <i className="fa-solid fa-tags" style={{ width: '18px', textAlign: 'center' }}></i>
               <span>Mã Giảm Giá & Voucher</span>
+            </button>
+          )}
+
+          {/* 8. Tài Khoản & Đổi Mật Khẩu */}
+          {isTabAllowed(user?.role, 'profile') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'profile' ? '#059669' : 'transparent',
+                color: activeTab === 'profile' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'profile' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <i className="fa-solid fa-user-shield" style={{ width: '18px', textAlign: 'center' }}></i>
+              <span>Hồ Sơ &amp; Đổi Mật Khẩu</span>
             </button>
           )}
         </div>

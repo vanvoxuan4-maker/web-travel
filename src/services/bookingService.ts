@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured, withTimeout } from '../lib/supabaseClie
 import { AppLogger } from '../utils/logger';
 import { restoreSeats } from '../utils/inventoryManager';
 import { couponService } from './couponService';
+import { toIsoDate } from '../utils/formatters';
+import { TOURS_DATA } from '../data/toursData';
 
 export type PaymentMethod = 'vietqr' | 'momo' | 'credit_card' | 'paypal' | 'bank_transfer' | 'cash';
 export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'failed' | 'refunded';
@@ -120,16 +122,60 @@ export const bookingService = {
     // 1. If Supabase is configured, insert to Supabase database
     if (isSupabaseConfigured && supabase) {
       try {
+        // Resolve authenticated user ID from active Supabase session to ensure auth.uid() match
+        let resolvedUserId = booking.userId;
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.user?.id) {
+            resolvedUserId = sessionData.session.user.id;
+          }
+        } catch (authErr) {
+          console.warn('Could not get session user in createBooking:', authErr);
+        }
+
+        // Guarantee profile exists in public.profiles to satisfy FK bookings_user_id_fkey
+        if (resolvedUserId) {
+          try {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', resolvedUserId)
+              .maybeSingle();
+
+            if (!prof) {
+              await supabase.from('profiles').upsert({
+                id: resolvedUserId,
+                email: booking.customerEmail || 'customer@webtravel.vn',
+                full_name: booking.customerName || 'Khách hàng',
+                role: 'customer',
+                status: 'active'
+              });
+            }
+          } catch (profErr) {
+            console.warn('Ensure profile exists warning:', profErr);
+          }
+        }
+
+        // Standardize departure_date to ISO YYYY-MM-DD for PostgreSQL DATE compatibility
+        const isoDepartureDate = toIsoDate(booking.departureDate);
+
+        // Resolve canonical tourId if slug was passed
+        let canonicalTourId = booking.tourId;
+        const matchedTour = TOURS_DATA.find(t => t.id === canonicalTourId || t.slug === canonicalTourId);
+        if (matchedTour) {
+          canonicalTourId = matchedTour.id;
+        }
+
         const { data, error }: any = await withTimeout(
           supabase
             .from('bookings')
             .insert([
               {
                 booking_code: booking.bookingCode,
-                user_id: booking.userId || null,
-                tour_id: booking.tourId,
+                user_id: resolvedUserId || null,
+                tour_id: canonicalTourId,
                 tour_title: booking.tourTitle,
-                departure_date: booking.departureDate,
+                departure_date: isoDepartureDate,
                 customer_name: booking.customerName,
                 customer_phone: booking.customerPhone,
                 customer_email: booking.customerEmail,
@@ -158,8 +204,11 @@ export const bookingService = {
         if (error) {
           // Kiểm tra lỗi không đủ ghế từ trigger DB (Phase 1)
           const isSeatError = (error.message || '').includes('INSUFFICIENT_SEATS');
+          const isDateError = (error.message || '').includes('date/time field value out of range');
           const userMsg = isSeatError
             ? 'Rất tiếc! Số ghế còn lại không đủ cho yêu cầu của bạn. Vui lòng chọn ngày khác hoặc giảm số lượng khách.'
+            : isDateError
+            ? 'Ngày khởi hành không hợp lệ. Vui lòng chọn lại ngày trên lịch.'
             : `Không thể tạo đơn đặt tour: ${error.message}. Vui lòng thử lại.`;
           AppLogger.warn('Supabase booking insert trả về lỗi', {
             action: 'BOOKING_CREATE_SUPABASE_ERROR',
@@ -172,9 +221,13 @@ export const bookingService = {
 
         const savedPayload: BookingPayload = {
           ...payloadWithTime,
-          id: data.id
+          id: data.id,
+          userId: resolvedUserId,
+          tourId: canonicalTourId,
+          departureDate: isoDepartureDate
         };
         this.saveToLocalStorage(savedPayload);
+
 
         // Tự động ghi nhận giao dịch vào payment_transactions trên Supabase nếu đơn có thanh toán/cọc ban đầu
         const initialPaid = Number(booking.paidAmount) || (booking.paymentStatus === 'paid' ? Number(booking.totalAmount) : 0);
@@ -414,11 +467,17 @@ export const bookingService = {
     if (isSupabaseConfigured && supabase) {
       try {
         // Fetch booking to get ID and total amount
-        const { data: bookingData } = await supabase
+        let findQuery = supabase
           .from('bookings')
-          .select('id, total_amount, payment_method, coupon_code, user_id, customer_name, customer_email, customer_phone')
-          .eq('booking_code', code)
-          .single();
+          .select('id, total_amount, payment_method, coupon_code, user_id, customer_name, customer_email, customer_phone');
+
+        if (isUuid(code)) {
+          findQuery = findQuery.or(`booking_code.eq.${code},id.eq.${code}`);
+        } else {
+          findQuery = findQuery.eq('booking_code', code);
+        }
+
+        const { data: bookingData } = await findQuery.maybeSingle();
 
         if (bookingData) {
           const totalAmt = Number(bookingData.total_amount) || 0;
@@ -426,18 +485,30 @@ export const bookingService = {
           const finalAmount = amount || paidAmt || totalAmt;
           const method = paymentMethod || bookingData.payment_method || 'vietqr';
 
-          // Update booking
-          await supabase
+          // Update booking with select() verification
+          let updateQuery = supabase
             .from('bookings')
             .update({
               payment_status: paymentStatus,
               paid_amount: paidAmt
-            })
-            .eq('booking_code', code);
+            });
+
+          if (bookingData.id) {
+            updateQuery = updateQuery.eq('id', bookingData.id);
+          } else {
+            updateQuery = updateQuery.eq('booking_code', code);
+          }
+
+          const { error: updateErr } = await updateQuery.select('id, booking_code');
+
+          if (updateErr) {
+            console.error('Supabase update payment_status error:', updateErr);
+            return { success: false, error: updateErr.message || 'Lỗi cập nhật thanh toán trên database' };
+          }
 
           // If paid or partially paid, create payment transaction record
           if (paymentStatus === 'paid' || paymentStatus === 'partially_paid') {
-            await supabase
+            const { error: txErr } = await supabase
               .from('payment_transactions')
               .insert([
                 {
@@ -452,6 +523,7 @@ export const bookingService = {
                   notes: `Xác nhận thanh toán đơn ${code} qua ${method.toUpperCase()}`
                 }
               ]);
+            if (txErr) console.warn('Supabase insert payment transaction warning:', txErr);
           }
 
           // Phase 1: Ghi nhận coupon usage CHỈ khi đã xác nhận thanh toán thành công
@@ -575,11 +647,16 @@ export const bookingService = {
           updateQuery = updateQuery.eq('booking_code', code);
         }
 
-        const { error: updateErr } = await updateQuery;
+        const { data: updatedRows, error: updateErr } = await updateQuery.select('id, booking_code');
 
         if (updateErr) {
           console.error('Supabase updateBookingAdminStatus update error:', updateErr);
-        } else {
+          return { success: false, error: updateErr.message || 'Lỗi cập nhật trạng thái đơn hàng trên database' };
+        }
+
+        if (updatedRows && updatedRows.length === 0) {
+          console.warn('Supabase updateBookingAdminStatus: 0 rows updated for', code);
+        }
           AppLogger.info('Cập nhật trạng thái đơn hàng thành công trên Supabase', {
             action: 'BOOKING_STATUS_UPDATE',
             bookingCode: code,
@@ -671,7 +748,6 @@ export const bookingService = {
             couponService.refundCouponUsage(bookingData.coupon_code, bookingData.id)
               .catch(err => console.warn('Could not refund coupon usage on admin cancel:', err));
           }
-        }
       } catch (err: any) {
         console.error('Supabase updateBookingAdminStatus error:', err);
       }
@@ -767,20 +843,29 @@ export const bookingService = {
     // 1. Update Supabase
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase
+        let cancelQuery = supabase
           .from('bookings')
           .update({
             booking_status: 'cancelled',
             payment_status: 'refunded',
             customer_notes: reason ? `[Khách yêu cầu hủy: ${reason}]` : '[Khách yêu cầu hủy]'
-          })
-          .eq('booking_code', code);
+          });
 
-        if (error) {
-          console.error('Supabase cancel booking error:', error);
+        if (isUuid(code)) {
+          cancelQuery = cancelQuery.or(`booking_code.eq.${code},id.eq.${code}`);
+        } else {
+          cancelQuery = cancelQuery.eq('booking_code', code);
+        }
+
+        const { error: cancelErr } = await cancelQuery.select('id');
+
+        if (cancelErr) {
+          console.error('Supabase cancel booking error:', cancelErr);
+          return { success: false, error: cancelErr.message || 'Lỗi hủy đơn hàng trên database' };
         }
       } catch (err: any) {
         console.warn('Failed to update cancel status in Supabase:', err);
+        return { success: false, error: err?.message || 'Lỗi kết nối khi hủy đơn hàng' };
       }
     }
 
@@ -968,10 +1053,12 @@ export const bookingService = {
         const { error } = await deleteQuery;
 
         if (error) {
-          console.warn('Supabase delete booking error:', error);
+          console.error('Supabase delete booking error:', error);
+          return { success: false, error: error.message || 'Lỗi khi xóa đơn hàng khỏi database' };
         }
       } catch (err: any) {
-        console.warn('Supabase delete booking exception:', err);
+        console.error('Supabase delete booking exception:', err);
+        return { success: false, error: err?.message || 'Lỗi kết nối khi xóa đơn hàng' };
       }
     }
 

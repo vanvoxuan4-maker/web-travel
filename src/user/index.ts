@@ -19,6 +19,7 @@ export * from './components/tour/TourFilter';
 export * from './components/tour/ItineraryMap';
 export * from './components/tour/TourComparisonModal';
 export * from './components/profile/ETicketModal';
+export * from './components/profile/UserBookingDetailModal';
 export * from './components/booking/BookingModal';
 export * from './components/modals/WishlistModal';
 export * from './components/modals/CartModal';

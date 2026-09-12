@@ -1,44 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CouponRecord } from '../admin.types';
 import { formatCurrencyVND } from '../../utils/formatters';
 
-interface AddCouponModalProps {
-  isOpen: boolean;
+interface EditCouponModalProps {
+  coupon: CouponRecord | null;
   onClose: () => void;
-  onAddCoupon: (coupon: CouponRecord) => Promise<void>;
+  onSaveCoupon: (updated: CouponRecord) => Promise<void>;
 }
 
-export const AddCouponModal: React.FC<AddCouponModalProps> = ({
-  isOpen,
+export const EditCouponModal: React.FC<EditCouponModalProps> = ({
+  coupon,
   onClose,
-  onAddCoupon
+  onSaveCoupon
 }) => {
-  const [code, setCode] = useState('');
   const [description, setDescription] = useState('');
   const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
-  const [value, setValue] = useState<number>(200000);
-  const [minOrderValue, setMinOrderValue] = useState<number>(1000000);
+  const [value, setValue] = useState<number>(0);
+  const [minOrderValue, setMinOrderValue] = useState<number>(0);
   const [usageLimit, setUsageLimit] = useState<number>(100);
-
-  // Default expiry date: 90 days from today in YYYY-MM-DD format for date input
-  const defaultExp = new Date();
-  defaultExp.setDate(defaultExp.getDate() + 90);
-  const defaultExpStr = defaultExp.toISOString().split('T')[0];
-  const [rawExpiryDate, setRawExpiryDate] = useState<string>(defaultExpStr);
+  const [rawExpiryDate, setRawExpiryDate] = useState<string>('');
   const [isActive, setIsActive] = useState<boolean>(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  // Sync state when coupon changes
+  useEffect(() => {
+    if (coupon) {
+      setDescription(coupon.description || '');
+      setDiscountType(coupon.discountType || 'fixed');
+      setValue(coupon.value || 0);
+      setMinOrderValue(coupon.minOrderValue || 0);
+      setUsageLimit(coupon.usageLimit || 100);
+      setIsActive(coupon.isActive !== false);
+
+      // Parse date for HTML date input YYYY-MM-DD
+      if (coupon.rawExpiryDate) {
+        try {
+          const d = new Date(coupon.rawExpiryDate);
+          if (!isNaN(d.getTime())) {
+            setRawExpiryDate(d.toISOString().split('T')[0]);
+          } else {
+            setRawExpiryDate('');
+          }
+        } catch {
+          setRawExpiryDate('');
+        }
+      } else if (coupon.expiryDate && coupon.expiryDate.includes('/')) {
+        // e.g. 31/12/2026
+        const parts = coupon.expiryDate.split('/');
+        if (parts.length === 3) {
+          setRawExpiryDate(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+        } else {
+          setRawExpiryDate('');
+        }
+      } else {
+        setRawExpiryDate('');
+      }
+      setErrorMsg(null);
+    }
+  }, [coupon]);
+
+  if (!coupon) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
-    if (!cleanCode) {
-      setErrorMsg('Vui lòng nhập mã voucher.');
-      return;
-    }
 
     if (value <= 0) {
       setErrorMsg('Mức giảm giá phải lớn hơn 0.');
@@ -54,9 +80,8 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Format display expiry date
-      let displayExpiry = 'Không giới hạn';
-      let isoExpiry: string | undefined = undefined;
+      let displayExpiry = coupon.expiryDate;
+      let isoExpiry: string | undefined = coupon.rawExpiryDate;
 
       if (rawExpiryDate) {
         const d = new Date(rawExpiryDate + 'T23:59:59');
@@ -64,32 +89,28 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
           isoExpiry = d.toISOString();
           displayExpiry = d.toLocaleDateString('vi-VN');
         }
+      } else {
+        isoExpiry = undefined;
+        displayExpiry = 'Không giới hạn';
       }
 
-      const item: CouponRecord = {
-        code: cleanCode,
-        description: description.trim() || `Ưu đãi giảm giá ${cleanCode}`,
+      const updated: CouponRecord = {
+        ...coupon,
+        description: description.trim() || `Ưu đãi ${coupon.code}`,
         discountType,
         value: Number(value),
         minOrderValue: Number(minOrderValue) || 0,
         usageLimit: Number(usageLimit) || 100,
-        usageCount: 0,
         expiryDate: displayExpiry,
         rawExpiryDate: isoExpiry,
         isActive,
-        status: isActive ? 'active' : 'inactive'
+        status: !isActive ? 'inactive' : (isoExpiry && new Date(isoExpiry).getTime() < Date.now()) ? 'expired' : 'active'
       };
 
-      await onAddCoupon(item);
+      await onSaveCoupon(updated);
       onClose();
-      // Reset form
-      setCode('');
-      setDescription('');
-      setValue(200000);
-      setMinOrderValue(1000000);
-      setUsageLimit(100);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Có lỗi xảy ra khi tạo voucher');
+      setErrorMsg(err?.message || 'Có lỗi xảy ra khi cập nhật voucher');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,22 +154,22 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: '10px',
-                background: '#ecfdf5',
-                color: '#059669',
+                background: '#eff6ff',
+                color: '#2563eb',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '1.1rem'
               }}
             >
-              <i className="fa-solid fa-ticket"></i>
+              <i className="fa-solid fa-pen-to-square"></i>
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
-                Tạo Voucher Mới
+                Chỉnh Sửa Voucher
               </h3>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                Thiết lập mã khuyến mãi kích cầu du lịch cho thành viên
+                Cập nhật thông số chương trình ưu đãi &amp; hạn mức sử dụng
               </p>
             </div>
           </div>
@@ -194,34 +215,54 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* Row 1: Code */}
+          {/* Row 1: Code (Locked / Read-only) */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-              Mã Voucher (Code) <span style={{ color: '#ef4444' }}>*</span>
+              Mã Voucher (Không thể sửa đổi)
             </label>
-            <input
-              type="text"
-              required
-              placeholder="VD: AUTUMN2026, SUMMER500"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+            <div
               style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '10px',
-                border: '1.5px solid #cbd5e1',
-                fontSize: '0.95rem',
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                color: '#047857',
-                outline: 'none',
-                boxSizing: 'border-box',
-                textTransform: 'uppercase'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 1rem',
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '10px'
               }}
-            />
-            <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-              Viết liền, không dấu, tự động chuyển thành chữ in hoa.
-            </span>
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span
+                  style={{
+                    background: '#ecfdf5',
+                    border: '1px dashed #059669',
+                    color: '#047857',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '6px',
+                    fontWeight: 800,
+                    letterSpacing: '0.05em',
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  {coupon.code}
+                </span>
+                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  (Đã dùng: <strong>{coupon.usageCount}</strong> lượt)
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  fontWeight: 600
+                }}
+              >
+                <i className="fa-solid fa-lock"></i> Đã khóa
+              </span>
+            </div>
           </div>
 
           {/* Row 2: Description */}
@@ -232,9 +273,9 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
             <input
               type="text"
               required
-              placeholder="VD: Ưu Đãi Chào Thu - Giảm 200.000đ cho đơn từ 1.000.000đ"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="VD: Tri ân mùa thu 2026"
               style={{
                 width: '100%',
                 padding: '0.75rem',
@@ -383,29 +424,35 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
                 background: '#ffffff'
               }}
             />
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
+              Để trống nếu muốn mã có hiệu lực vĩnh viễn không giới hạn ngày.
+            </span>
           </div>
 
-          {/* Row 6: Active Status Checkbox */}
+          {/* Row 6: Active Status Toggle Switch */}
           <div
             style={{
               marginBottom: '1.5rem',
               padding: '0.75rem 1rem',
-              background: '#f8fafc',
+              background: isActive ? '#f0fdf4' : '#fef2f2',
               borderRadius: '10px',
-              border: '1px solid #e2e8f0',
+              border: isActive ? '1px solid #bbf7d0' : '1px solid #fecaca',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
             }}
             onClick={() => setIsActive(!isActive)}
           >
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#1e293b' }}>
-                Kích hoạt voucher ngay lập tức
+              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: isActive ? '#065f46' : '#991b1b' }}>
+                {isActive ? 'Trạng thái: Đang Kích Hoạt (Hiển thị)' : 'Trạng thái: Đang Ẩn (Tạm dừng áp dụng)'}
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#64748b' }}>
-                {isActive ? 'Khách hàng có thể nhập mã này tại trang thanh toán' : 'Mã sẽ ở trạng thái Ẩn / Tạm dừng'}
+              <div style={{ fontSize: '0.76rem', color: isActive ? '#047857' : '#b91c1c' }}>
+                {isActive
+                  ? 'Khách hàng có thể nhập mã này khi thanh toán tour'
+                  : 'Khách hàng sẽ không thể nhập hoặc sử dụng mã này'}
               </div>
             </div>
             <input
@@ -441,7 +488,7 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
               style={{
                 flex: 1.5,
                 padding: '0.75rem',
-                background: '#047857',
+                background: '#2563eb',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
@@ -451,16 +498,16 @@ export const AddCouponModal: React.FC<AddCouponModalProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.4rem',
-                boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
               }}
             >
               {isSubmitting ? (
                 <>
-                  <i className="fa-solid fa-spinner fa-spin"></i> Đang Tạo...
+                  <i className="fa-solid fa-spinner fa-spin"></i> Đang Lưu...
                 </>
               ) : (
                 <>
-                  <i className="fa-solid fa-plus"></i> Tạo Voucher
+                  <i className="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi
                 </>
               )}
             </button>

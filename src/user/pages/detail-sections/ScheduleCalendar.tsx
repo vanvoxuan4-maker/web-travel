@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tour, DepartureDate } from '../../../types/tour.types';
-import { formatCurrencyVND, getDayOfWeekVN } from '../../../utils/formatters';
+import { formatCurrencyVND, getDayOfWeekVN, formatDateVN, toIsoDate } from '../../../utils/formatters';
 import { getRemainingSeats } from '../../../utils/inventoryManager';
+
 
 interface ScheduleCalendarProps {
   tour: Tour;
@@ -48,8 +49,8 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
   const departureList = useMemo<DepartureDate[]>(() => {
     const raw = tour.departureDates && tour.departureDates.length > 0
       ? tour.departureDates
-      : (tour.availableDates || ['15/09/2026', '22/09/2026', '29/09/2026', '05/10/2026']).map(d => ({
-          date: d,
+      : (tour.availableDates || ['2026-09-15', '2026-09-22', '2026-09-29', '2026-10-05']).map(d => ({
+          date: toIsoDate(d),
           seats: 12,
           priceAdult: tour.priceAdult,
           label: null
@@ -156,7 +157,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
       {/* Departure Rows List */}
       <div className="schedule-rows-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {depsToRender.map(dep => {
-          const isSelected = dep.date === selectedDate;
+          const isSelected = toIsoDate(dep.date) === toIsoDate(selectedDate || '');
           const seats = getRemainingSeats(tour.id, dep.date, tour);
           const isSoldOut = seats <= 0;
           const dayOfWeek = dep.dayOfWeek || getDayOfWeekVN(dep.date);
@@ -194,7 +195,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
                     {/* Badge Ngày */}
                     <span style={{ fontWeight: 800, fontSize: '0.92rem', color: isSoldOut ? '#64748b' : 'var(--accent-forest, #047857)', background: isSoldOut ? '#f1f5f9' : '#ecfdf5', padding: '0.35rem 1rem', borderRadius: '9999px', border: isSoldOut ? '1px solid #e2e8f0' : '1px solid rgba(5, 150, 105, 0.25)' }}>
-                      {dayOfWeek}, {dep.date}
+                      {dayOfWeek}, {formatDateVN(dep.date)}
                     </span>
                     {/* Mã Tour SKU */}
                     <span style={{ color: '#334155', fontSize: '0.88rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
@@ -237,7 +238,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   {/* Cột Trái: Ngày đi */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày đi: <strong>{dep.date}</strong></span>
+                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày đi: <strong>{formatDateVN(dep.date)}</strong></span>
                       <span style={{ fontSize: '0.88rem', color: 'var(--accent-forest, #047857)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <i className="fa-solid fa-plane" style={{ transform: 'rotate(-45deg)', fontSize: '0.8rem' }}></i> {outbound.flightNo || 'HO1330'}
                       </span>
@@ -259,7 +260,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                   {/* Cột Phải: Ngày về */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày về: <strong>{inbound.date || dep.date}</strong></span>
+                      <span style={{ fontSize: '0.88rem', color: '#4b5563', fontWeight: 600 }}>Ngày về: <strong>{formatDateVN(inbound.date || dep.date)}</strong></span>
                       <span style={{ fontSize: '0.88rem', color: 'var(--accent-forest, #047857)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
                         <i className="fa-solid fa-plane" style={{ transform: 'rotate(-45deg)', fontSize: '0.8rem' }}></i> {inbound.flightNo || 'HO1329'}
                       </span>
@@ -346,7 +347,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
               <div 
                 key={dep.date} 
                 className="schedule-row-compact" 
-                onClick={isSoldOut ? undefined : () => onSelectDate(dep.date)}
+                onClick={isSoldOut ? undefined : () => onSelectDate(toIsoDate(dep.date))}
                 style={{
                   background: isSoldOut ? '#f8fafc' : '#ffffff',
                   border: isSoldOut ? '1.5px solid #e2e8f0' : '1.5px solid #e5e7eb',
@@ -365,7 +366,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                 <div className="schedule-row-left" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
                   {/* Ngày đi */}
                   <span style={{ fontWeight: 800, fontSize: '0.98rem', color: isSoldOut ? '#94a3b8' : 'var(--accent-forest, #047857)', whiteSpace: 'nowrap' }}>
-                    {dayOfWeek}, {dep.date}
+                    {dayOfWeek}, {formatDateVN(dep.date)}
                   </span>
 
                   {/* Huy hiệu trạng thái / khuyến mãi */}
@@ -448,7 +449,7 @@ export const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       if (!isSoldOut) {
-                        onSelectDate(dep.date);
+                        onSelectDate(toIsoDate(dep.date));
                       }
                     }}
                     style={{
