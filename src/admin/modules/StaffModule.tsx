@@ -120,62 +120,190 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* ── 1. KPI Metric Summary Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+      {/* ── 1. KPI Metric Summary Cards (Modern SaaS Emerald) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
         {/* Tổng nhân sự */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Tổng Nhân Sự</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#ecfdf5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '18px',
+            padding: '1.35rem 1.4rem',
+            boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
+            transition: 'all 0.25s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
+            <div>
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Tổng Nhân Sự
+              </span>
+              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.02em', marginTop: '0.2rem', lineHeight: 1.1 }}>
+                {stats.total} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>thành viên</span>
+              </div>
+            </div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '13px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.15rem',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                flexShrink: 0
+              }}
+            >
               <i className="fa-solid fa-id-badge" />
             </div>
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0f172a' }}>
-            {stats.total} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>thành viên</span>
+          <div style={{ fontSize: '0.76rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <i className="fa-solid fa-circle-check" style={{ fontSize: '0.7rem' }} /> Đội ngũ nội bộ hệ thống WebTravel
           </div>
-          <div style={{ fontSize: '0.76rem', color: '#047857', marginTop: '0.25rem' }}>Đội ngũ nội bộ hệ thống</div>
         </div>
 
         {/* Tổng Quản Trị */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Super Admin</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '18px',
+            padding: '1.35rem 1.4rem',
+            boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
+            transition: 'all 0.25s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
+            <div>
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Super Admin
+              </span>
+              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#b45309', letterSpacing: '-0.02em', marginTop: '0.2rem', lineHeight: 1.1 }}>
+                {stats.superAdmins} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+              </div>
+            </div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '13px',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.15rem',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
+                flexShrink: 0
+              }}
+            >
               <i className="fa-solid fa-crown" />
             </div>
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#b45309' }}>
-            {stats.superAdmins} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+          <div style={{ fontSize: '0.76rem', color: '#b45309', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <i className="fa-solid fa-key" style={{ fontSize: '0.7rem' }} /> Toàn quyền hệ thống &amp; cấu hình RBAC
           </div>
-          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.25rem' }}>Toàn quyền hệ thống & RBAC</div>
         </div>
 
         {/* Quản Trị Viên */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Quản Trị Viên</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '18px',
+            padding: '1.35rem 1.4rem',
+            boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
+            transition: 'all 0.25s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
+            <div>
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Quản Trị Viên
+              </span>
+              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#2563eb', letterSpacing: '-0.02em', marginTop: '0.2rem', lineHeight: 1.1 }}>
+                {stats.admins} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+              </div>
+            </div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '13px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.15rem',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                flexShrink: 0
+              }}
+            >
               <i className="fa-solid fa-shield-halved" />
             </div>
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#1d4ed8' }}>
-            {stats.admins} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+          <div style={{ fontSize: '0.76rem', color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <i className="fa-solid fa-sliders" style={{ fontSize: '0.7rem' }} /> Quản lý tour, đơn hàng &amp; nhân sự
           </div>
-          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.25rem' }}>Quản lý tour, đơn hàng & nhân sự</div>
         </div>
 
         {/* Nhân Viên Vận Hành */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nhân Viên Vận Hành</span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '18px',
+            padding: '1.35rem 1.4rem',
+            boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.04)',
+            transition: 'all 0.25s ease',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
+            <div>
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Vận Hành &amp; CSKH
+              </span>
+              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#047857', letterSpacing: '-0.02em', marginTop: '0.2rem', lineHeight: 1.1 }}>
+                {stats.operationalStaff} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+              </div>
+            </div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '13px',
+                background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.15rem',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                flexShrink: 0
+              }}
+            >
               <i className="fa-solid fa-headset" />
             </div>
           </div>
-          <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#047857' }}>
-            {stats.operationalStaff} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>người</span>
+          <div style={{ fontSize: '0.76rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <i className="fa-solid fa-clipboard-check" style={{ fontSize: '0.7rem' }} /> Trực ca, xử lý tour &amp; hỗ trợ khách
           </div>
-          <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.25rem' }}>Xử lý tour, kiểm duyệt đơn</div>
         </div>
       </div>
 
@@ -183,17 +311,17 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
       <div
         style={{
           background: '#ffffff',
-          borderRadius: '16px',
+          borderRadius: '20px',
           border: '1px solid #e2e8f0',
-          padding: '1.5rem',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+          padding: '1.6rem 1.75rem',
+          boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.04)'
         }}
       >
         {/* Header & Export Action */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.35rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Đội Ngũ Nhân Sự &amp; Cán Bộ Điều Hành
               </h3>
               <span
@@ -203,15 +331,15 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
                   border: '1px solid #a7f3d0',
                   fontSize: '0.72rem',
                   fontWeight: 800,
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '20px',
+                  padding: '0.2rem 0.65rem',
+                  borderRadius: '9999px',
                   whiteSpace: 'nowrap'
                 }}
               >
                 ● {filteredStaff.length} / {staff.length} Nhân sự
               </span>
             </div>
-            <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+            <p style={{ margin: '0.3rem 0 0', fontSize: '0.84rem', color: '#64748b' }}>
               Quản lý tài khoản nội bộ, phân quyền vận hành và kiểm soát truy cập phân cấp bảo mật cao
             </p>
           </div>
@@ -221,21 +349,25 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
               type="button"
               onClick={() => exportStaffToCSV(filteredStaff)}
               style={{
-                padding: '0.55rem 1.15rem',
+                padding: '0.52rem 1.15rem',
                 borderRadius: '10px',
                 background: '#ffffff',
-                border: '1.5px solid #cbd5e1',
-                color: '#334155',
-                fontSize: '0.85rem',
+                border: '1.5px solid #a7f3d0',
+                color: '#047857',
+                fontSize: '0.84rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.45rem',
-                transition: 'all 0.2s'
+                boxShadow: '0 1px 3px rgba(4, 120, 87, 0.08)',
+                transition: 'all 0.2s ease'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#ecfdf5'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
             >
-              <i className="fa-solid fa-file-csv" style={{ color: '#047857' }} /> Xuất Danh Sách Nhân Sự (CSV)
+              <i className="fa-solid fa-file-csv" style={{ color: '#059669', fontSize: '0.95rem' }} />
+              <span>Xuất Danh Sách Nhân Sự (CSV)</span>
             </button>
           </div>
         </div>
@@ -245,9 +377,9 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
           style={{
             background: '#f8fafc',
             border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            padding: '0.85rem 1rem',
-            marginBottom: '1.25rem',
+            borderRadius: '14px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.35rem',
             display: 'grid',
             gridTemplateColumns: '2fr 1fr 1fr 1fr',
             gap: '0.75rem',

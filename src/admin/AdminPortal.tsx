@@ -864,7 +864,7 @@ export const AdminPortal: React.FC = () => {
       />
 
       {/* 2. MAIN CONTENT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#f8fafc' }}>
         {/* Topbar */}
         <AdminTopbar
           activeTab={activeTab}
@@ -877,28 +877,36 @@ export const AdminPortal: React.FC = () => {
           onOpenProfile={() => setActiveTab('profile')}
         />
 
-        {/* Action Flash Feedback Message */}
+        {/* Action Flash Feedback Message - Modern Floating Toast */}
         {actionFeedback && (
           <div
             style={{
-              padding: '0.75rem 2rem',
-              background: actionFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
-              color: actionFeedback.type === 'success' ? '#047857' : '#b91c1c',
-              borderBottom: `1px solid ${actionFeedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-              fontSize: '0.86rem',
-              fontWeight: 600,
+              position: 'fixed',
+              top: '86px',
+              right: '28px',
+              zIndex: 99999,
+              padding: '0.85rem 1.35rem',
+              background: actionFeedback.type === 'success' ? '#047857' : '#b91c1c',
+              color: '#ffffff',
+              borderRadius: '14px',
+              boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25), 0 6px 12px -2px rgba(0, 0, 0, 0.1)',
+              fontSize: '0.88rem',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem'
+              gap: '0.65rem',
+              border: actionFeedback.type === 'success' ? '1px solid #10b981' : '1px solid #f87171',
+              animation: 'fadeIn 0.25s ease-out'
             }}
           >
-            <i className={`fa-solid ${actionFeedback.type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+            <i className={`fa-solid ${actionFeedback.type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1rem' }} />
             <span>{actionFeedback.message}</span>
           </div>
         )}
 
         {/* Scrollable View Content Body */}
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '2rem 2.5rem', overflowY: 'auto', background: '#f8fafc' }}>
+          <div style={{ maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
           {activeTab === 'overview' && isTabAllowed(user?.role, 'overview') && (
             <OverviewModule
               bookings={bookings}
@@ -1042,6 +1050,7 @@ export const AdminPortal: React.FC = () => {
               </button>
             </div>
           )}
+          </div>
         </main>
       </div>
 

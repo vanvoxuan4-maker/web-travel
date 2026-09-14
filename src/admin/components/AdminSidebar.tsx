@@ -28,397 +28,316 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
+  const navItems: {
+    tab: AdminTab;
+    label: string;
+    icon: string;
+    badge?: number;
+    badgeColor?: string;
+  }[] = [
+    { tab: 'overview', label: 'Tổng Quan & Doanh Thu', icon: 'fa-chart-pie' },
+    {
+      tab: 'bookings',
+      label: 'Quản Lý Đơn Tour',
+      icon: 'fa-receipt',
+      badge: bookingsCount,
+      badgeColor: pendingBookingsCount > 0 ? '#ef4444' : 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      tab: 'payments',
+      label: 'Lịch Sử Giao Dịch',
+      icon: 'fa-credit-card',
+      badge: paymentsCount > 0 ? paymentsCount : undefined,
+      badgeColor: 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      tab: 'tours',
+      label: 'Kho Tour Lữ Hành',
+      icon: 'fa-map-location-dot',
+      badge: toursCount,
+      badgeColor: 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      tab: 'customers',
+      label: 'Khách Hàng',
+      icon: 'fa-users',
+      badge: customersCount,
+      badgeColor: '#10b981'
+    },
+    {
+      tab: 'staff',
+      label: 'Đội Ngũ Nhân Sự',
+      icon: 'fa-id-badge',
+      badge: staffCount,
+      badgeColor: '#38bdf8'
+    },
+    { tab: 'coupons', label: 'Mã Giảm Giá & Voucher', icon: 'fa-tags' },
+    { tab: 'logs', label: 'Nhật Ký Hoạt Động', icon: 'fa-clock-rotate-left' },
+    { tab: 'profile', label: 'Hồ Sơ & Đổi Mật Khẩu', icon: 'fa-shield-halved' }
+  ];
+
   return (
     <aside
       style={{
-        width: '260px',
-        background: 'linear-gradient(180deg, #022c22 0%, #064e3b 100%)',
+        width: '268px',
+        background: 'linear-gradient(180deg, #021f17 0%, #053326 60%, #032119 100%)',
         color: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '1.5rem 1.25rem',
+        padding: '1.5rem 1.15rem',
         flexShrink: 0,
-        boxShadow: '4px 0 20px rgba(0, 0, 0, 0.15)',
-        zIndex: 100
+        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.22)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+        zIndex: 100,
+        position: 'relative'
       }}
     >
-      <div>
-        {/* Brand Logo Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.75rem', paddingBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.12)' }}>
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-              border: '1.5px solid rgba(255, 255, 255, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.2rem',
-              color: '#ffffff',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)'
-            }}
-          >
-            <i className="fa-solid fa-compass"></i>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.02em' }}>WebTravel</span>
-            </div>
-            <span style={{ background: '#f59e0b', color: '#111827', fontSize: '0.62rem', fontWeight: 800, padding: '0.12rem 0.4rem', borderRadius: '6px', letterSpacing: '0.05em' }}>
-              ADMIN PORTAL
-            </span>
-          </div>
-        </div>
-
-        {/* User Card with Quick Profile Access */}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* 1. Brand Logo Header */}
         <div
-          onClick={() => setActiveTab('profile')}
-          title="Bấm để xem hồ sơ cá nhân và đổi mật khẩu"
           style={{
-            background: activeTab === 'profile' ? 'rgba(5, 150, 105, 0.35)' : 'rgba(255, 255, 255, 0.08)',
-            borderRadius: '14px',
-            padding: '0.75rem 0.9rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
-            marginBottom: '1.75rem',
-            border: activeTab === 'profile' ? '1.5px solid #34d399' : '1px solid rgba(255, 255, 255, 0.12)',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
+            gap: '0.85rem',
+            marginBottom: '1.5rem',
+            paddingBottom: '1.25rem',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
           }}
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: '#f59e0b',
-              color: '#111827',
-              fontWeight: 900,
+              width: '42px',
+              height: '42px',
+              borderRadius: '13px',
+              background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+              border: '1.5px solid rgba(255, 255, 255, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1rem',
-              flexShrink: 0,
-              overflow: 'hidden'
+              fontSize: '1.25rem',
+              color: '#ffffff',
+              boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+              flexShrink: 0
             }}
           >
-            {user?.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt="Avatar"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              (user?.fullName || 'A').charAt(0).toUpperCase()
-            )}
+            <i className="fa-solid fa-compass" />
           </div>
-          <div style={{ overflow: 'hidden', flex: 1 }}>
-            <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-              {user?.fullName || 'Võ Xuân Văn'}
+          <div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+              WebTravel
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#6ee7b7' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
-              <span>
-                {user?.role === 'super_admin'
-                  ? '👑 Tổng Quản Trị'
-                  : user?.role === 'admin'
-                  ? '🛡️ Quản Trị Viên'
-                  : '🧑‍💼 Nhân Viên Vận Hành'}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: '#ffffff',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  padding: '0.12rem 0.45rem',
+                  borderRadius: '6px',
+                  letterSpacing: '0.06em',
+                  boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)'
+                }}
+              >
+                ADMIN PORTAL
               </span>
             </div>
           </div>
-          <div style={{ color: activeTab === 'profile' ? '#34d399' : '#6ee7b7', fontSize: '0.75rem', opacity: 0.85 }}>
-            <i className="fa-solid fa-gear"></i>
+        </div>
+
+        {/* 2. User Card with Quick Profile Access */}
+        <div
+          onClick={() => setActiveTab('profile')}
+          title="Bấm để xem hồ sơ cá nhân và quản lý bảo mật"
+          style={{
+            background: activeTab === 'profile' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '14px',
+            padding: '0.75rem 0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1.5rem',
+            border: activeTab === 'profile' ? '1.5px solid #34d399' : '1px solid rgba(255, 255, 255, 0.08)',
+            cursor: 'pointer',
+            transition: 'all 0.25s ease',
+            boxShadow: activeTab === 'profile' ? '0 4px 14px rgba(16, 185, 129, 0.15)' : 'none'
+          }}
+        >
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
+                color: '#ffffff',
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.95rem',
+                overflow: 'hidden',
+                border: '1.5px solid rgba(255, 255, 255, 0.25)'
+              }}
+            >
+              {user?.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt="Avatar"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              ) : (
+                (user?.fullName || user?.email || 'A').charAt(0).toUpperCase()
+              )}
+            </div>
+            <span
+              style={{
+                position: 'absolute',
+                bottom: '0',
+                right: '0',
+                width: '9px',
+                height: '9px',
+                borderRadius: '50%',
+                background: '#10b981',
+                border: '1.5px solid #021f17'
+              }}
+            />
+          </div>
+
+          <div style={{ overflow: 'hidden', flex: 1 }}>
+            <div
+              style={{
+                fontSize: '0.86rem',
+                fontWeight: 800,
+                color: '#ffffff',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden'
+              }}
+            >
+              {user?.fullName || 'Võ Xuân Vạn'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: '#a7f3d0' }}>
+              <span>
+                {user?.role === 'super_admin'
+                  ? '👑 Super Admin'
+                  : user?.role === 'admin'
+                  ? '🛡️ Quản Trị Viên'
+                  : '🧑‍💼 Nhân Viên'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ color: activeTab === 'profile' ? '#34d399' : '#6ee7b7', fontSize: '0.8rem', opacity: 0.85 }}>
+            <i className="fa-solid fa-gear" />
           </div>
         </div>
 
-        {/* Navigation Menu Links */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.5rem 0.75rem 0.25rem' }}>
+        {/* 3. Navigation Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          <div
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 800,
+              color: '#34d399',
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              padding: '0.4rem 0.75rem 0.2rem',
+              opacity: 0.9
+            }}
+          >
             Quản Trị Nghiệp Vụ
           </div>
 
-          {/* 1. Tổng Quan & Doanh Thu (Admin & Super Admin only) */}
-          {isTabAllowed(user?.role, 'overview') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'overview' ? '#059669' : 'transparent',
-                color: activeTab === 'overview' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'overview' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-chart-pie" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Tổng Quan & Doanh Thu</span>
-            </button>
-          )}
+          {navItems
+            .filter((item) => isTabAllowed(user?.role, item.tab))
+            .map((item) => {
+              const isActive = activeTab === item.tab;
+              return (
+                <button
+                  key={item.tab}
+                  type="button"
+                  onClick={() => setActiveTab(item.tab)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.72rem 0.9rem',
+                    borderRadius: '11px',
+                    border: isActive ? '1px solid rgba(52, 211, 153, 0.35)' : '1px solid transparent',
+                    background: isActive
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.3) 100%)'
+                      : 'transparent',
+                    color: isActive ? '#ffffff' : '#d1fae5',
+                    fontWeight: isActive ? 800 : 500,
+                    fontSize: '0.86rem',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isActive ? '0 4px 14px rgba(16, 185, 129, 0.15)' : 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                      e.currentTarget.style.color = '#ffffff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#d1fae5';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <i
+                      className={`fa-solid ${item.icon}`}
+                      style={{
+                        width: '18px',
+                        textAlign: 'center',
+                        color: isActive ? '#34d399' : '#6ee7b7',
+                        fontSize: '0.9rem'
+                      }}
+                    />
+                    <span>{item.label}</span>
+                  </div>
 
-          {/* 2. Đơn Đặt Tour */}
-          {isTabAllowed(user?.role, 'bookings') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('bookings')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'bookings' ? '#059669' : 'transparent',
-                color: activeTab === 'bookings' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'bookings' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <i className="fa-solid fa-receipt" style={{ width: '18px', textAlign: 'center' }}></i>
-                <span>Quản Lý Đơn Tour</span>
-              </div>
-              <span style={{ background: pendingBookingsCount > 0 ? '#ef4444' : 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-                {bookingsCount}
-              </span>
-            </button>
-          )}
-
-          {/* 3. Lịch Sử Giao Dịch */}
-          {isTabAllowed(user?.role, 'payments') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('payments')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'payments' ? '#059669' : 'transparent',
-                color: activeTab === 'payments' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'payments' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <i className="fa-solid fa-credit-card" style={{ width: '18px', textAlign: 'center' }}></i>
-                <span>Lịch Sử Giao Dịch</span>
-              </div>
-              {paymentsCount > 0 && (
-                <span style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-                  {paymentsCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* 4. Kho Tour */}
-          {isTabAllowed(user?.role, 'tours') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('tours')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'tours' ? '#059669' : 'transparent',
-                color: activeTab === 'tours' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'tours' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <i className="fa-solid fa-map-location-dot" style={{ width: '18px', textAlign: 'center' }}></i>
-                <span>Kho Tour Lữ Hành</span>
-              </div>
-              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-                {toursCount}
-              </span>
-            </button>
-          )}
-
-          {/* 5. Khách Hàng Thành Viên */}
-          {isTabAllowed(user?.role, 'customers') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('customers')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'customers' ? '#059669' : 'transparent',
-                color: activeTab === 'customers' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'customers' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <i className="fa-solid fa-users" style={{ width: '18px', textAlign: 'center' }}></i>
-                <span>Khách Hàng</span>
-              </div>
-              <span style={{ background: '#34d399', color: '#064e3b', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-                {customersCount}
-              </span>
-            </button>
-          )}
-
-          {/* 6. Đội Ngũ Nhân Sự (Admin & Super Admin only) */}
-          {isTabAllowed(user?.role, 'staff') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('staff')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'staff' ? '#059669' : 'transparent',
-                color: activeTab === 'staff' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'staff' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <i className="fa-solid fa-id-badge" style={{ width: '18px', textAlign: 'center' }}></i>
-                <span>Đội Ngũ Nhân Sự</span>
-              </div>
-              <span style={{ background: '#60a5fa', color: '#1e3a8a', fontSize: '0.68rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '10px' }}>
-                {staffCount}
-              </span>
-            </button>
-          )}
-
-          {/* 7. Mã Khuyến Mãi & Voucher (Admin & Super Admin only) */}
-          {isTabAllowed(user?.role, 'coupons') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('coupons')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'coupons' ? '#059669' : 'transparent',
-                color: activeTab === 'coupons' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'coupons' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-tags" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Mã Giảm Giá & Voucher</span>
-            </button>
-          )}
-
-          {/* 8. Nhật Ký Hoạt Động (Admin & Super Admin only) */}
-          {isTabAllowed(user?.role, 'logs') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('logs')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'logs' ? '#059669' : 'transparent',
-                color: activeTab === 'logs' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'logs' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-clock-rotate-left" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Nhật Ký Hoạt Động</span>
-            </button>
-          )}
-
-          {/* 9. Tài Khoản & Đổi Mật Khẩu */}
-          {isTabAllowed(user?.role, 'profile') && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 0.9rem',
-                borderRadius: '12px',
-                border: 'none',
-                background: activeTab === 'profile' ? '#059669' : 'transparent',
-                color: activeTab === 'profile' ? '#ffffff' : '#d1fae5',
-                fontWeight: activeTab === 'profile' ? 700 : 500,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <i className="fa-solid fa-user-shield" style={{ width: '18px', textAlign: 'center' }}></i>
-              <span>Hồ Sơ &amp; Đổi Mật Khẩu</span>
-            </button>
-          )}
+                  {item.badge !== undefined && (
+                    <span
+                      style={{
+                        background: item.badgeColor || 'rgba(255, 255, 255, 0.2)',
+                        color: item.badgeColor === '#10b981' ? '#022c22' : '#ffffff',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        padding: '0.12rem 0.5rem',
+                        borderRadius: '9999px',
+                        letterSpacing: '0.02em',
+                        minWidth: '20px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
         </div>
       </div>
 
-      {/* Sidebar Footer Actions */}
-      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.12)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {/* 4. Sidebar Bottom Actions */}
+      <div
+        style={{
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          paddingTop: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem'
+        }}
+      >
         <Link
           to="/home"
           style={{
@@ -427,15 +346,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             gap: '0.6rem',
             padding: '0.65rem 0.9rem',
             borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.08)',
-            color: '#ffffff',
-            fontSize: '0.84rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            color: '#e2e8f0',
+            fontSize: '0.82rem',
             fontWeight: 600,
             textDecoration: 'none',
-            transition: 'background 0.2s'
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+            e.currentTarget.style.color = '#e2e8f0';
           }}
         >
-          <i className="fa-solid fa-globe"></i>
+          <i className="fa-solid fa-arrow-up-right-from-square" style={{ color: '#34d399', fontSize: '0.82rem' }} />
           <span>Về Website Khách Hàng</span>
         </Link>
 
@@ -452,16 +380,25 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             gap: '0.6rem',
             padding: '0.65rem 0.9rem',
             borderRadius: '10px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
             color: '#fca5a5',
-            fontSize: '0.84rem',
-            fontWeight: 600,
+            fontSize: '0.82rem',
+            fontWeight: 700,
             cursor: 'pointer',
-            textAlign: 'left'
+            textAlign: 'left',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+            e.currentTarget.style.color = '#fca5a5';
           }}
         >
-          <i className="fa-solid fa-right-from-bracket"></i>
+          <i className="fa-solid fa-arrow-right-from-bracket" style={{ fontSize: '0.82rem' }} />
           <span>Đăng Xuất Khỏi Portal</span>
         </button>
       </div>

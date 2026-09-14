@@ -24,6 +24,7 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
   onOpenProfile
 }) => {
   const { user } = useAuth();
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'overview':
@@ -40,6 +41,8 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
         return { breadcrumb: 'Đội Ngũ Nhân Sự', title: 'Quản Lý Cán Bộ & Phân Quyền Vận Hành' };
       case 'coupons':
         return { breadcrumb: 'Mã Khuyến Mãi', title: 'Cấu Hình Mã Khuyến Mãi' };
+      case 'logs':
+        return { breadcrumb: 'Nhật Ký Hoạt Động', title: 'Nhật Ký Kiểm Toán Hệ Thống (Audit Trail)' };
       case 'profile':
         return { breadcrumb: 'Tài Khoản & Bảo Mật', title: 'Hồ Sơ Cá Nhân & Quản Trị Viên' };
       default:
@@ -52,190 +55,285 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
   return (
     <header
       style={{
-        height: '70px',
-        background: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
+        height: '74px',
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
+        boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.03)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 2rem',
-        flexShrink: 0
+        padding: '0 2.25rem',
+        flexShrink: 0,
+        zIndex: 50,
+        position: 'sticky',
+        top: 0
       }}
     >
-      {/* Breadcrumbs & Title */}
-      <div>
-        <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.15rem' }}>
-          <span>WebTravel Portal</span>
-          <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.6rem' }}></i>
-          <span style={{ color: '#047857', fontWeight: 600 }}>{breadcrumb}</span>
+      {/* 1. Left: Breadcrumbs & Page Heading */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+        <div style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+          <span style={{ color: '#94a3b8' }}>WebTravel Portal</span>
+          <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.55rem', color: '#cbd5e1' }} />
+          <span
+            style={{
+              color: '#059669',
+              background: '#ecfdf5',
+              padding: '0.15rem 0.55rem',
+              borderRadius: '6px',
+              border: '1px solid #a7f3d0',
+              fontWeight: 700
+            }}
+          >
+            {breadcrumb}
+          </span>
         </div>
-        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+        <h2 style={{ margin: 0, fontSize: '1.28rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
           {title}
         </h2>
       </div>
 
-      {/* Right Action Widgets */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-        {/* Security Inactivity Notice Badge */}
+      {/* 2. Right: Action Widgets & Tools */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Security Auto-Lock Badge */}
         <div
-          title="Cơ chế bảo mật quản trị: Sau 30 phút không có thao tác chuột hoặc bàn phím, hệ thống sẽ hiển thị cảnh báo 60 giây và tự động đăng xuất an toàn."
+          title="Cơ chế bảo mật quản trị: Tự động khóa và đăng xuất an toàn sau 30 phút không thao tác."
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.45rem',
-            padding: '0.45rem 0.85rem',
-            background: '#fffbeb',
+            gap: '0.4rem',
+            padding: '0.42rem 0.8rem',
+            background: 'rgba(254, 243, 199, 0.7)',
             border: '1px solid #fde68a',
-            borderRadius: '10px',
-            fontSize: '0.78rem',
-            fontWeight: 600,
+            borderRadius: '9999px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
             color: '#92400e',
             cursor: 'help',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
           }}
         >
-          <i className="fa-solid fa-shield-halved" style={{ color: '#d97706', fontSize: '0.85rem' }}></i>
-          <span>Tự khóa sau <strong>30p</strong> không thao tác</span>
+          <i className="fa-solid fa-shield-halved" style={{ color: '#d97706', fontSize: '0.8rem' }} />
+          <span>Tự khóa: <strong>30p</strong></span>
         </div>
 
-        {/* Sync Button */}
+        {/* Refresh Sync Button */}
         <button
           type="button"
           onClick={onRefresh}
           disabled={isLoading}
+          title="Tải lại dữ liệu mới nhất từ hệ thống"
           style={{
-            padding: '0.5rem 0.85rem',
-            background: '#f1f5f9',
-            border: '1px solid #cbd5e1',
+            padding: '0.48rem 0.85rem',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
             borderRadius: '10px',
-            fontSize: '0.82rem',
-            fontWeight: 600,
+            fontSize: '0.8rem',
+            fontWeight: 700,
             color: '#334155',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.4rem',
-            transition: 'background 0.2s'
+            gap: '0.45rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.background = '#f8fafc';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#e2e8f0';
+            e.currentTarget.style.background = '#ffffff';
           }}
         >
-          <i className={`fa-solid fa-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ color: '#047857' }}></i>
-          <span>{isLoading ? 'Đang tải...' : 'Làm mới dữ liệu'}</span>
+          <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ color: '#059669' }} />
+          <span>{isLoading ? 'Đang tải...' : 'Làm mới'}</span>
         </button>
 
-        {/* Search input */}
+        {/* Global Fast Search Input */}
         <div style={{ position: 'relative' }}>
-          <i className="fa-solid fa-magnifying-glass" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '0.85rem' }}></i>
+          <i
+            className="fa-solid fa-magnifying-glass"
+            style={{
+              position: 'absolute',
+              left: '0.9rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: '#94a3b8',
+              fontSize: '0.8rem'
+            }}
+          />
           <input
             type="text"
             placeholder="Tìm kiếm nhanh..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              padding: '0.5rem 1rem 0.5rem 2.3rem',
+              padding: '0.48rem 1rem 0.48rem 2.25rem',
               borderRadius: '10px',
-              border: '1.5px solid #e2e8f0',
-              fontSize: '0.85rem',
-              width: '240px',
+              border: '1px solid #e2e8f0',
+              fontSize: '0.82rem',
+              width: '210px',
               outline: 'none',
-              background: '#f8fafc'
+              background: '#ffffff',
+              color: '#1e293b',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+              transition: 'all 0.2s ease'
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#10b981';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.12)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
             }}
           />
         </div>
 
-        {/* Quick Add Buttons */}
+        {/* Quick Add Tour Action */}
         {activeTab === 'tours' && (
           <PermissionGate permission="tour:create">
             <button
               type="button"
               onClick={onOpenAddTour}
               style={{
-                padding: '0.55rem 1rem',
-                background: '#047857',
+                padding: '0.52rem 1.05rem',
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
-                fontSize: '0.85rem',
+                fontSize: '0.82rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+                gap: '0.45rem',
+                boxShadow: '0 4px 10px rgba(5, 150, 105, 0.25)',
+                transition: 'transform 0.15s ease'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              <i className="fa-solid fa-plus"></i> Thêm Tour Mới
+              <i className="fa-solid fa-plus" /> Thêm Tour Mới
             </button>
           </PermissionGate>
         )}
 
+        {/* Quick Add Coupon Action */}
         {activeTab === 'coupons' && (
           <PermissionGate permission="coupon:create">
             <button
               type="button"
               onClick={onOpenAddCoupon}
               style={{
-                padding: '0.55rem 1rem',
-                background: '#047857',
+                padding: '0.52rem 1.05rem',
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
-                fontSize: '0.85rem',
+                fontSize: '0.82rem',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)'
+                gap: '0.45rem',
+                boxShadow: '0 4px 10px rgba(5, 150, 105, 0.25)',
+                transition: 'transform 0.15s ease'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              <i className="fa-solid fa-plus"></i> Tạo Voucher Mới
+              <i className="fa-solid fa-plus" /> Tạo Voucher Mới
             </button>
           </PermissionGate>
         )}
 
-        {/* Quick Profile Access Button */}
+        {/* User Profile Chip */}
         {onOpenProfile && (
           <button
             type="button"
             onClick={onOpenProfile}
-            title="Xem chi tiết tài khoản & đổi mật khẩu"
+            title="Xem hồ sơ cá nhân và cài đặt bảo mật"
             style={{
-              padding: '0.45rem 0.75rem',
-              background: activeTab === 'profile' ? '#ecfdf5' : '#f8fafc',
-              border: activeTab === 'profile' ? '1.5px solid #059669' : '1px solid #e2e8f0',
-              borderRadius: '10px',
+              padding: '0.38rem 0.75rem',
+              background: activeTab === 'profile' ? '#ecfdf5' : '#ffffff',
+              border: activeTab === 'profile' ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+              borderRadius: '12px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              color: activeTab === 'profile' ? '#047857' : '#334155',
+              gap: '0.55rem',
+              color: activeTab === 'profile' ? '#047857' : '#1e293b',
               fontWeight: 700,
               fontSize: '0.82rem',
-              transition: 'all 0.15s ease'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'profile') {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.background = '#f8fafc';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'profile') {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.background = '#ffffff';
+              }
             }}
           >
-            <div
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: '#047857',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                overflow: 'hidden'
-              }}
-            >
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              ) : (
-                (user?.fullName || 'A').charAt(0).toUpperCase()
-              )}
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.78rem',
+                  fontWeight: 900,
+                  overflow: 'hidden',
+                  border: '1.5px solid #ffffff'
+                }}
+              >
+                {user?.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt="Avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  (user?.fullName || user?.email || 'A').charAt(0).toUpperCase()
+                )}
+              </div>
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: '-1px',
+                  right: '-1px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  border: '1.5px solid #ffffff'
+                }}
+              />
             </div>
-            <span>Hồ Sơ</span>
+            <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a' }}>
+                {user?.fullName?.split(' ').slice(-1)[0] || 'Hồ Sơ'}
+              </div>
+              <div style={{ fontSize: '0.66rem', color: '#64748b', fontWeight: 600 }}>
+                {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Quản Trị' : 'Nhân Viên'}
+              </div>
+            </div>
           </button>
         )}
       </div>
