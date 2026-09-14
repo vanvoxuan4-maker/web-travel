@@ -4,6 +4,9 @@ import { useAuth } from '../../auth/useAuth';
 import { UserProfile } from '../../auth/auth.types';
 import { useModalPopup } from '../../context/ModalPopupContext';
 import { sanitizePhone, validatePhone, validateEmail, translateAuthError } from '../../utils/formValidation';
+import { TravelMascot, MascotMode } from '../components/auth/TravelMascot';
+import { PasswordStrengthMeter } from '../components/auth/PasswordStrengthMeter';
+import { MagneticButton } from '../components/common/MagneticButton';
 
 // Destination slides for left hero visual
 const HERO_SLIDES = [
@@ -100,6 +103,10 @@ export const LoginPage: React.FC = () => {
   const phoneValidation = validatePhone(phone);
   const emailValidation = validateEmail(email);
   const isPasswordValid = password.length >= 6;
+
+  // Interactive Mascot state
+  const [mascotMode, setMascotMode] = useState<MascotMode>('idle');
+  const lookProgress = Math.min(email.length / 22, 1);
 
   // Auto-rotate left hero visual slides every 6 seconds
   useEffect(() => {
@@ -628,6 +635,13 @@ export const LoginPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Captain Mochi Interactive Security Mascot */}
+          <TravelMascot
+            mode={mascotMode}
+            lookProgress={lookProgress}
+            style={{ marginBottom: '1.25rem' }}
+          />
+
           {/* Segmented Pill Tab Switcher */}
           <div
             style={{
@@ -882,12 +896,14 @@ export const LoginPage: React.FC = () => {
                 required
                 className="wt-floating-input"
                 value={email}
+                onFocus={() => setMascotMode('watching')}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   if (mode === 'register') setEmailTouched(true);
                 }}
                 onBlur={() => {
                   if (mode === 'register') setEmailTouched(true);
+                  setMascotMode('idle');
                 }}
                 placeholder=" "
               />
@@ -911,12 +927,14 @@ export const LoginPage: React.FC = () => {
                 required
                 className="wt-floating-input has-eye"
                 value={password}
+                onFocus={() => setMascotMode(showPassword ? 'peeking' : 'blindfolded')}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (mode === 'register') setPasswordTouched(true);
                 }}
                 onBlur={() => {
                   if (mode === 'register') setPasswordTouched(true);
+                  setMascotMode('idle');
                 }}
                 placeholder=" "
               />
@@ -926,13 +944,22 @@ export const LoginPage: React.FC = () => {
               </label>
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => {
+                  const next = !showPassword;
+                  setShowPassword(next);
+                  setMascotMode(next ? 'peeking' : 'blindfolded');
+                }}
                 className="wt-floating-eye"
                 aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
               </button>
             </div>
+
+            {/* Password Strength Meter (Register Mode) */}
+            {mode === 'register' && (
+              <PasswordStrengthMeter password={password} />
+            )}
 
             {mode === 'login' && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.75rem', marginBottom: '1.25rem' }}>
@@ -946,22 +973,6 @@ export const LoginPage: React.FC = () => {
               </div>
             )}
 
-            {mode === 'register' && passwordTouched && password.length > 0 && (
-              <div style={{
-                fontSize: '0.74rem',
-                marginTop: '-0.85rem',
-                marginBottom: '0.85rem',
-                color: isPasswordValid ? '#059669' : '#dc2626',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem'
-              }}>
-                <i className={`fa-solid ${isPasswordValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} />
-                <span>{isPasswordValid ? 'Độ dài mật khẩu đạt chuẩn' : 'Mật khẩu tối thiểu 6 ký tự'}</span>
-              </div>
-            )}
-
             {/* CONFIRM PASSWORD (ONLY IN REGISTER MODE) */}
             {mode === 'register' && (
               <>
@@ -972,11 +983,15 @@ export const LoginPage: React.FC = () => {
                     required
                     className="wt-floating-input has-eye"
                     value={confirmPassword}
+                    onFocus={() => setMascotMode(showConfirmPassword ? 'peeking' : 'blindfolded')}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setConfirmPasswordTouched(true);
                     }}
-                    onBlur={() => setConfirmPasswordTouched(true)}
+                    onBlur={() => {
+                      setConfirmPasswordTouched(true);
+                      setMascotMode('idle');
+                    }}
                     placeholder=" "
                   />
                   <i className="fa-solid fa-shield-halved wt-floating-icon" />
@@ -985,7 +1000,11 @@ export const LoginPage: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => {
+                      const next = !showConfirmPassword;
+                      setShowConfirmPassword(next);
+                      setMascotMode(next ? 'peeking' : 'blindfolded');
+                    }}
                     className="wt-floating-eye"
                     aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
@@ -1010,8 +1029,8 @@ export const LoginPage: React.FC = () => {
               </>
             )}
 
-            {/* SUBMIT BUTTON */}
-            <button
+            {/* MAGNETIC SUBMIT BUTTON WITH LIQUID RIPPLE */}
+            <MagneticButton
               type="submit"
               disabled={isSubmitting}
               style={{
@@ -1046,7 +1065,7 @@ export const LoginPage: React.FC = () => {
                   <i className="fa-solid fa-user-plus"></i> Hoàn Tất Đăng Ký Tài Khoản
                 </>
               )}
-            </button>
+            </MagneticButton>
           </form>
 
           {/* Security Guarantee Footnote */}
