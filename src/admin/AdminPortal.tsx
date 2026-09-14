@@ -341,7 +341,7 @@ export const AdminPortal: React.FC = () => {
     }
   }, [actionFeedback]);
 
-  // Handler: Customer Role (Staff, Admin, Customer)
+  // Handler: Customer / Staff Role (Staff, Admin, Super Admin, Customer)
   const handleRoleChange = async (customerId: string, newRole: UserRole) => {
     if (!canAssignRole(user?.role, newRole)) {
       setActionFeedback({ type: 'error', message: 'Bạn không có quyền phân quyền vai trò này.' });
@@ -352,13 +352,31 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật vai trò' });
       return;
     }
-    const targetUser = customers.find((c) => c.id === customerId);
+
+    // Đồng bộ vai trò sang bảng staff nếu là nhân sự hoặc cấp quản trị
+    if (newRole !== 'customer') {
+      await staffService.updateStaffRole(customerId, newRole);
+      setStaffList((prev) => prev.map((s) => (s.id === customerId ? { ...s, role: newRole } : s)));
+    } else {
+      // Nếu hạ xuống khách hàng, cập nhật trạng thái nghỉ việc/hủy quyền trong bảng nhân sự
+      await staffService.updateStaffStatus(customerId, 'resigned');
+      setStaffList((prev) => prev.filter((s) => s.id !== customerId));
+    }
+
+    const targetUser = customers.find((c) => c.id === customerId) || staffList.find((s) => s.id === customerId);
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, role: newRole } : c)));
-    const roleLabel = newRole === 'admin' ? 'QUẢN TRỊ VIÊN' : newRole === 'staff' ? 'NHÂN VIÊN' : 'KHÁCH HÀNG';
+    const roleLabel =
+      newRole === 'super_admin'
+        ? 'TỔNG QUẢN TRỊ (SUPER ADMIN)'
+        : newRole === 'admin'
+        ? 'QUẢN TRỊ VIÊN'
+        : newRole === 'staff'
+        ? 'NHÂN VIÊN'
+        : 'KHÁCH HÀNG';
     setActionFeedback({ type: 'success', message: `Đã cập nhật vai trò thành công: ${roleLabel}` });
 
     auditLogService.logAction({
-      action: 'UPDATE',
+      action: newRole === 'super_admin' ? 'PROMOTE_SUPER_ADMIN' : newRole === 'admin' ? 'PROMOTE_ADMIN' : 'UPDATE_ROLE',
       category: 'AUTH_SECURITY',
       targetType: 'staff',
       targetId: customerId,
