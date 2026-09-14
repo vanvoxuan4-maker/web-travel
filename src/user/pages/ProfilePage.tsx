@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../auth/useAuth';
 import { bookingService, BookingPayload, getBookingUiStatus } from '../../services/bookingService';
 import { profileService } from '../../services/profileService';
@@ -263,8 +263,23 @@ export const ProfilePage: React.FC = () => {
     return true;
   });
 
-  // Loyalty Tier Calculation
-  const loyaltyPoints = user?.loyaltyPoints || 0;
+  // Reconcile points from active/confirmed bookings (100.000đ = 1 điểm)
+  const pointsFromBookings = useMemo(() => {
+    return bookings.reduce((sum, b) => {
+      const isCancelled = (b.bookingStatus || '').toLowerCase() === 'cancelled' ||
+                          (b.paymentStatus || '').toLowerCase() === 'refunded' ||
+                          (b.paymentStatus || '').toLowerCase() === 'failed';
+      if (isCancelled) return sum;
+      
+      const pts = typeof b.pointsAwarded === 'number' && b.pointsAwarded > 0
+        ? b.pointsAwarded
+        : Math.floor((Number(b.paidAmount) || (b.paymentStatus === 'paid' ? Number(b.totalAmount) : 0)) / 100000);
+      return sum + pts;
+    }, 0);
+  }, [bookings]);
+
+  // Reconciled Loyalty Points Calculation
+  const loyaltyPoints = Math.max(user?.loyaltyPoints || 0, pointsFromBookings);
   const getTier = (points: number) => {
     if (points >= 5000) return { name: 'Hạng Kim Cương (Diamond)', color: '#7c3aed', icon: 'fa-gem', discount: '10%' };
     if (points >= 2000) return { name: 'Hạng Vàng (Gold)', color: '#d97706', icon: 'fa-crown', discount: '5%' };
@@ -272,6 +287,28 @@ export const ProfilePage: React.FC = () => {
     return { name: 'Thành Viên Mới (Standard)', color: '#059669', icon: 'fa-seedling', discount: '0%' };
   };
   const tier = getTier(loyaltyPoints);
+
+  // Auto-sync points back to user profile & local cache & Supabase when booking points exceed profile points
+  useEffect(() => {
+    if (user && pointsFromBookings > 0 && pointsFromBookings > (user.loyaltyPoints || 0)) {
+      try {
+        const localUserStr = localStorage.getItem('webtravel_auth_user');
+        if (localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          if (localUser.id === user.id || (user.email && localUser.email === user.email)) {
+            localUser.loyaltyPoints = pointsFromBookings;
+            localStorage.setItem('webtravel_auth_user', JSON.stringify(localUser));
+          }
+        }
+      } catch {}
+
+      window.dispatchEvent(new CustomEvent('webtravel:loyalty_updated', {
+        detail: { userId: user.id, newPoints: pointsFromBookings }
+      }));
+
+      profileService.updateUserProfile(user.id, { loyaltyPoints: pointsFromBookings }).catch(() => {});
+    }
+  }, [user, pointsFromBookings]);
 
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh', paddingTop: '8.5rem', paddingBottom: '4rem', paddingLeft: '1rem', paddingRight: '1rem' }}>
@@ -726,26 +763,32 @@ export const ProfilePage: React.FC = () => {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                              {!isCancelled && (booking.pointsAwarded || 0) > 0 && (
-                                <span
-                                  style={{
-                                    padding: '0.3rem 0.65rem',
-                                    borderRadius: '20px',
-                                    fontSize: '0.76rem',
-                                    fontWeight: 800,
-                                    background: '#fefce8',
-                                    color: '#b45309',
-                                    border: '1px solid #fde68a',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem'
-                                  }}
-                                  title="Điểm thưởng tích lũy của chuyến đi này"
-                                >
-                                  <i className="fa-solid fa-gift" style={{ color: '#d97706' }}></i>
-                                  +{(booking.pointsAwarded || 0).toLocaleString('vi-VN')} điểm
-                                </span>
-                              )}
+                              {(() => {
+                                const effPts = typeof booking.pointsAwarded === 'number' && booking.pointsAwarded > 0
+                                  ? booking.pointsAwarded
+                                  : Math.floor((Number(booking.paidAmount) || (booking.paymentStatus === 'paid' ? Number(booking.totalAmount) : 0)) / 100000);
+                                if (isCancelled || effPts <= 0) return null;
+                                return (
+                                  <span
+                                    style={{
+                                      padding: '0.3rem 0.65rem',
+                                      borderRadius: '20px',
+                                      fontSize: '0.76rem',
+                                      fontWeight: 800,
+                                      background: '#fefce8',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.3rem'
+                                    }}
+                                    title="Điểm thưởng tích lũy của chuyến đi này"
+                                  >
+                                    <i className="fa-solid fa-gift" style={{ color: '#d97706' }}></i>
+                                    +{effPts.toLocaleString('vi-VN')} điểm
+                                  </span>
+                                );
+                              })()}
                               {(() => {
                                 let badge = {
                                   text: '🔴 CHỜ THANH TOÁN',

@@ -161,25 +161,32 @@ export const UserBookingDetailModal: React.FC<UserBookingDetailModalProps> = ({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             {/* Loyalty Points Badge */}
-            {!isCancelled && (booking.pointsAwarded || 0) > 0 && (
-              <span
-                style={{
-                  padding: '0.35rem 0.85rem',
-                  borderRadius: '20px',
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  background: '#fefce8',
-                  color: '#b45309',
-                  border: '1px solid #fde68a',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem'
-                }}
-              >
-                <i className="fa-solid fa-gift" style={{ color: '#d97706' }}></i>
-                +{(booking.pointsAwarded || 0).toLocaleString('vi-VN')} điểm
-              </span>
-            )}
+            {(() => {
+              const effPoints = typeof booking.pointsAwarded === 'number' && booking.pointsAwarded > 0
+                ? booking.pointsAwarded
+                : Math.floor((Number(booking.paidAmount) || (booking.paymentStatus === 'paid' ? Number(booking.totalAmount) : 0)) / 100000);
+              if (isCancelled || effPoints <= 0) return null;
+              return (
+                <span
+                  style={{
+                    padding: '0.35rem 0.85rem',
+                    borderRadius: '20px',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    background: '#fefce8',
+                    color: '#b45309',
+                    border: '1px solid #fde68a',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                  title="Điểm thưởng tích lũy của chuyến đi này"
+                >
+                  <i className="fa-solid fa-gift" style={{ color: '#d97706' }}></i>
+                  +{effPoints.toLocaleString('vi-VN')} điểm
+                </span>
+              );
+            })()}
 
             {/* Status Badge */}
             {uiStatus === 'confirmed' ? (

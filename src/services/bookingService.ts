@@ -123,29 +123,61 @@ async function syncLoyaltyPointsForBooking(
 
     // Xác định User ID của đơn hàng
     let targetUserId = explicitUserId;
-    if (!targetUserId && isSupabaseConfigured && supabase) {
+    let customerEmail = '';
+    let customerPhone = '';
+
+    // 1. Tìm thông tin trong LocalStorage
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const found = localBookings.find(b => b.bookingCode?.toUpperCase() === code || b.id === code);
+      if (found) {
+        if (!targetUserId && found.userId) targetUserId = found.userId;
+        customerEmail = found.customerEmail || '';
+        customerPhone = found.customerPhone || '';
+      }
+    } catch {}
+
+    // 2. Tìm thông tin trong Supabase bookings
+    if ((!targetUserId || !customerEmail) && isSupabaseConfigured && supabase) {
       try {
         const { data: bData } = await supabase
           .from('bookings')
-          .select('user_id')
-          .eq('booking_code', code)
+          .select('user_id, customer_email, customer_phone')
+          .or(`booking_code.eq.${code},id.eq.${code}`)
           .maybeSingle();
-        if (bData?.user_id) targetUserId = bData.user_id;
+        if (bData) {
+          if (!targetUserId && bData.user_id) targetUserId = bData.user_id;
+          if (!customerEmail && bData.customer_email) customerEmail = bData.customer_email;
+          if (!customerPhone && bData.customer_phone) customerPhone = bData.customer_phone;
+        }
       } catch {}
     }
 
-    if (!targetUserId) {
+    // 3. Nếu chưa có targetUserId nhưng có email, truy vấn Supabase profiles
+    if (!targetUserId && customerEmail && isSupabaseConfigured && supabase) {
       try {
-        const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
-        const found = localBookings.find(b => b.bookingCode?.toUpperCase() === code);
-        if (found?.userId) targetUserId = found.userId;
+        const { data: pData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', customerEmail.trim())
+          .maybeSingle();
+        if (pData?.id) targetUserId = pData.id;
       } catch {}
     }
 
+    // 4. Nếu vẫn chưa có, kiểm tra người dùng đang đăng nhập có trùng email/phone không
     if (!targetUserId) {
       try {
         const localUser = JSON.parse(localStorage.getItem('webtravel_auth_user') || '{}');
-        if (localUser?.id) targetUserId = localUser.id;
+        if (localUser?.id) {
+          if (
+            (customerEmail && localUser.email?.toLowerCase() === customerEmail.toLowerCase()) ||
+            (customerPhone && localUser.phone === customerPhone) ||
+            (!customerEmail && !customerPhone)
+          ) {
+            targetUserId = localUser.id;
+          }
+        }
       } catch {}
     }
 

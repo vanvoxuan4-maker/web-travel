@@ -52,6 +52,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!supabase || !isSupabaseConfigured) return null;
 
     try {
+      // Preserve existing loyalty points from local storage or booking cache to avoid resetting to 0 on refresh
+      let preservedPoints = 0;
+      try {
+        const saved = localStorage.getItem(LOCAL_USER_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.id === userId || (userEmail && parsed?.email?.toLowerCase() === userEmail.toLowerCase())) {
+            preservedPoints = Number(parsed.loyaltyPoints) || 0;
+          }
+        }
+      } catch {}
+
+      try {
+        const ledger = JSON.parse(localStorage.getItem('webtravel_loyalty_ledger') || '{}');
+        const ledgerTotal = Object.values(ledger).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+        if (ledgerTotal > preservedPoints) preservedPoints = ledgerTotal;
+      } catch {}
+
+      try {
+        const localBookings = JSON.parse(localStorage.getItem('webtravel_local_bookings') || '[]');
+        const bookingPoints = localBookings
+          .filter((b: any) => {
+            const isCancelled = (b.bookingStatus || '').toLowerCase() === 'cancelled' || (b.paymentStatus || '').toLowerCase() === 'refunded';
+            const matches = b.userId === userId || (userEmail && b.customerEmail?.toLowerCase() === userEmail.toLowerCase());
+            return matches && !isCancelled;
+          })
+          .reduce((sum: number, b: any) => {
+            const effPaid = Number(b.paidAmount) || (b.paymentStatus === 'paid' ? Number(b.totalAmount) : 0);
+            return sum + (b.pointsAwarded ?? Math.floor(effPaid / 100000));
+          }, 0);
+        if (bookingPoints > preservedPoints) preservedPoints = bookingPoints;
+      } catch {}
+
       // 1. First attempt: Query by User ID
       let profileRow: any = null;
       const { data, error } = await supabase
@@ -83,13 +116,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           fullName: userEmail.split('@')[0],
           phone: '',
           role: 'customer',
-          loyaltyPoints: 0,
+          loyaltyPoints: preservedPoints,
           status: 'active',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         return fallbackProfile;
       }
+
+      const dbPoints = Number(profileRow.loyalty_points) || 0;
+      const finalLoyaltyPoints = Math.max(dbPoints, preservedPoints);
 
       return {
         id: profileRow.id,
@@ -98,7 +134,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         phone: profileRow.phone || '',
         avatarUrl: profileRow.avatar_url,
         role: (profileRow.role as UserRole) || 'customer',
-        loyaltyPoints: profileRow.loyalty_points || 0,
+        loyaltyPoints: finalLoyaltyPoints,
         address: profileRow.address || '',
         status: profileRow.status || 'active',
         createdAt: profileRow.created_at || new Date().toISOString(),
@@ -181,11 +217,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const handleLoyaltyEvent = (e: any) => {
       const { userId, newPoints } = e?.detail || {};
-      if (user && user.id === userId && typeof newPoints === 'number') {
+      if (typeof newPoints === 'number') {
         setUser(prev => {
           if (!prev) return null;
+          if (userId && prev.id !== userId) return prev;
           const updated = { ...prev, loyaltyPoints: newPoints };
-          localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+          try {
+            localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+          } catch {}
           return updated;
         });
       }
