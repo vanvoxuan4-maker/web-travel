@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AdminTab } from '../admin.types';
 import { useAuth } from '../../auth/useAuth';
 import { isTabAllowed } from '../../auth/permissions';
@@ -25,8 +25,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   paymentsCount = 0,
   pendingBookingsCount
 }) => {
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const navItems: {
     tab: AdminTab;
@@ -347,16 +346,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           })}
       </div>
 
-      {/* ── 3. Bottom Section (Always Fixed & Visible) ── */}
+      {/* ── 3. Bottom Section ── */}
       <div
         style={{
           flexShrink: 0,
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           paddingTop: '0.75rem',
-          marginTop: '0.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.45rem'
+          marginTop: '0.5rem'
         }}
       >
         <Link
@@ -364,13 +360,14 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '0.55rem',
-            padding: '0.58rem 0.85rem',
+            padding: '0.62rem 0.85rem',
             borderRadius: '9px',
             background: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
             color: '#e2e8f0',
-            fontSize: '0.8rem',
+            fontSize: '0.82rem',
             fontWeight: 600,
             textDecoration: 'none',
             transition: 'all 0.15s ease'
@@ -384,48 +381,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             e.currentTarget.style.color = '#e2e8f0';
           }}
         >
-          <i className="fa-solid fa-arrow-up-right-from-square" style={{ color: '#34d399', fontSize: '0.78rem' }} />
+          <i className="fa-solid fa-arrow-up-right-from-square" style={{ color: '#34d399', fontSize: '0.8rem' }} />
           <span>Về Website Khách Hàng</span>
         </Link>
-
-        {/* Nút Đăng Xuất Nổi Bật & Luôn Hiển Thị 100% */}
-        <button
-          type="button"
-          onClick={() => {
-            signOut();
-            navigate('/login');
-          }}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.55rem',
-            padding: '0.62rem 0.85rem',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(220, 38, 38, 0.32) 100%)',
-            border: '1px solid rgba(248, 113, 113, 0.4)',
-            color: '#fee2e2',
-            fontSize: '0.82rem',
-            fontWeight: 800,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(220, 38, 38, 0.18)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#dc2626';
-            e.currentTarget.style.color = '#ffffff';
-            e.currentTarget.style.boxShadow = '0 4px 14px rgba(220, 38, 38, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(220, 38, 38, 0.32) 100%)';
-            e.currentTarget.style.color = '#fee2e2';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(220, 38, 38, 0.18)';
-          }}
-        >
-          <i className="fa-solid fa-arrow-right-from-bracket" />
-          <span>Đăng Xuất Khỏi Portal</span>
-        </button>
       </div>
     </aside>
   );
