@@ -22,7 +22,6 @@ import { StaffModule } from './modules/StaffModule';
 import { AuditLogsModule } from './modules/AuditLogsModule';
 import { CouponsModule } from './modules/CouponsModule';
 import { AccountModule } from './modules/AccountModule';
-import { staffService } from '../services/staffService';
 import { auditLogService } from '../services/auditLogService';
 import { EditPriceModal } from './modals/EditPriceModal';
 import { AddTourModal } from './modals/AddTourModal';
@@ -104,7 +103,6 @@ export const AdminPortal: React.FC = () => {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(false);
   const [tours, setTours] = useState<Tour[]>(TOURS_DATA);
   const [coupons, setCoupons] = useState<CouponRecord[]>([]);
-  const [staffList, setStaffList] = useState<StaffRecord[]>([]);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,14 +287,6 @@ export const AdminPortal: React.FC = () => {
       } catch (txErr) {
         console.warn('Error loading transactions in AdminPortal:', txErr);
       }
-
-      // 6. Fetch Real Staff Records
-      try {
-        const staffData = await staffService.getAllStaff();
-        setStaffList(staffData);
-      } catch (staffErr) {
-        console.warn('Error loading staff in AdminPortal:', staffErr);
-      }
     } catch (err: any) {
       console.error('Error loading Supabase data in AdminPortal:', err);
     } finally {
@@ -353,17 +343,7 @@ export const AdminPortal: React.FC = () => {
       return;
     }
 
-    // Đồng bộ vai trò sang bảng staff nếu là nhân sự hoặc cấp quản trị
-    if (newRole !== 'customer') {
-      await staffService.updateStaffRole(customerId, newRole);
-      setStaffList((prev) => prev.map((s) => (s.id === customerId ? { ...s, role: newRole } : s)));
-    } else {
-      // Nếu hạ xuống khách hàng, cập nhật trạng thái nghỉ việc/hủy quyền trong bảng nhân sự
-      await staffService.updateStaffStatus(customerId, 'resigned');
-      setStaffList((prev) => prev.filter((s) => s.id !== customerId));
-    }
-
-    const targetUser = customers.find((c) => c.id === customerId) || staffList.find((s) => s.id === customerId);
+    const targetUser = customers.find((c) => c.id === customerId);
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, role: newRole } : c)));
     const roleLabel =
       newRole === 'super_admin'
@@ -829,32 +809,16 @@ export const AdminPortal: React.FC = () => {
 
   const pureCustomers = customers.filter((c) => c.role === 'customer');
 
-  // Merge staffList from dedicated staff table with staff-role customer profiles
-  const combinedStaffMap = new Map<string, StaffRecord>();
-  customers
+  // Lọc danh sách nhân sự trực tiếp từ bảng tài khoản profiles (vai trò staff, admin, super_admin)
+  const staffMembers = customers
     .filter((c) => c.role !== 'customer')
-    .forEach((c) => {
-      const validRole = (c.role === 'super_admin' || c.role === 'admin' ? c.role : 'staff') as 'super_admin' | 'admin' | 'staff';
-      const validStatus = (c.status === 'banned' ? 'banned' : 'active') as 'active' | 'banned' | 'resigned';
-      combinedStaffMap.set(c.id, {
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        address: c.address,
-        points: c.points,
-        joinedDate: c.joinedDate,
-        role: validRole,
-        status: validStatus,
-        employeeCode: 'NV-' + c.id.slice(0, 4).toUpperCase(),
-        department: c.role === 'super_admin' ? 'Ban Giám Đốc' : c.role === 'admin' ? 'Kỹ Thuật & CNTT' : 'Kinh Doanh & CSKH',
-        position: c.role === 'super_admin' ? 'Tổng Quản Trị Hệ Thống' : c.role === 'admin' ? 'Quản Trị Viên' : 'Chuyên Viên Vận Hành'
-      });
-    });
-  staffList.forEach((s) => {
-    combinedStaffMap.set(s.id, s);
-  });
-  const staffMembers = Array.from(combinedStaffMap.values());
+    .map((c) => ({
+      ...c,
+      role: c.role as 'super_admin' | 'admin' | 'staff',
+      employeeCode: 'NV-' + c.id.slice(0, 4).toUpperCase(),
+      department: c.role === 'super_admin' ? 'Ban Giám Đốc' : c.role === 'admin' ? 'Kỹ Thuật & CNTT' : 'Kinh Doanh & CSKH',
+      position: c.role === 'super_admin' ? 'Tổng Quản Trị Hệ Thống' : c.role === 'admin' ? 'Quản Trị Viên' : 'Chuyên Viên Vận Hành'
+    })) as StaffRecord[];
 
   const filteredCustomers = pureCustomers.filter(
     (c) =>
@@ -1004,7 +968,6 @@ export const AdminPortal: React.FC = () => {
               staff={filteredStaff}
               onRoleChange={handleRoleChange}
               onToggleStatus={handleToggleCustomerStatus}
-              onStaffAdded={loadDatabaseData}
             />
           )}
 

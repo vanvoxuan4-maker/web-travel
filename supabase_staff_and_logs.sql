@@ -1,80 +1,14 @@
 -- ==============================================================================
 -- WEBTRAVEL - SUPABASE DATABASE MIGRATION SCRIPT
--- BẢNG NHÂN SỰ (staff) & NHẬT KÝ HOẠT ĐỘNG (audit_logs)
+-- BẢNG NHẬT KÝ HOẠT ĐỘNG (audit_logs)
+-- Nhân sự được quản lý trực tiếp qua bảng profiles (lọc theo role staff, admin, super_admin)
 -- Hướng dẫn: Copy toàn bộ nội dung file này và dán vào Supabase SQL Editor rồi bấm RUN.
 -- ==============================================================================
 
--- 1. BẢNG NHÂN SỰ NỘI BỘ (public.staff)
-create table if not exists public.staff (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.profiles(id) on delete set null,
-  employee_code text unique not null,
-  full_name text not null,
-  email text unique not null,
-  phone text not null,
-  avatar_url text,
-  gender text default 'male' check (gender in ('male', 'female', 'other')),
-  date_of_birth date,
-  identity_card text,
-  department text not null default 'Điều Hành Tour',
-  position text not null default 'Chuyên Viên Tư Vấn',
-  role text not null default 'staff' check (role in ('staff', 'admin', 'super_admin')),
-  status text not null default 'active' check (status in ('active', 'banned', 'resigned')),
-  hire_date date default current_date,
-  address text,
-  emergency_contact text,
-  notes text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
+-- 1. TÙY CHỌN DỌN DẸP BẢNG STAFF CŨ (NẾU ĐÃ TỪNG TẠO)
+drop table if exists public.staff cascade;
 
--- Bật Row Level Security (RLS) cho bảng staff
-alter table public.staff enable row level security;
-
--- Index cho bảng staff để tối ưu tốc độ tìm kiếm
-create index if not exists idx_staff_employee_code on public.staff(employee_code);
-create index if not exists idx_staff_email on public.staff(email);
-create index if not exists idx_staff_department on public.staff(department);
-create index if not exists idx_staff_status on public.staff(status);
-create index if not exists idx_staff_role on public.staff(role);
-
--- Chính sách RLS cho bảng staff:
--- 1. Cho phép đọc thông tin nhân viên cho các tài khoản đã đăng nhập có quyền staff/admin/super_admin
-create policy "Cho phép nhân viên và admin xem danh sách nhân sự"
-  on public.staff
-  for select
-  using (
-    auth.role() = 'authenticated'
-  );
-
--- 2. Chỉ Admin và Super Admin được phép thêm nhân sự mới
-create policy "Cho phép admin và super admin thêm nhân sự mới"
-  on public.staff
-  for insert
-  with check (
-    auth.role() = 'authenticated'
-  );
-
--- 3. Cho phép Admin và Super Admin cập nhật hồ sơ nhân sự
-create policy "Cho phép admin và super admin sửa thông tin nhân sự"
-  on public.staff
-  for update
-  using (
-    auth.role() = 'authenticated'
-  );
-
--- 4. Chỉ Super Admin được phép xóa nhân sự
-create policy "Chỉ Super Admin được phép xóa nhân sự"
-  on public.staff
-  for delete
-  using (
-    auth.role() = 'authenticated'
-  );
-
--- ==============================================================================
 -- 2. BẢNG NHẬT KÝ HOẠT ĐỘNG (public.audit_logs)
--- ==============================================================================
-
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
@@ -83,7 +17,7 @@ create table if not exists public.audit_logs (
   user_email text,
   user_role text default 'staff',
   action text not null,
-  action_category text not null default 'booking' check (action_category in ('booking', 'payment', 'tour', 'staff', 'customer', 'coupon', 'system', 'auth')),
+  action_category text not null default 'system' check (action_category in ('booking', 'payment', 'tour', 'staff', 'customer', 'coupon', 'system', 'auth')),
   target_id text,
   target_name text,
   details jsonb default '{}'::jsonb,
@@ -102,13 +36,15 @@ create index if not exists idx_audit_logs_target_id on public.audit_logs(target_
 create index if not exists idx_audit_logs_user_id on public.audit_logs(user_id);
 
 -- Chính sách RLS cho bảng audit_logs:
--- 1. Cho phép người dùng đã xác thực (nhân viên, admin) tạo bản ghi nhật ký
+-- 1. Cho phép ghi nhận audit log
+drop policy if exists "Cho phép ghi nhận audit log" on public.audit_logs;
 create policy "Cho phép ghi nhận audit log"
   on public.audit_logs
   for insert
   with check (true);
 
--- 2. Chỉ Admin và Super Admin được phép đọc nhật ký
+-- 2. Cho phép xem audit logs đối với tài khoản đã xác thực
+drop policy if exists "Cho phép xem audit logs" on public.audit_logs;
 create policy "Cho phép xem audit logs"
   on public.audit_logs
   for select
@@ -120,79 +56,6 @@ create policy "Cho phép xem audit logs"
 -- 3. DỮ LIỆU KHỞI TẠO MẪU (SEED DATA)
 -- ==============================================================================
 
--- Thêm nhân sự mẫu nếu bảng staff đang trống
-insert into public.staff (
-  employee_code,
-  full_name,
-  email,
-  phone,
-  gender,
-  date_of_birth,
-  identity_card,
-  department,
-  position,
-  role,
-  status,
-  hire_date,
-  address,
-  emergency_contact,
-  notes
-)
-values
-  (
-    'NV-001',
-    'Võ Xuân Vạn',
-    'vanvoxuan4@gmail.com',
-    '0965712527',
-    'male',
-    '1995-08-15',
-    '079095012345',
-    'Ban Giám Đốc',
-    'Tổng Quản Trị Hệ Thống',
-    'super_admin',
-    'active',
-    '2024-01-01',
-    'TP. Hồ Chí Minh',
-    '0988889999 (Người thân)',
-    'Tài khoản sáng lập và điều hành toàn bộ hệ sinh thái WebTravel'
-  ),
-  (
-    'NV-002',
-    'Nguyễn Thu Trang',
-    'trang.nguyen@webtravel.vn',
-    '0912345678',
-    'female',
-    '1998-05-20',
-    '001198056789',
-    'Kinh Doanh & Sale',
-    'Trưởng Phòng Kinh Doanh',
-    'admin',
-    'active',
-    '2024-03-15',
-    'Hà Nội',
-    '0903112233 (Mẹ)',
-    'Phụ trách duyệt đơn đặt tour lớn và chương trình ưu đãi'
-  ),
-  (
-    'NV-003',
-    'Trần Minh Tuấn',
-    'tuan.tran@webtravel.vn',
-    '0933887766',
-    'male',
-    '2000-11-10',
-    '079200088991',
-    'Điều Hành Tour',
-    'Chuyên Viên Điều Hành Tuyến Quốc Tế',
-    'staff',
-    'active',
-    '2024-06-01',
-    'Đà Nẵng',
-    '0944556677 (Bố)',
-    'Quản lý lịch khởi hành các tour Nhật Bản, Hàn Quốc, Châu Âu'
-  )
-on conflict (employee_code) do nothing;
-
--- Thêm một số bản ghi nhật ký hoạt động mẫu ban đầu
 insert into public.audit_logs (
   created_at,
   user_name,
@@ -214,12 +77,12 @@ values
     'system',
     'SYS-2026',
     'Hệ Thống WebTravel',
-    '{"message": "Khởi tạo hệ thống quản trị, kích hoạt phân hệ Audit Logs và Quản lý nhân sự"}'::jsonb
+    '{"message": "Khởi tạo hệ thống quản trị, kích hoạt phân hệ Audit Logs"}'::jsonb
   ),
   (
     now() - interval '1 hour',
-    'Nguyễn Thu Trang',
-    'trang.nguyen@webtravel.vn',
+    'Hệ Thống',
+    'system@webtravel.vn',
     'admin',
     'CONFIRM_BOOKING',
     'booking',

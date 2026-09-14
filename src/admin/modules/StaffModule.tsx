@@ -5,7 +5,6 @@ import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
 import { ConfirmLockModal } from '../modals/ConfirmLockModal';
-import { AddStaffModal } from '../modals/AddStaffModal';
 import { exportStaffToCSV } from '../../utils/exportUtils';
 import { removeVietnameseTones } from '../../utils/formatters';
 
@@ -13,21 +12,18 @@ interface StaffModuleProps {
   staff: StaffRecord[];
   onRoleChange: (staffId: string, newRole: UserRole) => Promise<void>;
   onToggleStatus: (staffId: string, currentStatus: 'active' | 'banned' | 'deleted') => Promise<void>;
-  onStaffAdded?: (newStaff: StaffRecord) => void;
 }
 
 export const StaffModule: React.FC<StaffModuleProps> = ({
   staff,
   onRoleChange,
-  onToggleStatus,
-  onStaffAdded
+  onToggleStatus
 }) => {
   const { user: currentUser, isSuperAdmin: currentUserIsSuperAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | 'super_admin' | 'admin' | 'staff'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'banned'>('all');
   const [filterDepartment, setFilterDepartment] = useState<string>('all');
-  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [pendingPromotion, setPendingPromotion] = useState<{
     customer: StaffRecord;
     targetRole: 'admin' | 'super_admin';
@@ -221,27 +217,6 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <button
-              type="button"
-              onClick={() => setIsAddStaffOpen(true)}
-              style={{
-                padding: '0.55rem 1.15rem',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                border: 'none',
-                color: '#ffffff',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.25)'
-              }}
-            >
-              <i className="fa-solid fa-user-plus" /> Thêm Nhân Sự Mới
-            </button>
-
             <button
               type="button"
               onClick={() => exportStaffToCSV(filteredStaff)}
@@ -673,13 +648,7 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
         {pendingStatusStaff && (
           <ConfirmLockModal
             isOpen={!!pendingStatusStaff}
-            user={{
-              id: pendingStatusStaff.id,
-              name: pendingStatusStaff.name,
-              email: pendingStatusStaff.email,
-              role: pendingStatusStaff.role,
-              status: pendingStatusStaff.status === 'resigned' ? 'banned' : pendingStatusStaff.status
-            }}
+            user={pendingStatusStaff}
             onClose={() => setPendingStatusStaff(null)}
             onConfirm={async (staffId, currentStatus) => {
               await onToggleStatus(staffId, currentStatus);
@@ -691,28 +660,11 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
         {/* Re-auth Modal */}
         {pendingPromotion && (
           <ConfirmAdminPromotionModal
-            targetCustomer={{
-              ...pendingPromotion.customer,
-              address: pendingPromotion.customer.address || 'Chưa cập nhật',
-              points: pendingPromotion.customer.points || 0,
-              joinedDate: pendingPromotion.customer.joinedDate || 'Mới',
-              status: pendingPromotion.customer.status === 'resigned' ? 'banned' : pendingPromotion.customer.status
-            }}
+            targetCustomer={pendingPromotion.customer as any}
             targetRole={pendingPromotion.targetRole}
             isOpen={!!pendingPromotion}
             onClose={() => setPendingPromotion(null)}
             onConfirmPromotion={handleConfirmPromotion}
-          />
-        )}
-
-        {/* Add Staff Modal */}
-        {isAddStaffOpen && (
-          <AddStaffModal
-            isOpen={isAddStaffOpen}
-            onClose={() => setIsAddStaffOpen(false)}
-            onStaffAdded={(newStaff) => {
-              onStaffAdded?.(newStaff);
-            }}
           />
         )}
       </div>

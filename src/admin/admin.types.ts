@@ -44,29 +44,14 @@ export interface CustomerRecord {
   avatarUrl?: string;
 }
 
-export interface StaffRecord {
-  id: string;
-  userId?: string;
-  employeeCode: string;
-  name: string;
-  email: string;
-  phone: string;
-  avatarUrl?: string;
-  gender?: 'male' | 'female' | 'other';
-  dateOfBirth?: string;
-  identityCard?: string;
-  department: string;
-  position: string;
+export interface StaffRecord extends Omit<CustomerRecord, 'role'> {
   role: 'super_admin' | 'admin' | 'staff';
-  status: 'active' | 'banned' | 'resigned';
+  employeeCode?: string;
+  department?: string;
+  position?: string;
   hireDate?: string;
-  address?: string;
   emergencyContact?: string;
   notes?: string;
-  joinedDate?: string;
-  points?: number;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export type AuditLogCategory = 'booking' | 'payment' | 'tour' | 'staff' | 'customer' | 'coupon' | 'system' | 'auth';
