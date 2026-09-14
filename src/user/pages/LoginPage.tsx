@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth';
 import { UserProfile } from '../../auth/auth.types';
+import { useModalPopup } from '../../context/ModalPopupContext';
 import { sanitizePhone, validatePhone, validateEmail, translateAuthError } from '../../utils/formValidation';
 
 // Destination slides for left hero visual
@@ -58,6 +59,9 @@ export const LoginPage: React.FC = () => {
     return '/home';
   };
 
+  const { showSuccess, showError } = useModalPopup();
+  const isSubmittingLoginRef = React.useRef(false);
+
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [email, setEmail] = useState('');
@@ -95,6 +99,7 @@ export const LoginPage: React.FC = () => {
   // would trigger an immediate redirect, causing a brief flicker
   // before ProtectedRoute detects the banned status and switches to AccountSuspendedScreen.
   useEffect(() => {
+    if (isSubmittingLoginRef.current) return;
     if (!isAuthLoading && isAuthenticated && user && user.status !== 'banned' && user.status !== 'deleted') {
       const targetDestination = getDestination(user);
       navigate(targetDestination, { replace: true });
@@ -154,25 +159,41 @@ export const LoginPage: React.FC = () => {
 
     try {
       if (mode === 'login') {
+        isSubmittingLoginRef.current = true;
         const res = await signIn(cleanEmail, password);
         if (!res.success) {
-          setErrorMsg(translateAuthError(res.error || 'Email hoặc mật khẩu không chính xác.'));
+          isSubmittingLoginRef.current = false;
+          const translated = translateAuthError(res.error || 'Email hoặc mật khẩu không chính xác.');
+          setErrorMsg(translated);
+          showError('Đăng Nhập Thất Bại', translated);
         } else {
           const loggedInUser = res.user || user;
           const isStaffOrAdmin =
             loggedInUser?.role === 'staff' || loggedInUser?.role === 'admin' || loggedInUser?.role === 'super_admin';
           const targetDestination = getDestination(loggedInUser);
 
-          setSuccessMsg(
+          showSuccess(
+            isStaffOrAdmin ? 'Đăng Nhập Quản Trị Thành Công!' : 'Đăng Nhập Thành Công!',
             isStaffOrAdmin
-              ? 'Đăng nhập quyền Quản trị thành công! Đang chuyển đến Bảng điều khiển...'
-              : 'Đăng nhập thành công! Đang chuyển hướng vào hệ thống...'
+              ? 'Chào mừng bạn đã đăng nhập quyền Quản trị vào Cổng điều hành WebTravel.'
+              : 'Chào mừng bạn đã quay trở lại với hệ sinh thái du lịch WebTravel.',
+            {
+              confirmText: isStaffOrAdmin ? 'Vào Bảng Điều Khiển ➔' : 'Khám Phá Tour Ngay ➔',
+              userBadge: {
+                name: loggedInUser?.fullName || cleanEmail.split('@')[0],
+                email: loggedInUser?.email || cleanEmail,
+                role: loggedInUser?.role,
+                avatarUrl: loggedInUser?.avatarUrl
+              },
+              onConfirm: () => {
+                navigate(targetDestination, { replace: true });
+              },
+              autoCloseMs: 2500
+            }
           );
-          setTimeout(() => {
-            navigate(targetDestination, { replace: true });
-          }, 400);
         }
       } else {
+        isSubmittingLoginRef.current = true;
         const res = await signUp({
           email: cleanEmail,
           password,
@@ -182,16 +203,34 @@ export const LoginPage: React.FC = () => {
         });
 
         if (!res.success) {
-          setErrorMsg(translateAuthError(res.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.'));
+          isSubmittingLoginRef.current = false;
+          const translated = translateAuthError(res.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+          setErrorMsg(translated);
+          showError('Đăng Ký Thất Bại', translated);
         } else {
-          setSuccessMsg('Đăng ký tài khoản thành công! Đang tự động đăng nhập...');
-          setTimeout(() => {
-            navigate(getDestination(null), { replace: true });
-          }, 800);
+          showSuccess(
+            'Đăng Ký Tài Khoản Thành Công!',
+            'Chào mừng bạn đã trở thành Thành Viên của WebTravel. Hãy cùng khám phá những hành trình tuyệt vời!',
+            {
+              confirmText: 'Bắt Đầu Trải Nghiệm ➔',
+              userBadge: {
+                name: fullName.trim(),
+                email: cleanEmail,
+                role: 'customer'
+              },
+              onConfirm: () => {
+                navigate(getDestination(null), { replace: true });
+              },
+              autoCloseMs: 2500
+            }
+          );
         }
       }
     } catch (err: any) {
-      setErrorMsg(translateAuthError(err?.message || 'Có lỗi xảy ra trong quá trình xử lý.'));
+      isSubmittingLoginRef.current = false;
+      const translated = translateAuthError(err?.message || 'Có lỗi xảy ra trong quá trình xử lý.');
+      setErrorMsg(translated);
+      showError('Có Lỗi Xảy Ra', translated);
     } finally {
       setIsSubmitting(false);
     }

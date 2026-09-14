@@ -7,14 +7,17 @@ import { sanitizePhone, validatePhone } from '../../utils/formValidation';
 import { ETicketModal } from '../components/profile/ETicketModal';
 import { QuickPaymentModal } from '../components/profile/QuickPaymentModal';
 import { UserBookingDetailModal } from '../components/profile/UserBookingDetailModal';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../lib/supabaseClient';
+import { useModalPopup } from '../../context/ModalPopupContext';
 
 type ProfileTab = 'bookings' | 'settings' | 'loyalty';
 type BookingFilter = 'all' | 'confirmed' | 'pending' | 'completed' | 'cancelled';
 
 export const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const { user, refreshProfile, signOut, isAdmin, changePassword } = useAuth();
+  const { showConfirm, showSuccess } = useModalPopup();
   const [activeTab, setActiveTab] = useState<ProfileTab>('bookings');
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>('all');
 
@@ -591,7 +594,34 @@ export const ProfilePage: React.FC = () => {
               {/* Logout Button */}
               <button
                 type="button"
-                onClick={signOut}
+                onClick={() => {
+                  showConfirm(
+                    'Xác Nhận Đăng Xuất',
+                    'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản WebTravel?',
+                    async () => {
+                      await signOut();
+                      showSuccess(
+                        'Đã Đăng Xuất Thành Công',
+                        'Cảm ơn bạn đã đồng hành cùng WebTravel. Hẹn sớm gặp lại bạn!',
+                        {
+                          confirmText: 'Về Trang Chủ',
+                          onConfirm: () => navigate('/home'),
+                          autoCloseMs: 2500
+                        }
+                      );
+                    },
+                    {
+                      confirmText: 'Đăng Xuất Ngay',
+                      cancelText: 'Ở Lại',
+                      userBadge: {
+                        name: user?.fullName || 'Khách Hàng',
+                        email: user?.email,
+                        role: user?.role,
+                        avatarUrl: user?.avatarUrl
+                      }
+                    }
+                  );
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',

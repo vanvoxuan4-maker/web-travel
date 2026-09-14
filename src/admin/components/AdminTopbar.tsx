@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminTab } from '../admin.types';
 import { PermissionGate, useAuth } from '../../auth';
+import { useModalPopup } from '../../context/ModalPopupContext';
 
 interface AdminTopbarProps {
   activeTab: AdminTab;
@@ -26,6 +27,36 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { showConfirm, showSuccess } = useModalPopup();
+
+  const handleLogoutClick = () => {
+    showConfirm(
+      'Xác Nhận Đăng Xuất',
+      'Bạn có chắc chắn muốn kết thúc phiên làm việc và đăng xuất khỏi cổng Quản Trị Hệ Thống WebTravel không?',
+      async () => {
+        await signOut();
+        showSuccess(
+          'Đã Đăng Xuất Thành Công',
+          'Phiên làm việc quản trị đã được kết thúc an toàn. Hẹn gặp lại bạn!',
+          {
+            confirmText: 'Về Trang Đăng Nhập',
+            onConfirm: () => navigate('/login'),
+            autoCloseMs: 2500
+          }
+        );
+      },
+      {
+        confirmText: 'Đăng Xuất Ngay',
+        cancelText: 'Ở Lại Làm Việc',
+        userBadge: {
+          name: user?.fullName || 'Quản Trị Viên',
+          email: user?.email,
+          role: user?.role,
+          avatarUrl: user?.avatarUrl
+        }
+      }
+    );
+  };
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -342,10 +373,7 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
         {/* Quick Logout Button */}
         <button
           type="button"
-          onClick={() => {
-            signOut();
-            navigate('/login');
-          }}
+          onClick={handleLogoutClick}
           title="Đăng xuất khỏi hệ thống quản trị"
           style={{
             padding: '0.42rem 0.75rem',
