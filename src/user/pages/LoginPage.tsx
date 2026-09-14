@@ -30,6 +30,21 @@ const HERO_SLIDES = [
   }
 ];
 
+// Helper to render letter-by-letter jumping wave floating label
+const renderWavyLabel = (text: string) => {
+  return text.split('').map((char, index) => (
+    <span
+      key={index}
+      className="wt-wavy-char"
+      style={{
+        transitionDelay: `${index * 22}ms`
+      }}
+    >
+      {char === ' ' ? '\u00A0' : char}
+    </span>
+  ));
+};
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -294,16 +309,24 @@ export const LoginPage: React.FC = () => {
           left: 2.75rem;
           top: 50%;
           transform: translateY(-50%);
-          background: transparent;
-          padding: 0 6px;
+          pointer-events: none;
+          z-index: 3;
+          display: flex;
+          align-items: center;
+          padding: 0 4px;
+          border-radius: 4px;
+          user-select: none;
+          transition: background 0.2s ease;
+        }
+
+        .wt-wavy-char {
+          display: inline-block;
           color: #64748b;
           font-size: 0.92rem;
           font-weight: 500;
-          pointer-events: none;
-          transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-origin: left center;
-          z-index: 3;
-          border-radius: 4px;
+          background: transparent;
+          transition: transform 0.28s cubic-bezier(0.5, 0, 0.5, 1.4), color 0.2s ease, font-weight 0.2s ease;
+          transform-origin: center bottom;
         }
 
         .wt-floating-eye {
@@ -328,7 +351,7 @@ export const LoginPage: React.FC = () => {
           color: #059669;
         }
 
-        /* 1. HOVER over group: Border turns emerald, Icon turns emerald, Label floats up & turns emerald */
+        /* 1. HOVER over group: Border turns emerald, Icon turns emerald, Each letter waves / jumps up */
         .wt-floating-group:hover .wt-floating-input {
           border-color: #059669;
         }
@@ -338,15 +361,16 @@ export const LoginPage: React.FC = () => {
         }
 
         .wt-floating-group:hover .wt-floating-label {
-          top: 0;
-          left: 0.9rem;
-          transform: translateY(-50%) scale(0.85);
-          font-weight: 700;
-          color: #059669;
           background: #ffffff;
         }
 
-        /* 2. FOCUS inside input: Border glow emerald, Label stays up */
+        .wt-floating-group:hover .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
+          color: #059669;
+          font-weight: 700;
+        }
+
+        /* 2. FOCUS inside input: Border glow emerald, Icon emerald, Each letter waves / jumps up */
         .wt-floating-input:focus {
           border-color: #059669 !important;
           box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14) !important;
@@ -357,37 +381,41 @@ export const LoginPage: React.FC = () => {
         }
 
         .wt-floating-input:focus ~ .wt-floating-label {
-          top: 0;
-          left: 0.9rem;
-          transform: translateY(-50%) scale(0.85);
-          font-weight: 700;
-          color: #059669 !important;
           background: #ffffff;
         }
 
-        /* 3. HAS VALUE (is-floating): When input already has text, keep label floating on top */
+        .wt-floating-input:focus ~ .wt-floating-label .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
+          color: #059669 !important;
+          font-weight: 700;
+        }
+
+        /* 3. HAS VALUE (is-floating): Keep letters floating on top */
         .wt-floating-group.is-floating .wt-floating-label {
-          top: 0;
-          left: 0.9rem;
-          transform: translateY(-50%) scale(0.85);
+          background: #ffffff;
+        }
+
+        .wt-floating-group.is-floating .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
           font-weight: 700;
           color: #475569;
-          background: #ffffff;
         }
 
-        .wt-floating-group.is-floating:hover .wt-floating-label,
-        .wt-floating-group.is-floating:focus-within .wt-floating-label {
+        .wt-floating-group.is-floating:hover .wt-wavy-char,
+        .wt-floating-group.is-floating:focus-within .wt-wavy-char {
           color: #059669;
         }
 
         .wt-floating-input:-webkit-autofill ~ .wt-floating-label,
         .wt-floating-input:autofill ~ .wt-floating-label {
-          top: 0;
-          left: 0.9rem;
-          transform: translateY(-50%) scale(0.85);
+          background: #ffffff;
+        }
+
+        .wt-floating-input:-webkit-autofill ~ .wt-floating-label .wt-wavy-char,
+        .wt-floating-input:autofill ~ .wt-floating-label .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
           font-weight: 700;
           color: #059669;
-          background: #ffffff;
         }
 
         /* 4. VALIDATION STATES */
@@ -397,7 +425,7 @@ export const LoginPage: React.FC = () => {
         }
 
         .wt-floating-group.has-error .wt-floating-icon,
-        .wt-floating-group.has-error .wt-floating-label {
+        .wt-floating-group.has-error .wt-wavy-char {
           color: #dc2626 !important;
         }
 
@@ -406,7 +434,7 @@ export const LoginPage: React.FC = () => {
         }
 
         .wt-floating-group.has-success .wt-floating-icon,
-        .wt-floating-group.has-success .wt-floating-label {
+        .wt-floating-group.has-success .wt-wavy-char {
           color: #059669 !important;
         }
       `}</style>
@@ -766,7 +794,7 @@ export const LoginPage: React.FC = () => {
                   />
                   <i className="fa-solid fa-user wt-floating-icon" />
                   <label htmlFor="reg-fullname" className="wt-floating-label">
-                    Họ và tên của bạn *
+                    {renderWavyLabel('Họ và tên của bạn *')}
                   </label>
                 </div>
 
@@ -790,7 +818,7 @@ export const LoginPage: React.FC = () => {
                       />
                       <i className="fa-solid fa-phone wt-floating-icon" />
                       <label htmlFor="reg-phone" className="wt-floating-label">
-                        Số điện thoại *
+                        {renderWavyLabel('Số điện thoại *')}
                       </label>
                     </div>
                     {phoneTouched && phone.length > 0 && (
@@ -822,7 +850,7 @@ export const LoginPage: React.FC = () => {
                       />
                       <i className="fa-solid fa-location-dot wt-floating-icon" />
                       <label htmlFor="reg-address" className="wt-floating-label">
-                        Địa chỉ liên hệ *
+                        {renderWavyLabel('Địa chỉ liên hệ *')}
                       </label>
                     </div>
                   </div>
@@ -849,7 +877,7 @@ export const LoginPage: React.FC = () => {
               />
               <i className="fa-solid fa-envelope wt-floating-icon" />
               <label htmlFor="login-email" className="wt-floating-label">
-                Địa chỉ Email *
+                {renderWavyLabel('Địa chỉ Email *')}
               </label>
             </div>
             {mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid && (
@@ -878,7 +906,7 @@ export const LoginPage: React.FC = () => {
               />
               <i className="fa-solid fa-lock wt-floating-icon" />
               <label htmlFor="login-password" className="wt-floating-label">
-                Mật khẩu *
+                {renderWavyLabel('Mật khẩu *')}
               </label>
               <button
                 type="button"
@@ -937,7 +965,7 @@ export const LoginPage: React.FC = () => {
                   />
                   <i className="fa-solid fa-shield-halved wt-floating-icon" />
                   <label htmlFor="reg-confirm-password" className="wt-floating-label">
-                    Xác nhận lại mật khẩu *
+                    {renderWavyLabel('Xác nhận lại mật khẩu *')}
                   </label>
                   <button
                     type="button"
