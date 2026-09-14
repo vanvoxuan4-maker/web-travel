@@ -16,6 +16,7 @@ export interface ModalPopupOptions {
   userBadge?: UserBadgeInfo;
   confirmText?: string;
   cancelText?: string;
+  hideConfirmButton?: boolean;
   onConfirm?: () => void | Promise<void>;
   onCancel?: () => void;
   autoCloseMs?: number;
@@ -462,6 +463,22 @@ export const ModalPopupProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 >
                   {popupData.confirmText || currentConfig.defaultConfirmText}
                 </button>
+              </div>
+            ) : popupData.hideConfirmButton ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.6rem',
+                  color: currentConfig.iconColor,
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  padding: '0.35rem 0 0.15rem'
+                }}
+              >
+                <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '1.05rem' }} />
+                <span>Đang tự động chuyển hướng...</span>
               </div>
             ) : (
               <button

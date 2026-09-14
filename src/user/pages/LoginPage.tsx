@@ -178,7 +178,7 @@ export const LoginPage: React.FC = () => {
               ? 'Chào mừng bạn đã đăng nhập quyền Quản trị vào Cổng điều hành WebTravel.'
               : 'Chào mừng bạn đã quay trở lại với hệ sinh thái du lịch WebTravel.',
             {
-              confirmText: isStaffOrAdmin ? 'Vào Bảng Điều Khiển ➔' : 'Khám Phá Tour Ngay ➔',
+              hideConfirmButton: true,
               userBadge: {
                 name: loggedInUser?.fullName || cleanEmail.split('@')[0],
                 email: loggedInUser?.email || cleanEmail,
@@ -188,7 +188,7 @@ export const LoginPage: React.FC = () => {
               onConfirm: () => {
                 navigate(targetDestination, { replace: true });
               },
-              autoCloseMs: 2500
+              autoCloseMs: 1800
             }
           );
         }
@@ -212,7 +212,7 @@ export const LoginPage: React.FC = () => {
             'Đăng Ký Tài Khoản Thành Công!',
             'Chào mừng bạn đã trở thành Thành Viên của WebTravel. Hãy cùng khám phá những hành trình tuyệt vời!',
             {
-              confirmText: 'Bắt Đầu Trải Nghiệm ➔',
+              hideConfirmButton: true,
               userBadge: {
                 name: fullName.trim(),
                 email: cleanEmail,
@@ -221,7 +221,7 @@ export const LoginPage: React.FC = () => {
               onConfirm: () => {
                 navigate(getDestination(null), { replace: true });
               },
-              autoCloseMs: 2500
+              autoCloseMs: 1800
             }
           );
         }
