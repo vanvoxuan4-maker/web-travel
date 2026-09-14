@@ -310,13 +310,36 @@ export const LoginPage: React.FC = () => {
           top: 50%;
           transform: translateY(-50%);
           pointer-events: none;
-          z-index: 3;
-          display: flex;
+          z-index: 5;
+          display: inline-flex;
           align-items: center;
-          padding: 0 4px;
-          border-radius: 4px;
           user-select: none;
-          transition: background 0.2s ease;
+        }
+
+        /* Solid white notch plate that cleanly cuts and hides the top border line */
+        .wt-floating-label::before {
+          content: '';
+          position: absolute;
+          left: -6px;
+          right: -6px;
+          top: 50%;
+          height: 16px;
+          background-color: #ffffff;
+          border-radius: 4px;
+          z-index: -1;
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-50%) scale(0.85);
+          transition: transform 0.26s cubic-bezier(0.5, 0, 0.5, 1.4), opacity 0.2s ease;
+        }
+
+        .wt-floating-group:hover .wt-floating-label::before,
+        .wt-floating-input:focus ~ .wt-floating-label::before,
+        .wt-floating-group.is-floating .wt-floating-label::before,
+        .wt-floating-input:-webkit-autofill ~ .wt-floating-label::before,
+        .wt-floating-input:autofill ~ .wt-floating-label::before {
+          opacity: 1;
+          transform: translateY(-26px) scale(1);
         }
 
         .wt-wavy-char {
@@ -324,9 +347,12 @@ export const LoginPage: React.FC = () => {
           color: #64748b;
           font-size: 0.92rem;
           font-weight: 500;
-          background: transparent;
-          transition: transform 0.28s cubic-bezier(0.5, 0, 0.5, 1.4), color 0.2s ease, font-weight 0.2s ease;
+          background-color: transparent;
+          padding: 2px 0.5px;
+          transition: transform 0.28s cubic-bezier(0.5, 0, 0.5, 1.4), color 0.2s ease, font-weight 0.2s ease, background-color 0.2s ease;
           transform-origin: center bottom;
+          position: relative;
+          z-index: 2;
         }
 
         .wt-floating-eye {
@@ -360,14 +386,11 @@ export const LoginPage: React.FC = () => {
           color: #059669;
         }
 
-        .wt-floating-group:hover .wt-floating-label {
-          background: #ffffff;
-        }
-
         .wt-floating-group:hover .wt-wavy-char {
           transform: translateY(-26px) scale(0.85);
           color: #059669;
           font-weight: 700;
+          background-color: #ffffff;
         }
 
         /* 2. FOCUS inside input: Border glow emerald, Icon emerald, Each letter waves / jumps up */
@@ -380,35 +403,25 @@ export const LoginPage: React.FC = () => {
           color: #059669;
         }
 
-        .wt-floating-input:focus ~ .wt-floating-label {
-          background: #ffffff;
-        }
-
         .wt-floating-input:focus ~ .wt-floating-label .wt-wavy-char {
           transform: translateY(-26px) scale(0.85);
           color: #059669 !important;
           font-weight: 700;
+          background-color: #ffffff;
         }
 
         /* 3. HAS VALUE (is-floating): Keep letters floating on top */
-        .wt-floating-group.is-floating .wt-floating-label {
-          background: #ffffff;
-        }
-
         .wt-floating-group.is-floating .wt-wavy-char {
           transform: translateY(-26px) scale(0.85);
           font-weight: 700;
           color: #475569;
+          background-color: #ffffff;
         }
 
         .wt-floating-group.is-floating:hover .wt-wavy-char,
         .wt-floating-group.is-floating:focus-within .wt-wavy-char {
           color: #059669;
-        }
-
-        .wt-floating-input:-webkit-autofill ~ .wt-floating-label,
-        .wt-floating-input:autofill ~ .wt-floating-label {
-          background: #ffffff;
+          background-color: #ffffff;
         }
 
         .wt-floating-input:-webkit-autofill ~ .wt-floating-label .wt-wavy-char,
@@ -416,6 +429,7 @@ export const LoginPage: React.FC = () => {
           transform: translateY(-26px) scale(0.85);
           font-weight: 700;
           color: #059669;
+          background-color: #ffffff;
         }
 
         /* 4. VALIDATION STATES */
@@ -427,6 +441,7 @@ export const LoginPage: React.FC = () => {
         .wt-floating-group.has-error .wt-floating-icon,
         .wt-floating-group.has-error .wt-wavy-char {
           color: #dc2626 !important;
+          background-color: #ffffff;
         }
 
         .wt-floating-group.has-success .wt-floating-input {
@@ -436,6 +451,7 @@ export const LoginPage: React.FC = () => {
         .wt-floating-group.has-success .wt-floating-icon,
         .wt-floating-group.has-success .wt-wavy-char {
           color: #059669 !important;
+          background-color: #ffffff;
         }
       `}</style>
       {/* ========================================================================= */}
