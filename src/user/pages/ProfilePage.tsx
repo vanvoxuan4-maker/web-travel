@@ -725,7 +725,27 @@ export const ProfilePage: React.FC = () => {
                               </span>
                             </div>
 
-                            <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              {!isCancelled && (booking.pointsAwarded || 0) > 0 && (
+                                <span
+                                  style={{
+                                    padding: '0.3rem 0.65rem',
+                                    borderRadius: '20px',
+                                    fontSize: '0.76rem',
+                                    fontWeight: 800,
+                                    background: '#fefce8',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem'
+                                  }}
+                                  title="Điểm thưởng tích lũy của chuyến đi này"
+                                >
+                                  <i className="fa-solid fa-gift" style={{ color: '#d97706' }}></i>
+                                  +{(booking.pointsAwarded || 0).toLocaleString('vi-VN')} điểm
+                                </span>
+                              )}
                               {(() => {
                                 let badge = {
                                   text: '🔴 CHỜ THANH TOÁN',

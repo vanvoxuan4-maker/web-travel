@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured, withTimeout } from '../lib/supabaseClie
 import { AppLogger } from '../utils/logger';
 import { restoreSeats } from '../utils/inventoryManager';
 import { couponService } from './couponService';
+import { profileService } from './profileService';
 import { toIsoDate } from '../utils/formatters';
 import { TOURS_DATA } from '../data/toursData';
 
@@ -29,6 +30,7 @@ export interface BookingPayload {
   singleRoomsCount: number;
   totalAmount: number;
   paidAmount?: number;
+  pointsAwarded?: number;
   couponCode?: string;
   couponDiscount?: number;
   paymentMethod: PaymentMethod;
@@ -90,6 +92,99 @@ export interface PaymentTransactionRecord {
 
 const LOCAL_BOOKINGS_KEY = 'webtravel_local_bookings';
 const LOCAL_TRANSACTIONS_KEY = 'webtravel_local_transactions';
+const LOCAL_LOYALTY_LEDGER_KEY = 'webtravel_loyalty_ledger';
+
+/**
+ * Đồng bộ điểm tích lũy khách hàng thân thiết theo tỷ lệ 100.000đ thanh toán = 1 điểm thưởng.
+ * Tự động tính chênh lệch để cộng thêm khi thanh toán đủ hoặc thu hồi khi hủy đơn.
+ * Chống cộng trùng lặp (Idempotent) dựa trên sổ cái webtravel_loyalty_ledger.
+ */
+async function syncLoyaltyPointsForBooking(
+  bookingCode: string,
+  currentPaidAmount: number,
+  isCancelled: boolean,
+  explicitUserId?: string
+): Promise<number> {
+  const code = bookingCode.trim().toUpperCase();
+  try {
+    const expectedPoints = isCancelled ? 0 : Math.floor(Math.max(0, currentPaidAmount) / 100000);
+
+    let ledger: Record<string, number> = {};
+    try {
+      ledger = JSON.parse(localStorage.getItem(LOCAL_LOYALTY_LEDGER_KEY) || '{}');
+    } catch {}
+
+    const previousPoints = ledger[code] !== undefined ? Number(ledger[code]) || 0 : 0;
+    const delta = expectedPoints - previousPoints;
+
+    if (delta === 0) {
+      return expectedPoints;
+    }
+
+    // Xác định User ID của đơn hàng
+    let targetUserId = explicitUserId;
+    if (!targetUserId && isSupabaseConfigured && supabase) {
+      try {
+        const { data: bData } = await supabase
+          .from('bookings')
+          .select('user_id')
+          .eq('booking_code', code)
+          .maybeSingle();
+        if (bData?.user_id) targetUserId = bData.user_id;
+      } catch {}
+    }
+
+    if (!targetUserId) {
+      try {
+        const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+        const found = localBookings.find(b => b.bookingCode?.toUpperCase() === code);
+        if (found?.userId) targetUserId = found.userId;
+      } catch {}
+    }
+
+    if (!targetUserId) {
+      try {
+        const localUser = JSON.parse(localStorage.getItem('webtravel_auth_user') || '{}');
+        if (localUser?.id) targetUserId = localUser.id;
+      } catch {}
+    }
+
+    // Cập nhật điểm thưởng người dùng
+    if (targetUserId) {
+      await profileService.incrementLoyaltyPoints(targetUserId, delta);
+    }
+
+    // Ghi nhận vào sổ cái điểm thưởng
+    ledger[code] = expectedPoints;
+    localStorage.setItem(LOCAL_LOYALTY_LEDGER_KEY, JSON.stringify(ledger));
+
+    // Đồng bộ vào danh sách booking cache
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const updated = localBookings.map(b => {
+        if (b.bookingCode?.toUpperCase() === code) {
+          return { ...b, pointsAwarded: expectedPoints };
+        }
+        return b;
+      });
+      localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(updated));
+    } catch {}
+
+    AppLogger.info('Đồng bộ điểm thưởng tích lũy đơn tour thành công', {
+      action: 'LOYALTY_POINTS_SYNCED',
+      bookingCode: code,
+      previousPoints,
+      expectedPoints,
+      delta,
+      targetUserId
+    });
+
+    return expectedPoints;
+  } catch (err) {
+    console.warn('Lỗi khi đồng bộ điểm thưởng cho đơn tour:', code, err);
+    return 0;
+  }
+}
 
 /**
  * Check if a string is a valid UUID v4 format.
@@ -253,6 +348,11 @@ export const bookingService = {
           } catch (txEx) {
             console.warn('Supabase insert initial payment transaction exception:', txEx);
           }
+
+          // Đồng bộ điểm tích lũy ban đầu
+          syncLoyaltyPointsForBooking(booking.bookingCode, initialPaid, false, resolvedUserId).catch(e =>
+            console.warn('Loyalty points sync error on createBooking:', e)
+          );
         }
 
         AppLogger.info('Tạo đơn đặt tour thành công vào Supabase', {
@@ -323,6 +423,14 @@ export const bookingService = {
             singleRoomsCount: data.single_rooms_count || 0,
             totalAmount: data.total_amount || 0,
             paidAmount: data.paid_amount || 0,
+            pointsAwarded: (() => {
+              let ledger: Record<string, number> = {};
+              try { ledger = JSON.parse(localStorage.getItem(LOCAL_LOYALTY_LEDGER_KEY) || '{}'); } catch {}
+              if (ledger[code] !== undefined) return ledger[code];
+              const isCanc = (data.booking_status || '').toLowerCase() === 'cancelled';
+              const effPaid = Number(data.paid_amount) || (data.payment_status === 'paid' ? Number(data.total_amount) : 0);
+              return isCanc ? 0 : Math.floor(effPaid / 100000);
+            })(),
             couponCode: data.coupon_code,
             couponDiscount: data.coupon_discount || 0,
             paymentMethod: data.payment_method || 'vietqr',
@@ -369,11 +477,21 @@ export const bookingService = {
 
         const { data, error } = await query.order('created_at', { ascending: false });
 
+        let loyaltyLedger: Record<string, number> = {};
+        try {
+          loyaltyLedger = JSON.parse(localStorage.getItem(LOCAL_LOYALTY_LEDGER_KEY) || '{}');
+        } catch {}
+
         if (!error && data) {
           data.forEach((row: any) => {
             const code = row.booking_code;
             if (!seenCodes.has(code)) {
               seenCodes.add(code);
+              const isCanc = (row.booking_status || '').toLowerCase() === 'cancelled';
+              const effPaid = Number(row.paid_amount) || (row.payment_status === 'paid' ? Number(row.total_amount) : 0);
+              const computedPts = isCanc ? 0 : Math.floor(effPaid / 100000);
+              const pts = loyaltyLedger[code] !== undefined ? loyaltyLedger[code] : computedPts;
+
               list.push({
                 id: row.id,
                 bookingCode: row.booking_code,
@@ -393,6 +511,7 @@ export const bookingService = {
                 singleRoomsCount: row.single_rooms_count || 0,
                 totalAmount: row.total_amount || 0,
                 paidAmount: row.paid_amount || 0,
+                pointsAwarded: pts,
                 couponCode: row.coupon_code,
                 couponDiscount: row.coupon_discount || 0,
                 paymentMethod: row.payment_method || 'vietqr',
@@ -414,7 +533,8 @@ export const bookingService = {
                   bookingStatus: fresh.booking_status,
                   paymentStatus: fresh.payment_status,
                   paidAmount: fresh.paid_amount,
-                  totalAmount: fresh.total_amount
+                  totalAmount: fresh.total_amount,
+                  pointsAwarded: loyaltyLedger[lb.bookingCode] !== undefined ? loyaltyLedger[lb.bookingCode] : lb.pointsAwarded
                 };
               }
               return lb;
@@ -431,6 +551,11 @@ export const bookingService = {
 
     // 2. Merge with LocalStorage bookings
     try {
+      let localLedger: Record<string, number> = {};
+      try {
+        localLedger = JSON.parse(localStorage.getItem(LOCAL_LOYALTY_LEDGER_KEY) || '{}');
+      } catch {}
+
       const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
       localBookings.forEach(lb => {
         const matchesUser = (userId && lb.userId === userId) ||
@@ -439,7 +564,11 @@ export const bookingService = {
 
         if (matchesUser && !seenCodes.has(lb.bookingCode)) {
           seenCodes.add(lb.bookingCode);
-          list.push(lb);
+          const isCanc = (lb.bookingStatus || '').toLowerCase() === 'cancelled';
+          const effPaid = Number(lb.paidAmount) || (lb.paymentStatus === 'paid' ? Number(lb.totalAmount) : 0);
+          const computedPts = isCanc ? 0 : Math.floor(effPaid / 100000);
+          const pts = localLedger[lb.bookingCode] !== undefined ? localLedger[lb.bookingCode] : (lb.pointsAwarded ?? computedPts);
+          list.push({ ...lb, pointsAwarded: pts });
         }
       });
     } catch (e) {
@@ -582,6 +711,25 @@ export const bookingService = {
     } catch (e) {
       console.warn('Could not update payment status in localStorage:', e);
     }
+
+    // 3. Tự động đồng bộ tích lũy điểm thưởng cho khách hàng (100.000đ = 1 điểm)
+    const isCancelled = paymentStatus === 'failed' || paymentStatus === 'refunded';
+    let paidAmtToAward = 0;
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const found = localBookings.find(b => b.bookingCode.toUpperCase() === code);
+      if (found) {
+        paidAmtToAward = Number(found.paidAmount) || (paymentStatus === 'paid' ? Number(found.totalAmount) : (amount || 0));
+      } else {
+        paidAmtToAward = amount || 0;
+      }
+    } catch {
+      paidAmtToAward = amount || 0;
+    }
+
+    syncLoyaltyPointsForBooking(code, isCancelled ? 0 : paidAmtToAward, isCancelled).catch(e =>
+      console.warn('Could not sync loyalty points on updatePaymentStatus:', e)
+    );
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
@@ -824,7 +972,21 @@ export const bookingService = {
       console.warn('LocalStorage updateBookingAdminStatus error:', e);
     }
 
-    // 3. Dispatch global event for instant reactivity across tabs / pages
+    // 3. Tự động đồng bộ tích lũy điểm thưởng cho khách hàng hoặc thu hồi khi hủy đơn
+    const isCancelled = newUiStatus === 'cancelled';
+    let awardPaidAmt = 0;
+    try {
+      const localBookings: BookingPayload[] = JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || '[]');
+      const targetB = localBookings.find(b => b.bookingCode?.toUpperCase() === code || b.id === bookingCode);
+      const bTotal = Number(targetB?.totalAmount) || 0;
+      awardPaidAmt = newUiStatus === 'confirmed' ? bTotal : newUiStatus === 'deposit' ? Math.round(bTotal * 0.5) : 0;
+    } catch {}
+
+    syncLoyaltyPointsForBooking(code, isCancelled ? 0 : awardPaidAmt, isCancelled).catch(e =>
+      console.warn('Could not sync loyalty points on updateBookingAdminStatus:', e)
+    );
+
+    // 4. Dispatch global event for instant reactivity across tabs / pages
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {
         detail: { bookingCode: code, newUiStatus, paymentStatus, bookingStatus }
@@ -918,6 +1080,11 @@ export const bookingService = {
     } catch (e) {
       console.warn('Realtime cancel broadcast error:', e);
     }
+
+    // Tự động thu hồi điểm tích lũy của đơn tour bị hủy
+    syncLoyaltyPointsForBooking(code, 0, true).catch(e =>
+      console.warn('Could not revoke loyalty points on cancelBooking:', e)
+    );
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('webtravel_booking_updated', {

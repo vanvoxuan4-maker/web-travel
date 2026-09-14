@@ -179,7 +179,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       )
       .subscribe();
 
+    const handleLoyaltyEvent = (e: any) => {
+      const { userId, newPoints } = e?.detail || {};
+      if (user && user.id === userId && typeof newPoints === 'number') {
+        setUser(prev => {
+          if (!prev) return null;
+          const updated = { ...prev, loyaltyPoints: newPoints };
+          localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(updated));
+          return updated;
+        });
+      }
+    };
+
+    window.addEventListener('webtravel:loyalty_updated', handleLoyaltyEvent);
+
     return () => {
+      window.removeEventListener('webtravel:loyalty_updated', handleLoyaltyEvent);
       if (supabase) {
         supabase.removeChannel(channel);
       }
