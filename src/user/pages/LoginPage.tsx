@@ -251,6 +251,165 @@ export const LoginPage: React.FC = () => {
         overflow: 'hidden'
       }}
     >
+      <style>{`
+        /* Floating Label styles for WebTravel Auth */
+        .wt-floating-group {
+          position: relative;
+          margin-bottom: 1.25rem;
+        }
+
+        .wt-floating-input {
+          width: 100%;
+          height: 52px;
+          padding: 0 1rem 0 2.75rem;
+          border-radius: 12px;
+          border: 1.5px solid #cbd5e1;
+          background: #ffffff;
+          color: #0f172a;
+          font-size: 0.93rem;
+          font-weight: 500;
+          outline: none;
+          box-sizing: border-box;
+          transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+        }
+
+        .wt-floating-input.has-eye {
+          padding-right: 2.75rem;
+        }
+
+        .wt-floating-icon {
+          position: absolute;
+          left: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #94a3b8;
+          font-size: 0.95rem;
+          pointer-events: none;
+          transition: color 0.22s ease;
+          z-index: 2;
+        }
+
+        .wt-floating-label {
+          position: absolute;
+          left: 2.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          padding: 0 6px;
+          color: #64748b;
+          font-size: 0.92rem;
+          font-weight: 500;
+          pointer-events: none;
+          transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: left center;
+          z-index: 3;
+          border-radius: 4px;
+        }
+
+        .wt-floating-eye {
+          position: absolute;
+          right: 0.85rem;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: #94a3b8;
+          cursor: pointer;
+          padding: 0.35rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.95rem;
+          z-index: 4;
+          transition: color 0.2s ease;
+        }
+
+        .wt-floating-eye:hover {
+          color: #059669;
+        }
+
+        /* 1. HOVER over group: Border turns emerald, Icon turns emerald, Label floats up & turns emerald */
+        .wt-floating-group:hover .wt-floating-input {
+          border-color: #059669;
+        }
+
+        .wt-floating-group:hover .wt-floating-icon {
+          color: #059669;
+        }
+
+        .wt-floating-group:hover .wt-floating-label {
+          top: 0;
+          left: 0.9rem;
+          transform: translateY(-50%) scale(0.85);
+          font-weight: 700;
+          color: #059669;
+          background: #ffffff;
+        }
+
+        /* 2. FOCUS inside input: Border glow emerald, Label stays up */
+        .wt-floating-input:focus {
+          border-color: #059669 !important;
+          box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14) !important;
+        }
+
+        .wt-floating-input:focus ~ .wt-floating-icon {
+          color: #059669;
+        }
+
+        .wt-floating-input:focus ~ .wt-floating-label {
+          top: 0;
+          left: 0.9rem;
+          transform: translateY(-50%) scale(0.85);
+          font-weight: 700;
+          color: #059669 !important;
+          background: #ffffff;
+        }
+
+        /* 3. HAS VALUE (is-floating): When input already has text, keep label floating on top */
+        .wt-floating-group.is-floating .wt-floating-label {
+          top: 0;
+          left: 0.9rem;
+          transform: translateY(-50%) scale(0.85);
+          font-weight: 700;
+          color: #475569;
+          background: #ffffff;
+        }
+
+        .wt-floating-group.is-floating:hover .wt-floating-label,
+        .wt-floating-group.is-floating:focus-within .wt-floating-label {
+          color: #059669;
+        }
+
+        .wt-floating-input:-webkit-autofill ~ .wt-floating-label,
+        .wt-floating-input:autofill ~ .wt-floating-label {
+          top: 0;
+          left: 0.9rem;
+          transform: translateY(-50%) scale(0.85);
+          font-weight: 700;
+          color: #059669;
+          background: #ffffff;
+        }
+
+        /* 4. VALIDATION STATES */
+        .wt-floating-group.has-error .wt-floating-input {
+          border-color: #ef4444 !important;
+          background: #fef2f2 !important;
+        }
+
+        .wt-floating-group.has-error .wt-floating-icon,
+        .wt-floating-group.has-error .wt-floating-label {
+          color: #dc2626 !important;
+        }
+
+        .wt-floating-group.has-success .wt-floating-input {
+          border-color: #10b981 !important;
+        }
+
+        .wt-floating-group.has-success .wt-floating-icon,
+        .wt-floating-group.has-success .wt-floating-label {
+          color: #059669 !important;
+        }
+      `}</style>
       {/* ========================================================================= */}
       {/* LEFT COLUMN: 50% IMMERSIVE EDITORIAL VISUAL HERO (DESKTOP)               */}
       {/* ========================================================================= */}
@@ -595,295 +754,216 @@ export const LoginPage: React.FC = () => {
             {/* REGISTER FIELDS */}
             {mode === 'register' && (
               <>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                <div className={`wt-floating-group ${fullName.trim().length > 0 ? 'is-floating' : ''}`}>
+                  <input
+                    id="reg-fullname"
+                    type="text"
+                    required
+                    className="wt-floating-input"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder=" "
+                  />
+                  <i className="fa-solid fa-user wt-floating-icon" />
+                  <label htmlFor="reg-fullname" className="wt-floating-label">
                     Họ và tên của bạn *
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <i className="fa-solid fa-user" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Nguyễn Văn A"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem 0.75rem 2.6rem',
-                        borderRadius: '12px',
-                        border: '1.5px solid #cbd5e1',
-                        fontSize: '0.92rem',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        transition: 'border-color 0.2s'
-                      }}
-                    />
-                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>
+                    <div className={`wt-floating-group ${phone.length > 0 ? 'is-floating' : ''} ${phoneTouched && phone.length > 0 ? (phoneValidation.isValid ? 'has-success' : 'has-error') : ''}`} style={{ marginBottom: 0 }}>
+                      <input
+                        id="reg-phone"
+                        type="tel"
+                        required
+                        maxLength={10}
+                        className="wt-floating-input"
+                        value={phone}
+                        onChange={(e) => {
+                          const clean = sanitizePhone(e.target.value);
+                          setPhone(clean);
+                          setPhoneTouched(true);
+                        }}
+                        onBlur={() => setPhoneTouched(true)}
+                        placeholder=" "
+                      />
+                      <i className="fa-solid fa-phone wt-floating-icon" />
+                      <label htmlFor="reg-phone" className="wt-floating-label">
                         Số điện thoại *
                       </label>
-                      {phone.length > 0 && (
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: phoneValidation.isValid ? '#059669' : '#64748b' }}>
-                          {phone.length}/10 số
-                        </span>
-                      )}
                     </div>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="0901234567"
-                      value={phone}
-                      maxLength={10}
-                      onChange={(e) => {
-                        const clean = sanitizePhone(e.target.value);
-                        setPhone(clean);
-                        setPhoneTouched(true);
-                      }}
-                      onBlur={() => setPhoneTouched(true)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 0.9rem',
-                        borderRadius: '12px',
-                        border: phoneTouched && phone.length > 0
-                          ? phoneValidation.isValid
-                            ? '1.5px solid #10b981'
-                            : '1.5px solid #ef4444'
-                          : '1.5px solid #cbd5e1',
-                        background: phoneTouched && phone.length > 0 && !phoneValidation.isValid ? '#fef2f2' : '#ffffff',
-                        fontSize: '0.92rem',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        transition: 'all 0.2s'
-                      }}
-                    />
                     {phoneTouched && phone.length > 0 && (
                       <div style={{
                         fontSize: '0.74rem',
-                        marginTop: '0.3rem',
+                        marginTop: '0.35rem',
                         color: phoneValidation.isValid ? '#059669' : '#dc2626',
                         fontWeight: 600,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.3rem'
                       }}>
-                        <i className={`fa-solid ${phoneValidation.isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
-                        <span>{phoneValidation.isValid ? 'Số điện thoại hợp lệ' : phoneValidation.error}</span>
+                        <i className={`fa-solid ${phoneValidation.isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} />
+                        <span>{phoneValidation.isValid ? 'SĐT hợp lệ' : phoneValidation.error}</span>
                       </div>
                     )}
                   </div>
+
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                      Địa chỉ liên hệ *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Hà Nội, TP.HCM..."
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 0.9rem',
-                        borderRadius: '12px',
-                        border: '1.5px solid #cbd5e1',
-                        fontSize: '0.92rem',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
+                    <div className={`wt-floating-group ${address.trim().length > 0 ? 'is-floating' : ''}`} style={{ marginBottom: 0 }}>
+                      <input
+                        id="reg-address"
+                        type="text"
+                        required
+                        className="wt-floating-input"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder=" "
+                      />
+                      <i className="fa-solid fa-location-dot wt-floating-icon" />
+                      <label htmlFor="reg-address" className="wt-floating-label">
+                        Địa chỉ liên hệ *
+                      </label>
+                    </div>
                   </div>
                 </div>
               </>
             )}
 
             {/* EMAIL */}
-            <div style={{ marginBottom: '1.1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+            <div className={`wt-floating-group ${email.length > 0 ? 'is-floating' : ''} ${mode === 'register' && emailTouched && email.length > 0 ? (emailValidation.isValid ? 'has-success' : 'has-error') : ''}`}>
+              <input
+                id="login-email"
+                type="email"
+                required
+                className="wt-floating-input"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (mode === 'register') setEmailTouched(true);
+                }}
+                onBlur={() => {
+                  if (mode === 'register') setEmailTouched(true);
+                }}
+                placeholder=" "
+              />
+              <i className="fa-solid fa-envelope wt-floating-icon" />
+              <label htmlFor="login-email" className="wt-floating-label">
                 Địa chỉ Email *
               </label>
-              <div style={{ position: 'relative' }}>
-                <i className="fa-solid fa-envelope" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
-                <input
-                  type="email"
-                  required
-                  placeholder="khachhang@webtravel.vn"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (mode === 'register') setEmailTouched(true);
-                  }}
-                  onBlur={() => {
-                    if (mode === 'register') setEmailTouched(true);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem 0.75rem 2.6rem',
-                    borderRadius: '12px',
-                    border: mode === 'register' && emailTouched && email.length > 0
-                      ? emailValidation.isValid
-                        ? '1.5px solid #10b981'
-                        : '1.5px solid #ef4444'
-                      : '1.5px solid #cbd5e1',
-                    background: mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid ? '#fef2f2' : '#ffffff',
-                    fontSize: '0.92rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.2s'
-                  }}
-                />
-              </div>
-              {mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid && (
-                <div style={{ fontSize: '0.74rem', marginTop: '0.3rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <i className="fa-solid fa-triangle-exclamation"></i>
-                  <span>{emailValidation.error}</span>
-                </div>
-              )}
             </div>
+            {mode === 'register' && emailTouched && email.length > 0 && !emailValidation.isValid && (
+              <div style={{ fontSize: '0.74rem', marginTop: '-0.85rem', marginBottom: '0.85rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <i className="fa-solid fa-triangle-exclamation" />
+                <span>{emailValidation.error}</span>
+              </div>
+            )}
 
             {/* PASSWORD */}
-            <div style={{ marginBottom: mode === 'register' ? '1rem' : '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155' }}>
-                  Mật khẩu *
-                </label>
-                {mode === 'login' && (
-                  <span style={{ fontSize: '0.78rem', color: '#047857', cursor: 'pointer', fontWeight: 600 }}>
-                    Quên mật khẩu?
-                  </span>
-                )}
-              </div>
-              <div style={{ position: 'relative' }}>
-                <i className="fa-solid fa-lock" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder={mode === 'register' ? 'Tối thiểu 6 ký tự' : 'Nhập mật khẩu của bạn'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (mode === 'register') setPasswordTouched(true);
-                  }}
-                  onBlur={() => {
-                    if (mode === 'register') setPasswordTouched(true);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 2.6rem 0.75rem 2.6rem',
-                    borderRadius: '12px',
-                    border: mode === 'register' && passwordTouched && password.length > 0
-                      ? isPasswordValid
-                        ? '1.5px solid #10b981'
-                        : '1.5px solid #ef4444'
-                      : '1.5px solid #cbd5e1',
-                    fontSize: '0.92rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.2s'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                </button>
-              </div>
-              {mode === 'register' && passwordTouched && password.length > 0 && (
-                <div style={{
-                  fontSize: '0.74rem',
-                  marginTop: '0.3rem',
-                  color: isPasswordValid ? '#059669' : '#dc2626',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem'
-                }}>
-                  <i className={`fa-solid ${isPasswordValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
-                  <span>{isPasswordValid ? 'Độ dài mật khẩu đạt chuẩn' : 'Mật khẩu tối thiểu 6 ký tự'}</span>
-                </div>
-              )}
+            <div className={`wt-floating-group ${password.length > 0 ? 'is-floating' : ''} ${mode === 'register' && passwordTouched && password.length > 0 ? (isPasswordValid ? 'has-success' : 'has-error') : ''}`}>
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                className="wt-floating-input has-eye"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (mode === 'register') setPasswordTouched(true);
+                }}
+                onBlur={() => {
+                  if (mode === 'register') setPasswordTouched(true);
+                }}
+                placeholder=" "
+              />
+              <i className="fa-solid fa-lock wt-floating-icon" />
+              <label htmlFor="login-password" className="wt-floating-label">
+                Mật khẩu *
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="wt-floating-eye"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+              </button>
             </div>
+
+            {mode === 'login' && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-0.75rem', marginBottom: '1.25rem' }}>
+                <span
+                  style={{ fontSize: '0.82rem', color: '#047857', cursor: 'pointer', fontWeight: 600 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                >
+                  Quên mật khẩu?
+                </span>
+              </div>
+            )}
+
+            {mode === 'register' && passwordTouched && password.length > 0 && (
+              <div style={{
+                fontSize: '0.74rem',
+                marginTop: '-0.85rem',
+                marginBottom: '0.85rem',
+                color: isPasswordValid ? '#059669' : '#dc2626',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem'
+              }}>
+                <i className={`fa-solid ${isPasswordValid ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} />
+                <span>{isPasswordValid ? 'Độ dài mật khẩu đạt chuẩn' : 'Mật khẩu tối thiểu 6 ký tự'}</span>
+              </div>
+            )}
 
             {/* CONFIRM PASSWORD (ONLY IN REGISTER MODE) */}
             {mode === 'register' && (
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                  Xác nhận lại mật khẩu *
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <i className="fa-solid fa-shield-halved" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}></i>
+              <>
+                <div className={`wt-floating-group ${confirmPassword.length > 0 ? 'is-floating' : ''} ${confirmPasswordTouched && confirmPassword.length > 0 ? (password === confirmPassword ? 'has-success' : 'has-error') : ''}`}>
                   <input
+                    id="reg-confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
-                    placeholder="Nhập lại mật khẩu giống ở trên"
+                    className="wt-floating-input has-eye"
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setConfirmPasswordTouched(true);
                     }}
                     onBlur={() => setConfirmPasswordTouched(true)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 2.6rem 0.75rem 2.6rem',
-                      borderRadius: '12px',
-                      border: confirmPasswordTouched && confirmPassword.length > 0
-                        ? password === confirmPassword
-                          ? '1.5px solid #10b981'
-                          : '1.5px solid #ef4444'
-                        : '1.5px solid #cbd5e1',
-                      fontSize: '0.92rem',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s'
-                    }}
+                    placeholder=" "
                   />
+                  <i className="fa-solid fa-shield-halved wt-floating-icon" />
+                  <label htmlFor="reg-confirm-password" className="wt-floating-label">
+                    Xác nhận lại mật khẩu *
+                  </label>
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '0.75rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: '#94a3b8',
-                      cursor: 'pointer'
-                    }}
+                    className="wt-floating-eye"
+                    aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                   >
-                    <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                    <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
                   </button>
                 </div>
                 {confirmPasswordTouched && confirmPassword.length > 0 && (
                   <div style={{
                     fontSize: '0.74rem',
-                    marginTop: '0.3rem',
+                    marginTop: '-0.85rem',
+                    marginBottom: '0.85rem',
                     color: password === confirmPassword ? '#059669' : '#dc2626',
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.3rem'
                   }}>
-                    <i className={`fa-solid ${password === confirmPassword ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+                    <i className={`fa-solid ${password === confirmPassword ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} />
                     <span>{password === confirmPassword ? 'Mật khẩu xác nhận trùng khớp' : 'Mật khẩu xác nhận không khớp'}</span>
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* SUBMIT BUTTON */}
