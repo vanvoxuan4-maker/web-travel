@@ -1,4 +1,4 @@
-export type AdminTab = 'overview' | 'bookings' | 'payments' | 'tours' | 'customers' | 'staff' | 'coupons' | 'profile';
+export type AdminTab = 'overview' | 'bookings' | 'payments' | 'tours' | 'customers' | 'staff' | 'coupons' | 'logs' | 'profile';
 
 export interface BookingRecord {
   id: string;
@@ -44,9 +44,47 @@ export interface CustomerRecord {
   avatarUrl?: string;
 }
 
-export interface StaffRecord extends CustomerRecord {
-  department?: string;
-  employeeCode?: string;
+export interface StaffRecord {
+  id: string;
+  userId?: string;
+  employeeCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  avatarUrl?: string;
+  gender?: 'male' | 'female' | 'other';
+  dateOfBirth?: string;
+  identityCard?: string;
+  department: string;
+  position: string;
+  role: 'super_admin' | 'admin' | 'staff';
+  status: 'active' | 'banned' | 'resigned';
+  hireDate?: string;
+  address?: string;
+  emergencyContact?: string;
+  notes?: string;
+  joinedDate?: string;
+  points?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type AuditLogCategory = 'booking' | 'payment' | 'tour' | 'staff' | 'customer' | 'coupon' | 'system' | 'auth';
+
+export interface AuditLogRecord {
+  id: string;
+  createdAt: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+  action: string;
+  actionCategory: AuditLogCategory;
+  targetId?: string;
+  targetName?: string;
+  details?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export interface CouponRecord {

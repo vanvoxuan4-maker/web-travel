@@ -5,6 +5,7 @@ import { UserRole } from '../../auth/auth.types';
 import { canAssignRole, hasPermission } from '../../auth';
 import { ConfirmAdminPromotionModal } from '../modals/ConfirmAdminPromotionModal';
 import { ConfirmLockModal } from '../modals/ConfirmLockModal';
+import { AddStaffModal } from '../modals/AddStaffModal';
 import { exportStaffToCSV } from '../../utils/exportUtils';
 import { removeVietnameseTones } from '../../utils/formatters';
 
@@ -12,17 +13,21 @@ interface StaffModuleProps {
   staff: StaffRecord[];
   onRoleChange: (staffId: string, newRole: UserRole) => Promise<void>;
   onToggleStatus: (staffId: string, currentStatus: 'active' | 'banned' | 'deleted') => Promise<void>;
+  onStaffAdded?: (newStaff: StaffRecord) => void;
 }
 
 export const StaffModule: React.FC<StaffModuleProps> = ({
   staff,
   onRoleChange,
-  onToggleStatus
+  onToggleStatus,
+  onStaffAdded
 }) => {
   const { user: currentUser, isSuperAdmin: currentUserIsSuperAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | 'super_admin' | 'admin' | 'staff'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'banned'>('all');
+  const [filterDepartment, setFilterDepartment] = useState<string>('all');
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [pendingPromotion, setPendingPromotion] = useState<{
     customer: StaffRecord;
     targetRole: 'admin' | 'super_admin';
@@ -66,6 +71,11 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
         return false;
       }
 
+      // Department filter
+      if (filterDepartment !== 'all' && s.department !== filterDepartment) {
+        return false;
+      }
+
       // Search keyword
       if (searchQuery.trim()) {
         const cleanQuery = removeVietnameseTones(searchQuery.toLowerCase().trim());
@@ -87,7 +97,7 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
 
       return true;
     });
-  }, [staff, filterRole, filterStatus, searchQuery]);
+  }, [staff, filterRole, filterStatus, filterDepartment, searchQuery]);
 
   const handleRoleSelect = (member: StaffRecord, newRole: UserRole) => {
     if (newRole === member.role) return;
@@ -210,26 +220,49 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => exportStaffToCSV(filteredStaff)}
-            style={{
-              padding: '0.55rem 1.15rem',
-              borderRadius: '10px',
-              background: '#ffffff',
-              border: '1.5px solid #cbd5e1',
-              color: '#334155',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              transition: 'all 0.2s'
-            }}
-          >
-            <i className="fa-solid fa-file-csv" style={{ color: '#047857' }} /> Xuất Danh Sách Nhân Sự (CSV)
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <button
+              type="button"
+              onClick={() => setIsAddStaffOpen(true)}
+              style={{
+                padding: '0.55rem 1.15rem',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.25)'
+              }}
+            >
+              <i className="fa-solid fa-user-plus" /> Thêm Nhân Sự Mới
+            </button>
+
+            <button
+              type="button"
+              onClick={() => exportStaffToCSV(filteredStaff)}
+              style={{
+                padding: '0.55rem 1.15rem',
+                borderRadius: '10px',
+                background: '#ffffff',
+                border: '1.5px solid #cbd5e1',
+                color: '#334155',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              <i className="fa-solid fa-file-csv" style={{ color: '#047857' }} /> Xuất Danh Sách Nhân Sự (CSV)
+            </button>
+          </div>
         </div>
 
         {/* Search & Filter Bar */}
@@ -241,7 +274,7 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
             padding: '0.85rem 1rem',
             marginBottom: '1.25rem',
             display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr',
+            gridTemplateColumns: '2fr 1fr 1fr 1fr',
             gap: '0.75rem',
             alignItems: 'center'
           }}
@@ -316,6 +349,34 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
               <option value="all">🔘 Tất cả trạng thái</option>
               <option value="active">🟢 Đang hoạt động</option>
               <option value="banned">🔴 Đã khóa truy cập</option>
+            </select>
+          </div>
+
+          {/* Department Filter */}
+          <div>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                outline: 'none',
+                background: '#ffffff',
+                color: '#334155',
+                boxSizing: 'border-box'
+              }}
+            >
+              <option value="all">🏢 Tất cả phòng ban</option>
+              <option value="Điều Hành Tour">Điều Hành Tour</option>
+              <option value="Kinh Doanh & Sale">Kinh Doanh & Sale</option>
+              <option value="Chăm Sóc Khách Hàng">Chăm Sóc Khách Hàng</option>
+              <option value="Kế Toán & Tài Chính">Kế Toán & Tài Chính</option>
+              <option value="IT & Kỹ Thuật">IT & Kỹ Thuật</option>
+              <option value="Ban Giám Đốc">Ban Giám Đốc</option>
             </select>
           </div>
         </div>
@@ -612,7 +673,13 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
         {pendingStatusStaff && (
           <ConfirmLockModal
             isOpen={!!pendingStatusStaff}
-            user={pendingStatusStaff}
+            user={{
+              id: pendingStatusStaff.id,
+              name: pendingStatusStaff.name,
+              email: pendingStatusStaff.email,
+              role: pendingStatusStaff.role,
+              status: pendingStatusStaff.status === 'resigned' ? 'banned' : pendingStatusStaff.status
+            }}
             onClose={() => setPendingStatusStaff(null)}
             onConfirm={async (staffId, currentStatus) => {
               await onToggleStatus(staffId, currentStatus);
@@ -624,11 +691,28 @@ export const StaffModule: React.FC<StaffModuleProps> = ({
         {/* Re-auth Modal */}
         {pendingPromotion && (
           <ConfirmAdminPromotionModal
-            targetCustomer={pendingPromotion.customer}
+            targetCustomer={{
+              ...pendingPromotion.customer,
+              address: pendingPromotion.customer.address || 'Chưa cập nhật',
+              points: pendingPromotion.customer.points || 0,
+              joinedDate: pendingPromotion.customer.joinedDate || 'Mới',
+              status: pendingPromotion.customer.status === 'resigned' ? 'banned' : pendingPromotion.customer.status
+            }}
             targetRole={pendingPromotion.targetRole}
             isOpen={!!pendingPromotion}
             onClose={() => setPendingPromotion(null)}
             onConfirmPromotion={handleConfirmPromotion}
+          />
+        )}
+
+        {/* Add Staff Modal */}
+        {isAddStaffOpen && (
+          <AddStaffModal
+            isOpen={isAddStaffOpen}
+            onClose={() => setIsAddStaffOpen(false)}
+            onStaffAdded={(newStaff) => {
+              onStaffAdded?.(newStaff);
+            }}
           />
         )}
       </div>

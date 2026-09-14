@@ -361,7 +361,34 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </button>
           )}
 
-          {/* 8. Tài Khoản & Đổi Mật Khẩu */}
+          {/* 8. Nhật Ký Hoạt Động (Admin & Super Admin only) */}
+          {isTabAllowed(user?.role, 'logs') && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('logs')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 0.9rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: activeTab === 'logs' ? '#059669' : 'transparent',
+                color: activeTab === 'logs' ? '#ffffff' : '#d1fae5',
+                fontWeight: activeTab === 'logs' ? 700 : 500,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <i className="fa-solid fa-clock-rotate-left" style={{ width: '18px', textAlign: 'center' }}></i>
+              <span>Nhật Ký Hoạt Động</span>
+            </button>
+          )}
+
+          {/* 9. Tài Khoản & Đổi Mật Khẩu */}
           {isTabAllowed(user?.role, 'profile') && (
             <button
               type="button"
