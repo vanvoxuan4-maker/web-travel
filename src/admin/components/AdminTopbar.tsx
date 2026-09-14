@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminTab } from '../admin.types';
 import { PermissionGate, useAuth } from '../../auth';
 
@@ -23,7 +24,8 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
   onOpenAddCoupon,
   onOpenProfile
 }) => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -336,6 +338,42 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
             </div>
           </button>
         )}
+
+        {/* Quick Logout Button */}
+        <button
+          type="button"
+          onClick={() => {
+            signOut();
+            navigate('/login');
+          }}
+          title="Đăng xuất khỏi hệ thống quản trị"
+          style={{
+            padding: '0.42rem 0.75rem',
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            color: '#dc2626',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#dc2626';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+            e.currentTarget.style.color = '#dc2626';
+          }}
+        >
+          <i className="fa-solid fa-arrow-right-from-bracket" />
+          <span>Đăng Xuất</span>
+        </button>
       </div>
     </header>
   );
