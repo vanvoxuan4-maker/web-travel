@@ -42,8 +42,8 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
     >
       <svg
         width="110"
-        height="95"
-        viewBox="0 0 120 105"
+        height="80"
+        viewBox="0 18 120 84"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         style={{ overflow: 'visible' }}
@@ -220,7 +220,7 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
       {/* Mood subtitle bubble */}
       <div
         style={{
-          marginTop: '-0.2rem',
+          marginTop: '0.45rem',
           fontSize: '0.78rem',
           fontWeight: 600,
           color:

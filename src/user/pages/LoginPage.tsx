@@ -386,7 +386,7 @@ export const LoginPage: React.FC = () => {
         /* Floating Label styles for WebTravel Auth */
         .wt-floating-group {
           position: relative;
-          margin-bottom: 1.25rem;
+          margin-bottom: 1rem;
         }
 
         .wt-floating-input {
@@ -724,20 +724,19 @@ export const LoginPage: React.FC = () => {
           background: '#ffffff',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
           alignItems: 'center',
-          padding: '2.5rem 3rem',
+          padding: mode === 'register' ? '1.5rem 2.5rem' : '2.5rem 3rem',
           overflowY: 'auto',
           position: 'relative'
         }}
       >
-        <div style={{ width: '100%', maxWidth: '440px' }}>
+        <div style={{ width: '100%', maxWidth: '440px', margin: 'auto 0' }}>
           {/* Header Title */}
-          <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.9rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.4rem', letterSpacing: '-0.03em' }}>
+          <div style={{ marginBottom: mode === 'register' ? '0.75rem' : '1.25rem', textAlign: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: mode === 'register' ? '1.65rem' : '1.85rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.25rem', letterSpacing: '-0.03em' }}>
               {mode === 'login' ? 'Đăng Nhập Khám Phá' : 'Tạo Tài Khoản Mới'}
             </h1>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+            <p style={{ margin: 0, fontSize: '0.86rem', color: '#64748b' }}>
               {mode === 'login'
                 ? 'Nhập tài khoản để tiếp tục trải nghiệm & đặt tour'
                 : 'Đăng ký thành viên để nhận ưu đãi tour lên tới 500.000 ₫'}
@@ -749,7 +748,7 @@ export const LoginPage: React.FC = () => {
             mode={mascotMode}
             lookProgress={lookProgress}
             label={mascotLabel}
-            style={{ marginBottom: '1.25rem' }}
+            style={{ marginBottom: mode === 'register' ? '0.75rem' : '1.15rem' }}
           />
 
           {/* Segmented Pill Tab Switcher */}
@@ -757,9 +756,9 @@ export const LoginPage: React.FC = () => {
             style={{
               display: 'flex',
               background: '#f1f5f9',
-              padding: '0.35rem',
+              padding: '0.3rem',
               borderRadius: '14px',
-              marginBottom: '1.75rem',
+              marginBottom: mode === 'register' ? '1rem' : '1.5rem',
               position: 'relative'
             }}
           >
