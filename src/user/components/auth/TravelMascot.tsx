@@ -220,56 +220,75 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
       {/* Mood subtitle bubble */}
       <div
         style={{
-          marginTop: '-0.3rem',
-          fontSize: '0.74rem',
-          fontWeight: 700,
+          marginTop: '-0.2rem',
+          fontSize: '0.78rem',
+          fontWeight: 600,
           color:
             mode === 'blindfolded'
-              ? '#6366f1'
+              ? '#4f46e5'
               : mode === 'peeking'
               ? '#d97706'
+              : mode === 'watching'
+              ? '#0369a1'
               : mode === 'success'
               ? '#059669'
               : '#64748b',
           background: '#ffffff',
-          padding: '0.2rem 0.65rem',
+          padding: '0.35rem 0.85rem',
           borderRadius: '999px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-          border: '1px solid #f1f5f9',
+          boxShadow: '0 3px 12px rgba(0, 0, 0, 0.07)',
+          border: '1px solid #e2e8f0',
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.3rem',
-          transition: 'all 0.25s ease'
+          justifyContent: 'center',
+          gap: '0.4rem',
+          maxWidth: '96%',
+          textAlign: 'center',
+          transition: 'all 0.25s ease',
+          lineHeight: '1.35'
         }}
       >
-        {mode === 'blindfolded' && (
+        {label ? (
           <>
-            <i className="fa-solid fa-eye-slash" />
-            <span>Mochi không nhìn trộm đâu! 🙈</span>
+            {mode === 'blindfolded' && <i className="fa-solid fa-eye-slash" style={{ flexShrink: 0 }} />}
+            {mode === 'peeking' && <i className="fa-solid fa-eye" style={{ flexShrink: 0 }} />}
+            {mode === 'watching' && <i className="fa-solid fa-compass fa-spin" style={{ animationDuration: '4s', flexShrink: 0 }} />}
+            {mode === 'success' && <i className="fa-solid fa-party-horn" style={{ flexShrink: 0 }} />}
+            {mode === 'idle' && <i className="fa-solid fa-plane-departure" style={{ color: '#059669', flexShrink: 0 }} />}
+            <span>{label}</span>
           </>
-        )}
-        {mode === 'peeking' && (
+        ) : (
           <>
-            <i className="fa-solid fa-eye" />
-            <span>Mochi hé mắt xem thử... 🤫</span>
-          </>
-        )}
-        {mode === 'watching' && (
-          <>
-            <i className="fa-solid fa-compass fa-spin" style={{ animationDuration: '4s' }} />
-            <span>{label || 'Đang theo dõi từng ký tự... 👀'}</span>
-          </>
-        )}
-        {mode === 'success' && (
-          <>
-            <i className="fa-solid fa-party-horn" />
-            <span>Chào mừng bạn trở lại! 🎉</span>
-          </>
-        )}
-        {mode === 'idle' && (
-          <>
-            <i className="fa-solid fa-plane-departure" style={{ color: '#059669' }} />
-            <span>Mochi - Trợ lý đồng hành du lịch</span>
+            {mode === 'blindfolded' && (
+              <>
+                <i className="fa-solid fa-eye-slash" />
+                <span>Mochi không nhìn trộm đâu! 🙈</span>
+              </>
+            )}
+            {mode === 'peeking' && (
+              <>
+                <i className="fa-solid fa-eye" />
+                <span>Mochi hé mắt xem thử... 🤫</span>
+              </>
+            )}
+            {mode === 'watching' && (
+              <>
+                <i className="fa-solid fa-compass fa-spin" style={{ animationDuration: '4s' }} />
+                <span>Đang theo dõi từng ký tự... 👀</span>
+              </>
+            )}
+            {mode === 'success' && (
+              <>
+                <i className="fa-solid fa-party-horn" />
+                <span>Chào mừng bạn trở lại! 🎉</span>
+              </>
+            )}
+            {mode === 'idle' && (
+              <>
+                <i className="fa-solid fa-plane-departure" style={{ color: '#059669' }} />
+                <span>Mochi - Trợ lý đồng hành du lịch</span>
+              </>
+            )}
           </>
         )}
       </div>

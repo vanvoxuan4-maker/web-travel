@@ -112,33 +112,110 @@ export const LoginPage: React.FC = () => {
 
   const { lookProgress, mascotLabel } = React.useMemo(() => {
     switch (activeField) {
-      case 'fullname':
+      case 'fullname': {
+        const trimmed = fullName.trim();
+        const msg = trimmed.length >= 2
+          ? `Whoa, ${trimmed} nghe hay và ấn tượng quá! ✨`
+          : 'Whoa, tên bạn nghe hay quá! Nhập đầy đủ nhé ✨';
         return {
           lookProgress: Math.min(fullName.length / 18, 1),
-          mascotLabel: 'Đang xem họ và tên của bạn... ✍️'
+          mascotLabel: msg
         };
-      case 'phone':
+      }
+      case 'phone': {
+        const clean = sanitizePhone(phone);
+        const msg = clean.length === 10
+          ? 'Số điện thoại chuẩn rồi! Hướng dẫn viên sẽ liên hệ đón bạn 📞'
+          : 'Nhớ nhập đúng số điện thoại để nhận thông báo đón tour nhé! 📱';
         return {
           lookProgress: Math.min(phone.length / 10, 1),
-          mascotLabel: 'Đang ghi nhớ số điện thoại... 📞'
+          mascotLabel: msg
         };
-      case 'address':
+      }
+      case 'address': {
+        const msg = address.trim().length >= 5
+          ? 'Địa chỉ tuyệt vời! WebTravel sẽ chuẩn bị quà lưu niệm chu đáo 🏡'
+          : 'Nhập địa chỉ liên hệ để tiện nhận vé và hỗ trợ tour nhé! 📍';
         return {
           lookProgress: Math.min(address.length / 22, 1),
-          mascotLabel: 'Ghi nhận địa chỉ du lịch... 📍'
+          mascotLabel: msg
         };
-      case 'email':
+      }
+      case 'email': {
+        const isEmailValid = validateEmail(email).isValid;
+        let msg = '';
+        if (mode === 'login') {
+          msg = isEmailValid
+            ? 'Email chuẩn rồi, tiếp tục nhập mật khẩu nhé! ✨'
+            : 'Nhập email tài khoản WebTravel của bạn nhé! 💌';
+        } else {
+          msg = isEmailValid
+            ? 'Email chuẩn xịn rồi! Vé tour & lịch trình sẽ bay về hòm thư này ✈️'
+            : 'Nhớ nhập đúng email của bạn để nhận thông báo khi đặt tour nhé! 💌';
+        }
         return {
           lookProgress: Math.min(email.length / 22, 1),
-          mascotLabel: 'Đang theo dõi từng ký tự email... 👀'
+          mascotLabel: msg
         };
+      }
+      case 'password': {
+        if (showPassword) {
+          return {
+            lookProgress: 0.5,
+            mascotLabel: 'Mochi hé mắt xem thử... Nhớ giữ kín mật khẩu nhé! 🤫'
+          };
+        }
+        if (mode === 'login') {
+          return {
+            lookProgress: 0.5,
+            mascotLabel: 'Mochi che mắt rồi! Nhập mật khẩu để bắt đầu hành trình nhé 🙈'
+          };
+        }
+        const hasLength = password.length >= 8;
+        const hasNumber = /\d/.test(password);
+        const hasSpecial = /[^A-Za-z0-9]/.test(password);
+        const msg = (hasLength && hasNumber && hasSpecial)
+          ? 'Mật khẩu chuẩn VIP cực kỳ kiên cố, an tâm vi vu rồi nhé! 🚀'
+          : 'Mochi che mắt rồi! Nhớ nhập pass gồm các điều kiện để bảo mật tốt hơn nhé 🛡️';
+        return {
+          lookProgress: 0.5,
+          mascotLabel: msg
+        };
+      }
+      case 'confirmPassword': {
+        if (showConfirmPassword) {
+          return {
+            lookProgress: 0.5,
+            mascotLabel: 'Mochi hé mắt xem thử... Hãy chắc chắn mật khẩu khớp nhau nhé! 🤫'
+          };
+        }
+        const isMatching = confirmPassword.length > 0 && password === confirmPassword;
+        const msg = isMatching
+          ? 'Trùng khớp hoàn hảo rồi! Tài khoản đã sẵn sàng cất cánh 🎉'
+          : 'Nhập lại mật khẩu thật chính xác để bảo vệ chuyến đi của bạn nhé! 🔐';
+        return {
+          lookProgress: 0.5,
+          mascotLabel: msg
+        };
+      }
       default:
         return {
           lookProgress: 0.5,
           mascotLabel: undefined
         };
     }
-  }, [activeField, fullName, phone, address, email]);
+  }, [
+    activeField,
+    mode,
+    fullName,
+    phone,
+    address,
+    email,
+    password,
+    confirmPassword,
+    showPassword,
+    showConfirmPassword
+  ]);
 
   // Auto-rotate left hero visual slides every 6 seconds
   useEffect(() => {
