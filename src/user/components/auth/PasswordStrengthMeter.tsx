@@ -72,8 +72,8 @@ export const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ pa
     <div
       style={{
         marginTop: '-0.35rem',
-        marginBottom: '1rem',
-        padding: '0.75rem',
+        marginBottom: '0.85rem',
+        padding: '0.6rem 0.8rem',
         background: tier.bg,
         borderRadius: '12px',
         border: `1px solid ${tier.color}30`,
@@ -81,25 +81,25 @@ export const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ pa
       }}
     >
       {/* Header bar and label */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-        <span style={{ fontSize: '0.74rem', fontWeight: 700, color: tier.color, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+        <span style={{ fontSize: '0.73rem', fontWeight: 700, color: tier.color, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <i className="fa-solid fa-shield-halved" />
           <span>{tier.label}</span>
         </span>
-        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: tier.color }}>
+        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: tier.color }}>
           {score}/4 tiêu chí
         </span>
       </div>
 
       {/* 4-segment Progress Bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginBottom: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginBottom: '0.45rem' }}>
         {[1, 2, 3, 4].map((step) => {
           const isActive = step <= tier.bars;
           return (
             <div
               key={step}
               style={{
-                height: '5px',
+                height: '4px',
                 borderRadius: '999px',
                 background: isActive ? tier.color : '#e2e8f0',
                 transition: 'background 0.3s ease, transform 0.2s ease',
