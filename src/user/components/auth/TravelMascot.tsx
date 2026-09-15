@@ -5,24 +5,26 @@ export type MascotMode = 'idle' | 'watching' | 'blindfolded' | 'peeking' | 'succ
 interface TravelMascotProps {
   mode: MascotMode;
   lookProgress?: number; // 0 (left) to 1 (right)
+  label?: string;
   style?: React.CSSProperties;
 }
 
 export const TravelMascot: React.FC<TravelMascotProps> = ({
   mode,
   lookProgress = 0.5,
+  label,
   style
 }) => {
-  // Calculate eye pupil shift based on typing progress (x from -5 to +5, y down slightly)
+  // Calculate eye pupil shift based on typing progress (x from -5.5 to +5.5, y down 2.2px)
   const pupilX = useMemo(() => {
     if (mode === 'watching') {
-      return -5 + Math.min(Math.max(lookProgress, 0), 1) * 10;
+      return -5.5 + Math.min(Math.max(lookProgress, 0), 1) * 11;
     }
     return 0;
   }, [mode, lookProgress]);
 
   const pupilY = useMemo(() => {
-    if (mode === 'watching') return 2;
+    if (mode === 'watching') return 2.2;
     return 0;
   }, [mode]);
 
@@ -246,7 +248,7 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
         {mode === 'watching' && (
           <>
             <i className="fa-solid fa-compass fa-spin" style={{ animationDuration: '4s' }} />
-            <span>Đang theo dõi từng ký tự... 👀</span>
+            <span>{label || 'Đang theo dõi từng ký tự... 👀'}</span>
           </>
         )}
         {mode === 'success' && (

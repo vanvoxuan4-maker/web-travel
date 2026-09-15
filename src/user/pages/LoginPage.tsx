@@ -106,7 +106,39 @@ export const LoginPage: React.FC = () => {
 
   // Interactive Mascot state
   const [mascotMode, setMascotMode] = useState<MascotMode>('idle');
-  const lookProgress = Math.min(email.length / 22, 1);
+  const [activeField, setActiveField] = useState<
+    'fullname' | 'phone' | 'address' | 'email' | 'password' | 'confirmPassword' | null
+  >(null);
+
+  const { lookProgress, mascotLabel } = React.useMemo(() => {
+    switch (activeField) {
+      case 'fullname':
+        return {
+          lookProgress: Math.min(fullName.length / 18, 1),
+          mascotLabel: 'Đang xem họ và tên của bạn... ✍️'
+        };
+      case 'phone':
+        return {
+          lookProgress: Math.min(phone.length / 10, 1),
+          mascotLabel: 'Đang ghi nhớ số điện thoại... 📞'
+        };
+      case 'address':
+        return {
+          lookProgress: Math.min(address.length / 22, 1),
+          mascotLabel: 'Ghi nhận địa chỉ du lịch... 📍'
+        };
+      case 'email':
+        return {
+          lookProgress: Math.min(email.length / 22, 1),
+          mascotLabel: 'Đang theo dõi từng ký tự email... 👀'
+        };
+      default:
+        return {
+          lookProgress: 0.5,
+          mascotLabel: undefined
+        };
+    }
+  }, [activeField, fullName, phone, address, email]);
 
   // Auto-rotate left hero visual slides every 6 seconds
   useEffect(() => {
@@ -639,6 +671,7 @@ export const LoginPage: React.FC = () => {
           <TravelMascot
             mode={mascotMode}
             lookProgress={lookProgress}
+            label={mascotLabel}
             style={{ marginBottom: '1.25rem' }}
           />
 
@@ -658,6 +691,8 @@ export const LoginPage: React.FC = () => {
               onClick={() => {
                 setErrorMsg(null);
                 setSuccessMsg(null);
+                setActiveField(null);
+                setMascotMode('idle');
                 setMode('login');
               }}
               style={{
@@ -686,6 +721,8 @@ export const LoginPage: React.FC = () => {
               onClick={() => {
                 setErrorMsg(null);
                 setSuccessMsg(null);
+                setActiveField(null);
+                setMascotMode('idle');
                 setMode('register');
               }}
               style={{
@@ -819,7 +856,15 @@ export const LoginPage: React.FC = () => {
                     required
                     className="wt-floating-input"
                     value={fullName}
+                    onFocus={() => {
+                      setActiveField('fullname');
+                      setMascotMode('watching');
+                    }}
                     onChange={(e) => setFullName(e.target.value)}
+                    onBlur={() => {
+                      setActiveField(null);
+                      setMascotMode('idle');
+                    }}
                     placeholder=" "
                   />
                   <i className="fa-solid fa-user wt-floating-icon" />
@@ -838,12 +883,20 @@ export const LoginPage: React.FC = () => {
                         maxLength={10}
                         className="wt-floating-input"
                         value={phone}
+                        onFocus={() => {
+                          setActiveField('phone');
+                          setMascotMode('watching');
+                        }}
                         onChange={(e) => {
                           const clean = sanitizePhone(e.target.value);
                           setPhone(clean);
                           setPhoneTouched(true);
                         }}
-                        onBlur={() => setPhoneTouched(true)}
+                        onBlur={() => {
+                          setPhoneTouched(true);
+                          setActiveField(null);
+                          setMascotMode('idle');
+                        }}
                         placeholder=" "
                       />
                       <i className="fa-solid fa-phone wt-floating-icon" />
@@ -875,7 +928,15 @@ export const LoginPage: React.FC = () => {
                         required
                         className="wt-floating-input"
                         value={address}
+                        onFocus={() => {
+                          setActiveField('address');
+                          setMascotMode('watching');
+                        }}
                         onChange={(e) => setAddress(e.target.value)}
+                        onBlur={() => {
+                          setActiveField(null);
+                          setMascotMode('idle');
+                        }}
                         placeholder=" "
                       />
                       <i className="fa-solid fa-location-dot wt-floating-icon" />
@@ -896,13 +957,17 @@ export const LoginPage: React.FC = () => {
                 required
                 className="wt-floating-input"
                 value={email}
-                onFocus={() => setMascotMode('watching')}
+                onFocus={() => {
+                  setActiveField('email');
+                  setMascotMode('watching');
+                }}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   if (mode === 'register') setEmailTouched(true);
                 }}
                 onBlur={() => {
                   if (mode === 'register') setEmailTouched(true);
+                  setActiveField(null);
                   setMascotMode('idle');
                 }}
                 placeholder=" "
@@ -927,13 +992,17 @@ export const LoginPage: React.FC = () => {
                 required
                 className="wt-floating-input has-eye"
                 value={password}
-                onFocus={() => setMascotMode(showPassword ? 'peeking' : 'blindfolded')}
+                onFocus={() => {
+                  setActiveField('password');
+                  setMascotMode(showPassword ? 'peeking' : 'blindfolded');
+                }}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (mode === 'register') setPasswordTouched(true);
                 }}
                 onBlur={() => {
                   if (mode === 'register') setPasswordTouched(true);
+                  setActiveField(null);
                   setMascotMode('idle');
                 }}
                 placeholder=" "
@@ -947,7 +1016,9 @@ export const LoginPage: React.FC = () => {
                 onClick={() => {
                   const next = !showPassword;
                   setShowPassword(next);
-                  setMascotMode(next ? 'peeking' : 'blindfolded');
+                  if (activeField === 'password') {
+                    setMascotMode(next ? 'peeking' : 'blindfolded');
+                  }
                 }}
                 className="wt-floating-eye"
                 aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
@@ -983,13 +1054,17 @@ export const LoginPage: React.FC = () => {
                     required
                     className="wt-floating-input has-eye"
                     value={confirmPassword}
-                    onFocus={() => setMascotMode(showConfirmPassword ? 'peeking' : 'blindfolded')}
+                    onFocus={() => {
+                      setActiveField('confirmPassword');
+                      setMascotMode(showConfirmPassword ? 'peeking' : 'blindfolded');
+                    }}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setConfirmPasswordTouched(true);
                     }}
                     onBlur={() => {
                       setConfirmPasswordTouched(true);
+                      setActiveField(null);
                       setMascotMode('idle');
                     }}
                     placeholder=" "
@@ -1003,7 +1078,9 @@ export const LoginPage: React.FC = () => {
                     onClick={() => {
                       const next = !showConfirmPassword;
                       setShowConfirmPassword(next);
-                      setMascotMode(next ? 'peeking' : 'blindfolded');
+                      if (activeField === 'confirmPassword') {
+                        setMascotMode(next ? 'peeking' : 'blindfolded');
+                      }
                     }}
                     className="wt-floating-eye"
                     aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
