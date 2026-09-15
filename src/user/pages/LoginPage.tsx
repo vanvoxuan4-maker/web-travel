@@ -527,49 +527,37 @@ export const LoginPage: React.FC = () => {
         }
 
         /* 3. HAS VALUE (is-floating): Keep letters floating on top */
-          color: #0f172a;
+        .wt-floating-group.is-floating .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
+          font-weight: 700;
+          color: #475569;
+          background-color: #ffffff;
         }
 
-        .wt-floating-label {
-          position: absolute;
-          left: 2.75rem;
-          top: 15px;
-          color: #64748b;
-          font-size: 0.93rem;
-          pointer-events: none;
-          display: inline-flex;
-          align-items: center;
-          user-select: none;
+        .wt-floating-group.is-floating:hover .wt-wavy-char,
+        .wt-floating-group.is-floating:focus-within .wt-wavy-char {
+          color: #059669;
+          background-color: #ffffff;
         }
 
-        .wt-wavy-char {
-          display: inline-block;
-          transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1.3),
-                      color 0.22s ease,
-                      font-size 0.22s ease;
-        }
-
-        .wt-floating-group:focus-within .wt-floating-label .wt-wavy-char,
-        .wt-floating-group.is-floating .wt-floating-label .wt-wavy-char {
-          transform: translateY(-24px);
-          font-size: 0.76rem;
+        .wt-floating-input:-webkit-autofill ~ .wt-floating-label .wt-wavy-char,
+        .wt-floating-input:autofill ~ .wt-floating-label .wt-wavy-char {
+          transform: translateY(-26px) scale(0.85);
           font-weight: 700;
           color: #059669;
-          background: #ffffff;
-          padding: 0 2px;
+          background-color: #ffffff;
         }
 
-        .wt-floating-group.is-floating:not(:focus-within) .wt-floating-label .wt-wavy-char {
-          color: #64748b;
-        }
-
+        /* 4. VALIDATION STATES */
         .wt-floating-group.has-error .wt-floating-input {
           border-color: #ef4444 !important;
+          background: #fef2f2 !important;
         }
 
         .wt-floating-group.has-error .wt-floating-icon,
         .wt-floating-group.has-error .wt-wavy-char {
           color: #dc2626 !important;
+          background-color: #ffffff;
         }
 
         .wt-floating-group.has-success .wt-floating-input {
@@ -581,248 +569,187 @@ export const LoginPage: React.FC = () => {
           color: #059669 !important;
           background-color: #ffffff;
         }
-
-        /* Custom Sleek Scrollbar */
-        .login-scroll-viewport::-webkit-scrollbar {
-          width: 6px;
-        }
-        .login-scroll-viewport::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .login-scroll-viewport::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.25);
-          border-radius: 999px;
-        }
-        .login-scroll-viewport::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.45);
-        }
-
-        @media (max-width: 640px) {
-          .login-top-bar {
-            padding: 1rem 1.25rem !important;
-          }
-          .login-island-card {
-            padding: 1.5rem 1.25rem !important;
-            border-radius: 22px !important;
-          }
-          .login-ambient-footer {
-            display: none !important;
-          }
-        }
       `}</style>
+      {/* ========================================================================= */}
+      {/* LEFT COLUMN: 50% IMMERSIVE EDITORIAL VISUAL HERO (DESKTOP)               */}
+      {/* ========================================================================= */}
+      <div
+        className="login-hero-col"
+        style={{
+          flex: '1 1 52%',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '3rem 3.5rem',
+          color: '#ffffff',
+          overflow: 'hidden',
+          background: '#022c22'
+        }}
+      >
+        {/* Background Slide Image with Crossfade */}
+        {HERO_SLIDES.map((s, index) => (
+          <div
+            key={index}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url('${s.image}')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: index === currentSlide ? 1 : 0,
+              transform: index === currentSlide ? 'scale(1.03)' : 'scale(1)',
+              transition: 'opacity 1.2s ease-in-out, transform 8s ease-out',
+              zIndex: 1
+            }}
+          />
+        ))}
 
-      {/* 1. Fullscreen Background Panorama Crossfade with Ken Burns Effect */}
-      {HERO_SLIDES.map((s, index) => (
+        {/* Gradient Scrim Overlays */}
         <div
-          key={index}
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: `url('${s.image}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            opacity: index === currentSlide ? 1 : 0,
-            transform: index === currentSlide ? 'scale(1.05)' : 'scale(1)',
-            transition: 'opacity 1.4s cubic-bezier(0.4, 0, 0.2, 1), transform 9s ease-out',
-            zIndex: 1
+            background: 'linear-gradient(180deg, rgba(6, 78, 59, 0.65) 0%, rgba(2, 44, 34, 0.4) 40%, rgba(15, 23, 42, 0.9) 100%)',
+            zIndex: 2
           }}
         />
-      ))}
 
-      {/* 2. Frosted Ambient Scrim with Deep Cinematic Emerald & Vignette */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(ellipse at center, rgba(6, 78, 59, 0.48) 0%, rgba(2, 44, 34, 0.76) 55%, rgba(15, 23, 42, 0.92) 100%)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          zIndex: 2
-        }}
-      />
-
-      {/* 3. Top Navigation Bar: Brand & Back to Home */}
-      <header
-        className="login-top-bar"
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '1.25rem 3rem',
-          width: '100%',
-          boxSizing: 'border-box'
-        }}
-      >
-        {/* Brand Badge */}
-        <div
-          onClick={() => navigate('/')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            cursor: 'pointer',
-            userSelect: 'none'
-          }}
-        >
+        {/* Top Left: WebTravel Luxury Brand Badge */}
+        <div style={{ position: 'relative', zIndex: 3, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div
             style={{
-              width: '42px',
-              height: '42px',
+              width: '44px',
+              height: '44px',
               borderRadius: '12px',
               background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-              border: '1.5px solid rgba(255,255,255,0.3)',
+              border: '1.5px solid rgba(255,255,255,0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.35)'
+              boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+              fontSize: '1.25rem',
+              color: '#ffffff'
             }}
           >
-            <i className="fa-solid fa-compass" style={{ color: '#ffffff', fontSize: '1.2rem' }} />
+            <i className="fa-solid fa-compass"></i>
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
-                WebTravel
-              </span>
-              <span style={{ background: '#f59e0b', color: '#111827', fontSize: '0.62rem', fontWeight: 800, padding: '0.12rem 0.45rem', borderRadius: '6px', letterSpacing: '0.04em' }}>
-                EDITORIAL 5★
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.03em', color: '#ffffff' }}>WebTravel</span>
+              <span style={{ background: '#f59e0b', color: '#111827', fontSize: '0.65rem', fontWeight: 800, padding: '0.15rem 0.45rem', borderRadius: '8px' }}>
+                EDITORIAL
               </span>
             </div>
-            <span style={{ fontSize: '0.72rem', color: '#a7f3d0', letterSpacing: '0.04em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
-              Hành Trình Nghỉ Dưỡng & Trải Nghiệm Thượng Lưu
+            <span style={{ fontSize: '0.75rem', color: '#a7f3d0', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Hành Trình Nghỉ Dưỡng & Trải Nghiệm 5★
             </span>
           </div>
         </div>
 
-        {/* Back to Home Button */}
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.55rem',
-            padding: '0.55rem 1.25rem',
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '30px',
-            color: '#ffffff',
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.25s ease',
-            boxShadow: '0 6px 18px rgba(0,0,0,0.25)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.28)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.55)';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-            e.currentTarget.style.transform = 'none';
-          }}
-        >
-          <i className="fa-solid fa-arrow-left" style={{ fontSize: '0.8rem' }} />
-          <span>Về Trang Chủ</span>
-        </button>
-      </header>
-
-      {/* 4. Central Scrollable Viewport: Floating Island Card */}
-      <main
-        className="login-scroll-viewport"
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          flex: 1,
-          overflowY: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem 1.5rem 2rem',
-          boxSizing: 'border-box'
-        }}
-      >
-        {/* The Floating Island Luxury Card */}
-        <div
-          className="login-island-card"
-          style={{
-            width: '100%',
-            maxWidth: mode === 'register' ? '540px' : '460px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(28px) saturate(190%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(190%)',
-            borderRadius: '28px',
-            border: '1.5px solid rgba(255, 255, 255, 0.9)',
-            boxShadow: '0 30px 80px -15px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.6)',
-            padding: mode === 'register' ? '1.75rem 2.25rem 2rem' : '2.25rem 2.5rem',
-            margin: 'auto 0',
-            position: 'relative',
-            transition: 'max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease',
-            boxSizing: 'border-box'
-          }}
-        >
-          {/* Crest: Mochi Mascot integrated seamlessly right at top */}
+        {/* Bottom Left: Captivating Glassmorphism Story Card */}
+        <div style={{ position: 'relative', zIndex: 3, maxWidth: '580px' }}>
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              marginTop: mode === 'register' ? '-0.25rem' : '0',
-              marginBottom: '0.85rem',
-              position: 'relative'
+              background: 'rgba(255, 255, 255, 0.12)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              padding: '1.75rem 2rem',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.35)',
+              marginBottom: '1.5rem'
             }}
           >
-            {/* Subtle Ambient Halo behind Mochi */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '140px',
-                height: '100px',
-                background: 'radial-gradient(ellipse, rgba(16, 185, 129, 0.18) 0%, transparent 70%)',
-                borderRadius: '50%',
-                pointerEvents: 'none',
-                zIndex: 0
-              }}
-            />
+            {/* Live Location Tag */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(5, 150, 105, 0.4)', border: '1px solid rgba(52, 211, 153, 0.4)', padding: '0.3rem 0.75rem', borderRadius: '30px', fontSize: '0.78rem', fontWeight: 600, color: '#6ee7b7', marginBottom: '0.85rem' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
+              <i className="fa-solid fa-location-dot"></i> {slide.location}
+            </div>
 
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <TravelMascot
-                mode={mascotMode}
-                lookProgress={lookProgress}
-                label={mascotLabel}
-              />
+            <h3 style={{ fontSize: '1.55rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.5rem', lineHeight: 1.25, letterSpacing: '-0.02em' }}>
+              {slide.title}
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', color: '#e2e8f0', fontSize: '0.92rem', lineHeight: 1.5 }}>
+              {slide.subtitle}
+            </p>
+
+            {/* Credibility / Rating Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#f59e0b', fontSize: '0.9rem' }}>
+                  <i className="fa-solid fa-star"></i>
+                  <i className="fa-solid fa-star"></i>
+                  <i className="fa-solid fa-star"></i>
+                  <i className="fa-solid fa-star"></i>
+                  <i className="fa-solid fa-star"></i>
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>{slide.rating}</span>
+              </div>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Bảo hiểm toàn cầu 1 Tỷ ₫</span>
             </div>
           </div>
 
+          {/* Carousel Slide Indicators */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setCurrentSlide(i)}
+                style={{
+                  width: i === currentSlide ? '32px' : '9px',
+                  height: '9px',
+                  borderRadius: '10px',
+                  background: i === currentSlide ? '#34d399' : 'rgba(255, 255, 255, 0.3)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+                aria-label={`Slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* RIGHT COLUMN: 48% LUXURY AUTHENTICATION CARD                             */}
+      {/* ========================================================================= */}
+      <div
+        className="login-form-col"
+        style={{
+          flex: '1 1 48%',
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: mode === 'register' ? '1.5rem 2.5rem' : '2.5rem 3rem',
+          overflowY: 'auto',
+          position: 'relative'
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: '440px', margin: 'auto 0' }}>
           {/* Header Title */}
-          <div style={{ textAlign: 'center', marginBottom: mode === 'register' ? '0.85rem' : '1.35rem' }}>
-            <h1
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: mode === 'register' ? '1.7rem' : '1.85rem',
-                fontWeight: 800,
-                color: '#0f172a',
-                margin: '0 0 0.3rem',
-                letterSpacing: '-0.025em'
-              }}
-            >
+          <div style={{ marginBottom: mode === 'register' ? '0.75rem' : '1.25rem', textAlign: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: mode === 'register' ? '1.65rem' : '1.85rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.25rem', letterSpacing: '-0.03em' }}>
               {mode === 'login' ? 'Đăng Nhập Khám Phá' : 'Tạo Tài Khoản Mới'}
             </h1>
             <p style={{ margin: 0, fontSize: '0.86rem', color: '#64748b' }}>
               {mode === 'login'
-                ? 'Nhập tài khoản để tiếp tục trải nghiệm & đặt tour 5★'
+                ? 'Nhập tài khoản để tiếp tục trải nghiệm & đặt tour'
                 : 'Đăng ký thành viên để nhận ưu đãi tour lên tới 500.000 ₫'}
             </p>
           </div>
+
+          {/* Captain Mochi Interactive Security Mascot */}
+          <TravelMascot
+            mode={mascotMode}
+            lookProgress={lookProgress}
+            label={mascotLabel}
+            style={{ marginBottom: mode === 'register' ? '0.75rem' : '1.15rem' }}
+          />
 
           {/* Segmented Pill Tab Switcher */}
           <div
@@ -831,7 +758,7 @@ export const LoginPage: React.FC = () => {
               background: '#f1f5f9',
               padding: '0.3rem',
               borderRadius: '14px',
-              marginBottom: mode === 'register' ? '1rem' : '1.4rem',
+              marginBottom: mode === 'register' ? '1rem' : '1.5rem',
               position: 'relative'
             }}
           >
@@ -854,15 +781,15 @@ export const LoginPage: React.FC = () => {
                 fontWeight: 700,
                 fontSize: '0.9rem',
                 cursor: 'pointer',
-                boxShadow: mode === 'login' ? '0 4px 12px rgba(5, 150, 105, 0.15)' : 'none',
+                boxShadow: mode === 'login' ? '0 4px 10px rgba(0, 0, 0, 0.06)' : 'none',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.45rem'
+                gap: '0.4rem'
               }}
             >
-              <i className="fa-solid fa-right-to-bracket" style={{ color: mode === 'login' ? '#059669' : '#94a3b8' }}></i> Đăng Nhập
+              <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập
             </button>
 
             <button
@@ -884,15 +811,15 @@ export const LoginPage: React.FC = () => {
                 fontWeight: 700,
                 fontSize: '0.9rem',
                 cursor: 'pointer',
-                boxShadow: mode === 'register' ? '0 4px 12px rgba(5, 150, 105, 0.15)' : 'none',
+                boxShadow: mode === 'register' ? '0 4px 10px rgba(0, 0, 0, 0.06)' : 'none',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.45rem'
+                gap: '0.4rem'
               }}
             >
-              <i className="fa-solid fa-user-plus" style={{ color: mode === 'register' ? '#059669' : '#94a3b8' }}></i> Đăng Ký
+              <i className="fa-solid fa-user-plus"></i> Đăng Ký
             </button>
           </div>
 
@@ -1299,74 +1226,14 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {/* Security Guarantee Footnote */}
-          <div style={{ marginTop: '1.5rem', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+          <div style={{ marginTop: '2rem', textAlign: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#94a3b8', fontSize: '0.76rem' }}>
               <i className="fa-solid fa-shield-halved" style={{ color: '#059669' }}></i>
               <span>Bảo mật chuẩn SSL 256-bit • Mã hóa tài khoản Supabase Cloud</span>
             </div>
           </div>
         </div>
-      </main>
-
-      {/* 5. Bottom Ambient Live Location Badge & Destination Switcher */}
-      <footer
-        className="login-ambient-footer"
-        style={{
-          position: 'relative',
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.85rem 3rem',
-          width: '100%',
-          boxSizing: 'border-box'
-        }}
-      >
-        {/* Destination Info Capsule */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            background: 'rgba(255, 255, 255, 0.12)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            padding: '0.35rem 0.95rem',
-            borderRadius: '30px',
-            color: '#ffffff',
-            fontSize: '0.78rem'
-          }}
-        >
-          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399' }} />
-          <i className="fa-solid fa-location-dot" style={{ color: '#6ee7b7' }} />
-          <span style={{ fontWeight: 600 }}>{slide.location}</span>
-          <span style={{ opacity: 0.5 }}>•</span>
-          <span style={{ color: '#fde047', fontWeight: 700 }}>{slide.rating}</span>
-        </div>
-
-        {/* Carousel Slide Indicators */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {HERO_SLIDES.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setCurrentSlide(i)}
-              style={{
-                width: i === currentSlide ? '28px' : '8px',
-                height: '8px',
-                borderRadius: '10px',
-                background: i === currentSlide ? '#34d399' : 'rgba(255, 255, 255, 0.35)',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-              }}
-              aria-label={`Slide ${i + 1}`}
-            />
-          ))}
-        </div>
-      </footer>
+      </div>
     </div>
   );
 };
