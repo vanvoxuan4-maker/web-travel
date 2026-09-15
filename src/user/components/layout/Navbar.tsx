@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/useAuth';
+import { useModalPopup } from '../../../context/ModalPopupContext';
 import { TravelGuideModal, TravelGuideTab } from '../modals/TravelGuideModal';
 import { AboutUsModal } from '../modals/AboutUsModal';
 import { WishlistModal } from '../modals/WishlistModal';
@@ -9,6 +10,7 @@ import { CartModal } from '../modals/CartModal';
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, isAdmin, isStaff, signOut } = useAuth();
+  const { showConfirm, showSuccess } = useModalPopup();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -451,7 +453,32 @@ export const Navbar: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsUserMenuOpen(false);
-                          signOut();
+                          showConfirm(
+                            'Xác Nhận Đăng Xuất',
+                            'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản WebTravel không?',
+                            async () => {
+                              await signOut();
+                              showSuccess(
+                                'Đã Đăng Xuất Thành Công',
+                                'Cảm ơn bạn đã đồng hành cùng WebTravel. Hẹn sớm gặp lại bạn!',
+                                {
+                                  confirmText: 'Về Trang Chủ',
+                                  onConfirm: () => navigate('/home'),
+                                  autoCloseMs: 2500
+                                }
+                              );
+                            },
+                            {
+                              confirmText: 'Đăng Xuất Ngay',
+                              cancelText: 'Ở Lại',
+                              userBadge: {
+                                name: user?.fullName || 'Khách Hàng',
+                                email: user?.email,
+                                role: user?.role,
+                                avatarUrl: user?.avatarUrl
+                              }
+                            }
+                          );
                         }}
                         style={{
                           width: '100%',

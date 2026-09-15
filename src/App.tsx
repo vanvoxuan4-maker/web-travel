@@ -1,7 +1,9 @@
 import React, { useEffect, Component, ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './auth';
+import { ModalPopupProvider } from './context/ModalPopupContext';
 import { Navbar, Footer, HomePage, TourDetailPage, CheckoutPage, LoginPage, ProfilePage, TourCatalogPage, AIAssistantModal, NotFoundPage } from './user';
+import { TravelCursor } from './user/components/common/TravelCursor';
 import { AdminPortal, AdminBookingDetailPage, AdminCustomerDetailPage } from './admin';
 import { AppLogger } from './utils/logger';
 
@@ -274,6 +276,7 @@ const AppContent: React.FC = () => {
         </main>
         {!isStandalonePage && <Footer />}
         {!isStandalonePage && <AIAssistantModal />}
+        <TravelCursor />
       </div>
     </>
   );
@@ -284,7 +287,9 @@ export const App: React.FC = () => {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
-          <AppContent />
+          <ModalPopupProvider>
+            <AppContent />
+          </ModalPopupProvider>
         </Router>
       </AuthProvider>
     </ErrorBoundary>

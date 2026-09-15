@@ -1545,6 +1545,41 @@ export const CheckoutPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Loyalty Points Preview Banner */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 100%)',
+                      border: '1.5px solid #fde68a',
+                      borderRadius: '12px',
+                      padding: '0.85rem 1rem',
+                      marginTop: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem'
+                    }}>
+                      <div style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: '#d97706',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1rem',
+                        flexShrink: 0
+                      }}>
+                        <i className="fa-solid fa-gift"></i>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#78350f', lineHeight: 1.4 }}>
+                        <span style={{ fontWeight: 800, color: '#b45309', display: 'block', fontSize: '0.88rem' }}>
+                          Tích lũy +{Math.floor(dueAmount / 100000)} Điểm Thưởng
+                        </span>
+                        {payOption === 'deposit'
+                          ? `(Nhận trước +${Math.floor(dueAmount / 100000)} điểm cọc, nhận nốt +${Math.floor((finalTotal - dueAmount) / 100000)} điểm khi thanh toán đủ)`
+                          : `(Quy đổi 100.000đ = 1 điểm, tích lũy tự động sau khi thanh toán)`}
+                      </div>
+                    </div>
+
                     {/* Payment Type Option (Full vs Deposit) */}
                     {paymentMethod !== 'cash' ? (
                       <div style={{ margin: '1.25rem 0 1.5rem', background: '#f0fdf4', padding: '1rem', borderRadius: '10px', border: '1px solid rgba(5,150,105,0.2)' }}>

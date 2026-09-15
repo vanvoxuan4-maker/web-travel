@@ -56,11 +56,35 @@ export const profileService = {
       status?: UserStatus;
     }
   ): Promise<{ success: boolean; error?: string }> {
-    if (!isSupabaseConfigured || !supabase) {
-      return { success: true };
-    }
-
     try {
+      // 1. Luôn đồng bộ vào LocalStorage cache nếu người dùng hiện tại đang đăng nhập
+      try {
+        const localUserStr = localStorage.getItem('webtravel_auth_user');
+        if (localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          if (localUser.id === userId) {
+            if (updates.fullName !== undefined) localUser.fullName = updates.fullName;
+            if (updates.phone !== undefined) localUser.phone = updates.phone;
+            if (updates.address !== undefined) localUser.address = updates.address;
+            if (updates.avatarUrl !== undefined) localUser.avatarUrl = updates.avatarUrl;
+            if (updates.loyaltyPoints !== undefined) localUser.loyaltyPoints = updates.loyaltyPoints;
+            if (updates.status !== undefined) localUser.status = updates.status;
+            localStorage.setItem('webtravel_auth_user', JSON.stringify(localUser));
+          }
+        }
+      } catch {}
+
+      // 2. Phát sự kiện nếu có cập nhật điểm
+      if (updates.loyaltyPoints !== undefined && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('webtravel:loyalty_updated', {
+          detail: { userId, newPoints: updates.loyaltyPoints }
+        }));
+      }
+
+      if (!isSupabaseConfigured || !supabase) {
+        return { success: true };
+      }
+
       const dbPayload: any = {
         updated_at: new Date().toISOString()
       };
@@ -176,6 +200,84 @@ export const profileService = {
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Có lỗi xảy ra khi cập nhật mật khẩu' };
+    }
+  },
+
+  /**
+   * Tự động cộng/trừ điểm tích lũy (Loyalty Points) an toàn cho người dùng
+   * @param userId ID của người dùng
+   * @param delta Số điểm thay đổi (dương: cộng thêm, âm: thu hồi khi hủy tour)
+   */
+  async incrementLoyaltyPoints(userId: string, delta: number): Promise<{ success: boolean; newPoints?: number; error?: string }> {
+    if (!userId || delta === 0) {
+      return { success: true };
+    }
+
+    try {
+      let currentPoints = 0;
+
+      // 1. Kiểm tra cache LocalStorage
+      try {
+        const localUser = JSON.parse(localStorage.getItem('webtravel_auth_user') || '{}');
+        if (localUser.id === userId) {
+          currentPoints = Math.max(currentPoints, Number(localUser.loyaltyPoints) || 0);
+        }
+      } catch {}
+
+      // 2. Đọc từ Supabase nếu có
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('loyalty_points')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (!error && data && data.loyalty_points !== null) {
+            currentPoints = Math.max(currentPoints, Number(data.loyalty_points) || 0);
+          }
+        } catch {}
+      }
+
+      const newPoints = Math.max(0, currentPoints + delta);
+
+      if (isSupabaseConfigured && supabase) {
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update({
+            loyalty_points: newPoints,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (updateErr) {
+          console.warn('Lỗi khi cập nhật loyalty_points lên Supabase:', updateErr);
+        }
+      }
+
+      // Luôn đồng bộ vào LocalStorage cache nếu người dùng hiện tại đang đăng nhập
+      try {
+        const localUserStr = localStorage.getItem('webtravel_auth_user');
+        if (localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          if (localUser.id === userId) {
+            localUser.loyaltyPoints = newPoints;
+            localStorage.setItem('webtravel_auth_user', JSON.stringify(localUser));
+          }
+        }
+      } catch {}
+
+      // Phát sự kiện toàn cục để Header/ProfilePage cập nhật điểm ngay lập tức
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('webtravel:loyalty_updated', {
+          detail: { userId, delta, newPoints }
+        }));
+      }
+
+      return { success: true, newPoints };
+    } catch (err: any) {
+      console.error('Lỗi khi cộng/trừ điểm tích lũy:', err);
+      return { success: false, error: err?.message || 'Không thể cập nhật điểm thưởng' };
     }
   }
 };

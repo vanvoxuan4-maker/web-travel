@@ -35,6 +35,7 @@ export const TAB_PERMISSIONS: Record<AdminTab, readonly UserRole[]> = {
   customers: ['staff', 'admin', 'super_admin'],
   staff: ['admin', 'super_admin'],
   coupons: ['admin', 'super_admin'],
+  logs: ['admin', 'super_admin'],
   profile: ['staff', 'admin', 'super_admin'],
 };
 
@@ -74,6 +75,12 @@ export const PERMISSIONS = {
   'customer:promote_super_admin': ['super_admin'],
   'staff:view': ['admin', 'super_admin'],
   'staff:manage': ['admin', 'super_admin'],
+  'staff:create': ['admin', 'super_admin'],
+  'staff:edit': ['admin', 'super_admin'],
+  'staff:delete': ['super_admin'],
+
+  // Audit Logs
+  'audit_log:view': ['admin', 'super_admin'],
 
   // Promotions & Coupons
   'coupon:view': ['admin', 'super_admin'],

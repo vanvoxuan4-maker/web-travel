@@ -19,8 +19,10 @@ import { PaymentsModule } from './modules/PaymentsModule';
 import { ToursModule } from './modules/ToursModule';
 import { CustomersModule } from './modules/CustomersModule';
 import { StaffModule } from './modules/StaffModule';
+import { AuditLogsModule } from './modules/AuditLogsModule';
 import { CouponsModule } from './modules/CouponsModule';
 import { AccountModule } from './modules/AccountModule';
+import { auditLogService } from '../services/auditLogService';
 import { EditPriceModal } from './modals/EditPriceModal';
 import { AddTourModal } from './modals/AddTourModal';
 import { AddCouponModal } from './modals/AddCouponModal';
@@ -28,7 +30,7 @@ import { EditCouponModal } from './modals/EditCouponModal';
 import { IdleWarningModal } from './components/IdleWarningModal';
 import { useAdminIdleTimeout } from '../hooks/useAdminIdleTimeout';
 
-const VALID_TABS: AdminTab[] = ['overview', 'bookings', 'payments', 'tours', 'customers', 'staff', 'coupons', 'profile'];
+const VALID_TABS: AdminTab[] = ['overview', 'bookings', 'payments', 'tours', 'customers', 'staff', 'coupons', 'logs', 'profile'];
 
 export const AdminPortal: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -329,7 +331,7 @@ export const AdminPortal: React.FC = () => {
     }
   }, [actionFeedback]);
 
-  // Handler: Customer Role (Staff, Admin, Customer)
+  // Handler: Customer / Staff Role (Staff, Admin, Super Admin, Customer)
   const handleRoleChange = async (customerId: string, newRole: UserRole) => {
     if (!canAssignRole(user?.role, newRole)) {
       setActionFeedback({ type: 'error', message: 'Bạn không có quyền phân quyền vai trò này.' });
@@ -340,9 +342,27 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật vai trò' });
       return;
     }
+
+    const targetUser = customers.find((c) => c.id === customerId);
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, role: newRole } : c)));
-    const roleLabel = newRole === 'admin' ? 'QUẢN TRỊ VIÊN' : newRole === 'staff' ? 'NHÂN VIÊN' : 'KHÁCH HÀNG';
+    const roleLabel =
+      newRole === 'super_admin'
+        ? 'TỔNG QUẢN TRỊ (SUPER ADMIN)'
+        : newRole === 'admin'
+        ? 'QUẢN TRỊ VIÊN'
+        : newRole === 'staff'
+        ? 'NHÂN VIÊN'
+        : 'KHÁCH HÀNG';
     setActionFeedback({ type: 'success', message: `Đã cập nhật vai trò thành công: ${roleLabel}` });
+
+    auditLogService.logAction({
+      action: newRole === 'super_admin' ? 'PROMOTE_SUPER_ADMIN' : newRole === 'admin' ? 'PROMOTE_ADMIN' : 'UPDATE_ROLE',
+      category: 'AUTH_SECURITY',
+      targetType: 'staff',
+      targetId: customerId,
+      targetName: targetUser?.name || customerId,
+      details: { previousRole: targetUser?.role, newRole }
+    });
   };
 
   // Handler: Customer Ban/Unban
@@ -361,6 +381,7 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi cập nhật trạng thái tài khoản' });
       return;
     }
+    const targetCustomer = customers.find((c) => c.id === customerId);
     setCustomers(customers.map((c) => (c.id === customerId ? { ...c, status: newStatus } : c)));
     setActionFeedback({
       type: 'success',
@@ -368,6 +389,15 @@ export const AdminPortal: React.FC = () => {
         newStatus === 'banned'
           ? 'Đã khóa tài khoản thành công! Người dùng sẽ nhận được thông báo giải thích lý do khi đăng nhập.'
           : 'Đã mở khóa tài khoản thành công! Người dùng có thể tiếp tục sử dụng hệ thống bình thường.'
+    });
+
+    auditLogService.logAction({
+      action: 'UPDATE',
+      category: 'CUSTOMER',
+      targetType: 'customer',
+      targetId: customerId,
+      targetName: targetCustomer?.name || customerId,
+      details: { previousStatus: currentStatus, newStatus }
     });
   };
 
@@ -401,6 +431,21 @@ export const AdminPortal: React.FC = () => {
 
       const statusLabel = newStatus === 'confirmed' ? 'Đã Thanh Toán 100%' : newStatus === 'deposit' ? 'Đã Cọc 50%' : newStatus === 'pending' ? 'Chờ Duyệt' : 'Đã Hủy';
       setActionFeedback({ type: 'success', message: `Đã cập nhật trạng thái đơn ${bookingId} ➔ ${statusLabel}` });
+
+      auditLogService.logAction({
+        action: 'UPDATE',
+        category: 'BOOKING',
+        targetType: 'booking',
+        targetId: bookingId,
+        targetName: currentBooking?.tourTitle || bookingId,
+        details: {
+          previousStatus: currentBooking?.status,
+          newStatus,
+          paidAmount: paidAmt,
+          totalAmount: totalAmt,
+          customerName: currentBooking?.customerName
+        }
+      });
     } catch (err: any) {
       setActionFeedback({ type: 'error', message: err?.message || 'Lỗi cập nhật đơn hàng' });
     }
@@ -416,8 +461,18 @@ export const AdminPortal: React.FC = () => {
       if (isSupabaseConfigured && supabase) {
         await supabase.from('tours').update({ price_adult: newPrice }).eq('id', tourId);
       }
+      const targetTour = tours.find((t) => t.id === tourId);
       setTours(tours.map((t) => (t.id === tourId ? { ...t, priceAdult: newPrice } : t)));
       setActionFeedback({ type: 'success', message: 'Đã cập nhật giá tour mới thành công!' });
+
+      auditLogService.logAction({
+        action: 'UPDATE',
+        category: 'TOUR',
+        targetType: 'tour',
+        targetId: tourId,
+        targetName: targetTour?.title || tourId,
+        details: { oldPrice: targetTour?.priceAdult, newPrice }
+      });
     } catch (err: any) {
       setActionFeedback({ type: 'error', message: err?.message || 'Lỗi lưu giá mới' });
     }
@@ -436,6 +491,15 @@ export const AdminPortal: React.FC = () => {
     }
     setTours([newTour, ...tours]);
     setActionFeedback({ type: 'success', message: 'Đã thêm tour mới thành công vào hệ thống!' });
+
+    auditLogService.logAction({
+      action: 'CREATE',
+      category: 'TOUR',
+      targetType: 'tour',
+      targetId: newTour.id,
+      targetName: newTour.title,
+      details: { priceAdult: newTour.priceAdult, category: newTour.category }
+    });
   };
 
   // Handler: Full Save / Edit Tour
@@ -451,6 +515,15 @@ export const AdminPortal: React.FC = () => {
     }
     setTours(tours.map((t) => (t.id === updatedTour.id ? updatedTour : t)));
     setActionFeedback({ type: 'success', message: `Đã cập nhật thông tin tour "${updatedTour.title}" thành công!` });
+
+    auditLogService.logAction({
+      action: 'UPDATE',
+      category: 'TOUR',
+      targetType: 'tour',
+      targetId: updatedTour.id,
+      targetName: updatedTour.title,
+      details: { priceAdult: updatedTour.priceAdult }
+    });
   };
 
   // Handler: Update Schedule Dates & Capacity
@@ -502,6 +575,15 @@ export const AdminPortal: React.FC = () => {
       type: 'success',
       message: newStatus ? 'Đã kích hoạt mở bán tour!' : 'Đã tạm dừng nhận khách / ẩn tour khỏi website!'
     });
+
+    auditLogService.logAction({
+      action: 'UPDATE',
+      category: 'TOUR',
+      targetType: 'tour',
+      targetId: tourId,
+      targetName: targetTour?.title || tourId,
+      details: { newActiveStatus: newStatus }
+    });
   };
 
   // Handler: Delete Tour (Super Admin only)
@@ -510,6 +592,7 @@ export const AdminPortal: React.FC = () => {
       setActionFeedback({ type: 'error', message: 'Chỉ Super Admin mới có quyền xóa tour khỏi hệ thống!' });
       return;
     }
+    const targetTour = tours.find((t) => t.id === tourId);
     const result = await tourService.deleteTour(tourId);
     if (!result.success) {
       setActionFeedback({ type: 'error', message: result.error || 'Lỗi xóa tour' });
@@ -517,6 +600,15 @@ export const AdminPortal: React.FC = () => {
     }
     setTours(tours.filter((t) => t.id !== tourId));
     setActionFeedback({ type: 'success', message: 'Đã xóa tour thành công khỏi hệ thống!' });
+
+    auditLogService.logAction({
+      action: 'DELETE',
+      category: 'TOUR',
+      targetType: 'tour',
+      targetId: tourId,
+      targetName: targetTour?.title || tourId,
+      details: { tourId }
+    });
   };
 
   // Handler: Add Coupon
@@ -540,6 +632,15 @@ export const AdminPortal: React.FC = () => {
     }
     setCoupons([newCoupon, ...coupons]);
     setActionFeedback({ type: 'success', message: `Đã tạo voucher thành công: ${newCoupon.code}` });
+
+    auditLogService.logAction({
+      action: 'CREATE',
+      category: 'COUPON',
+      targetType: 'coupon',
+      targetId: newCoupon.code,
+      targetName: newCoupon.code,
+      details: { discountType: newCoupon.discountType, value: newCoupon.value }
+    });
   };
 
   // Handler: Update Coupon
@@ -563,6 +664,15 @@ export const AdminPortal: React.FC = () => {
     }
     setCoupons((prev) => prev.map((c) => (c.code === updatedCoupon.code ? updatedCoupon : c)));
     setActionFeedback({ type: 'success', message: `Đã cập nhật thông tin voucher ${updatedCoupon.code} thành công!` });
+
+    auditLogService.logAction({
+      action: 'UPDATE',
+      category: 'COUPON',
+      targetType: 'coupon',
+      targetId: updatedCoupon.code,
+      targetName: updatedCoupon.code,
+      details: { discountType: updatedCoupon.discountType, value: updatedCoupon.value }
+    });
   };
 
   // Handler: Toggle Coupon Active / Inactive (Hide / Unhide)
@@ -599,6 +709,15 @@ export const AdminPortal: React.FC = () => {
         ? `Đã kích hoạt lại voucher ${code}. Khách hàng có thể sử dụng.`
         : `Đã ẩn voucher ${code}. Khách hàng sẽ không thể áp dụng mã này.`
     });
+
+    auditLogService.logAction({
+      action: 'UPDATE',
+      category: 'COUPON',
+      targetType: 'coupon',
+      targetId: code,
+      targetName: code,
+      details: { isActive: nextStatus }
+    });
   };
 
   // Handler: Delete Coupon (Super Admin only)
@@ -614,6 +733,15 @@ export const AdminPortal: React.FC = () => {
     }
     setCoupons((prev) => prev.filter((c) => c.code !== code));
     setActionFeedback({ type: 'success', message: `Đã xóa vĩnh viễn voucher ${code} khỏi hệ thống!` });
+
+    auditLogService.logAction({
+      action: 'DELETE',
+      category: 'COUPON',
+      targetType: 'coupon',
+      targetId: code,
+      targetName: code,
+      details: { code }
+    });
   };
 
   // Handler: Hard Delete Bookings (Super Admin & Admin only)
@@ -654,6 +782,16 @@ export const AdminPortal: React.FC = () => {
           : `Đã xóa cứng vĩnh viễn ${successCount} đơn hàng đã chọn khỏi hệ thống!`;
 
       setActionFeedback({ type: 'success', message: msg });
+
+      auditLogService.logAction({
+        action: 'DELETE',
+        category: 'BOOKING',
+        targetType: 'booking',
+        targetId: bookingIds.join(', '),
+        targetName: `Xóa cứng ${bookingIds.length} đơn hàng`,
+        details: { deletedIds: bookingIds, successCount }
+      });
+
       return { success: true };
     } catch (err: any) {
       setActionFeedback({ type: 'error', message: err?.message || 'Lỗi khi xóa đơn hàng' });
@@ -670,7 +808,17 @@ export const AdminPortal: React.FC = () => {
   );
 
   const pureCustomers = customers.filter((c) => c.role === 'customer');
-  const staffMembers = customers.filter((c) => c.role !== 'customer') as StaffRecord[];
+
+  // Lọc danh sách nhân sự trực tiếp từ bảng tài khoản profiles (vai trò staff, admin, super_admin)
+  const staffMembers = customers
+    .filter((c) => c.role !== 'customer')
+    .map((c) => ({
+      ...c,
+      role: c.role as 'super_admin' | 'admin' | 'staff',
+      employeeCode: 'NV-' + c.id.slice(0, 4).toUpperCase(),
+      department: c.role === 'super_admin' ? 'Ban Giám Đốc' : c.role === 'admin' ? 'Kỹ Thuật & CNTT' : 'Kinh Doanh & CSKH',
+      position: c.role === 'super_admin' ? 'Tổng Quản Trị Hệ Thống' : c.role === 'admin' ? 'Quản Trị Viên' : 'Chuyên Viên Vận Hành'
+    })) as StaffRecord[];
 
   const filteredCustomers = pureCustomers.filter(
     (c) =>
@@ -716,7 +864,7 @@ export const AdminPortal: React.FC = () => {
       />
 
       {/* 2. MAIN CONTENT AREA */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#f8fafc' }}>
         {/* Topbar */}
         <AdminTopbar
           activeTab={activeTab}
@@ -729,28 +877,36 @@ export const AdminPortal: React.FC = () => {
           onOpenProfile={() => setActiveTab('profile')}
         />
 
-        {/* Action Flash Feedback Message */}
+        {/* Action Flash Feedback Message - Modern Floating Toast */}
         {actionFeedback && (
           <div
             style={{
-              padding: '0.75rem 2rem',
-              background: actionFeedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
-              color: actionFeedback.type === 'success' ? '#047857' : '#b91c1c',
-              borderBottom: `1px solid ${actionFeedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-              fontSize: '0.86rem',
-              fontWeight: 600,
+              position: 'fixed',
+              top: '86px',
+              right: '28px',
+              zIndex: 99999,
+              padding: '0.85rem 1.35rem',
+              background: actionFeedback.type === 'success' ? '#047857' : '#b91c1c',
+              color: '#ffffff',
+              borderRadius: '14px',
+              boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25), 0 6px 12px -2px rgba(0, 0, 0, 0.1)',
+              fontSize: '0.88rem',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem'
+              gap: '0.65rem',
+              border: actionFeedback.type === 'success' ? '1px solid #10b981' : '1px solid #f87171',
+              animation: 'fadeIn 0.25s ease-out'
             }}
           >
-            <i className={`fa-solid ${actionFeedback.type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`}></i>
+            <i className={`fa-solid ${actionFeedback.type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1rem' }} />
             <span>{actionFeedback.message}</span>
           </div>
         )}
 
         {/* Scrollable View Content Body */}
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '2rem 2.5rem', overflowY: 'auto', background: '#f8fafc' }}>
+          <div style={{ maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
           {activeTab === 'overview' && isTabAllowed(user?.role, 'overview') && (
             <OverviewModule
               bookings={bookings}
@@ -833,6 +989,10 @@ export const AdminPortal: React.FC = () => {
             />
           )}
 
+          {activeTab === 'logs' && isTabAllowed(user?.role, 'logs') && (
+            <AuditLogsModule />
+          )}
+
           {activeTab === 'profile' && isTabAllowed(user?.role, 'profile') && (
             <AccountModule />
           )}
@@ -890,6 +1050,7 @@ export const AdminPortal: React.FC = () => {
               </button>
             </div>
           )}
+          </div>
         </main>
       </div>
 

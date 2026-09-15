@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Tour } from '../../../types/tour.types';
 import { formatCurrencyVND } from '../../../utils/formatters';
+import { Tilt3DCard } from '../common/Tilt3DCard';
 
 interface TourCardProps {
   tour: Tour;
@@ -82,7 +83,8 @@ export const TourCard: React.FC<TourCardProps> = ({
      ───────────────────────────────────────────────────────────── */
   if (layout === 'horizontal') {
     return (
-      <article className={`vietravel-tour-card-h ${isCompared ? 'is-compared' : ''}`} data-id={tour.id}>
+      <Tilt3DCard maxTilt={4} style={{ height: '100%' }}>
+        <article className={`vietravel-tour-card-h ${isCompared ? 'is-compared' : ''}`} data-id={tour.id} style={{ height: '100%', margin: 0 }}>
         {/* Left Column: Image with Badges */}
         <div className="vt-card-img-wrap">
           <Link to={tourUrl} aria-label={`Xem chi tiết ${tour.title}`} style={{ display: 'block', height: '100%' }}>
@@ -244,14 +246,16 @@ export const TourCard: React.FC<TourCardProps> = ({
           </div>
         </div>
       </article>
-    );
-  }
+    </Tilt3DCard>
+  );
+}
 
   /* ─────────────────────────────────────────────────────────────
      2. GRID BENTO CARD LAYOUT (HOMEPAGE & GRID VIEW)
      ───────────────────────────────────────────────────────────── */
   return (
-    <div className={`tour-card-bento ${isCompared ? 'is-compared' : ''}`} data-id={tour.id}>
+    <Tilt3DCard maxTilt={6} style={{ height: '100%' }}>
+      <div className={`tour-card-bento ${isCompared ? 'is-compared' : ''}`} data-id={tour.id} style={{ height: '100%', margin: 0 }}>
       {/* 1. Image Area with Badges & Symmetrical Bottom Overlay */}
       <div className="card-img-wrap">
         <Link to={tourUrl} aria-label={`Xem chi tiết ${tour.title}`} style={{ display: 'block', height: '100%' }}>
@@ -391,5 +395,6 @@ export const TourCard: React.FC<TourCardProps> = ({
         </div>
       </div>
     </div>
-  );
+  </Tilt3DCard>
+);
 };
