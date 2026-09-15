@@ -147,6 +147,15 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
         {mode === 'success' ? (
           // Super happy open mouth
           <path d="M54 71 Q60 78 66 71 Z" fill="#e11d48" stroke="#9a3412" strokeWidth="1.2" />
+        ) : mode === 'peeking' ? (
+          // Cheeky sly smirk
+          <path
+            d="M55 71 Q60 74 66 69"
+            fill="none"
+            stroke="#9a3412"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
         ) : (
           // Cute cat-like smile
           <path
@@ -192,7 +201,7 @@ export const TravelMascot: React.FC<TravelMascotProps> = ({
               mode === 'blindfolded'
                 ? 'translate(-10px, -27px) rotate(14deg)' // Covers right eye
                 : mode === 'peeking'
-                ? 'translate(-4px, -14px) rotate(22deg)' // Lowers slightly to peek!
+                ? 'translate(4px, -6px) rotate(32deg)' // Clearly lowers paw to peek wide open!
                 : mode === 'success'
                 ? 'translate(6px, -35px) rotate(35deg)' // Raising paw happily
                 : 'translate(0px, 0px) rotate(0deg)', // Resting down

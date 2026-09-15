@@ -999,6 +999,8 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (mode === 'register') setPasswordTouched(true);
+                  setActiveField('password');
+                  setMascotMode(showPassword ? 'peeking' : 'blindfolded');
                 }}
                 onBlur={() => {
                   if (mode === 'register') setPasswordTouched(true);
@@ -1013,12 +1015,12 @@ export const LoginPage: React.FC = () => {
               </label>
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   const next = !showPassword;
                   setShowPassword(next);
-                  if (activeField === 'password') {
-                    setMascotMode(next ? 'peeking' : 'blindfolded');
-                  }
+                  setActiveField('password');
+                  setMascotMode(next ? 'peeking' : 'blindfolded');
                 }}
                 className="wt-floating-eye"
                 aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
@@ -1061,6 +1063,8 @@ export const LoginPage: React.FC = () => {
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setConfirmPasswordTouched(true);
+                      setActiveField('confirmPassword');
+                      setMascotMode(showConfirmPassword ? 'peeking' : 'blindfolded');
                     }}
                     onBlur={() => {
                       setConfirmPasswordTouched(true);
@@ -1075,12 +1079,12 @@ export const LoginPage: React.FC = () => {
                   </label>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       const next = !showConfirmPassword;
                       setShowConfirmPassword(next);
-                      if (activeField === 'confirmPassword') {
-                        setMascotMode(next ? 'peeking' : 'blindfolded');
-                      }
+                      setActiveField('confirmPassword');
+                      setMascotMode(next ? 'peeking' : 'blindfolded');
                     }}
                     className="wt-floating-eye"
                     aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
